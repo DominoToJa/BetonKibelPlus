@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b1022"><title>BetonKibelPlus — DOMINO</title>
+
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BetonKibelPlus">
+<meta name="description" content="Licznik betonowania z własnymi koszami, podziałką i komunikatami DOMINO.">
+<link rel="stylesheet" href="/app.css"></head><body><main>
+<header><h1>⚒️ BETON<b>KIBELPLUS</b></h1><div class="sub">Kibel • taczka • inne · tryb budowy</div></header>
+<nav class="tabs" aria-label="Nawigacja"><button data-tab="setup" class="on">+ Nowe</button><button data-tab="work">🏗 Licznik</button><button data-tab="history">▤ Budowy</button><button data-tab="drum">🛢 Diagram</button></nav>
+<div id="installInfo" class="panel slim" style="margin:10px 0;display:none">
+  <div class="row"><strong>📲 Aplikacja na telefonie</strong><button id="dismissInstall" type="button" style="flex:0 0 auto;padding:7px 11px" aria-label="Zamknij">✕</button></div>
+  <p id="installHelp" class="hint" style="margin:9px 0"></p>
+  <button id="installApp" type="button" class="primary full" style="display:none">Zainstaluj aplikację</button>
+</div>
+
+<section id="setup"><div class="panel"><h2>Nowe betonowanie</h2>
+<label class="label" for="site">Nazwa budowy</label><input id="site" list="knownSites" placeholder="np. Mindelheim — fundamenty" autocomplete="off"><datalist id="knownSites"></datalist><p class="hint" id="autoBucketHint">Wpisz nazwę znanej budowy, a aplikacja podstawi jej ostatnio używany kosz.</p>
+<label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
+<div class="label">Sposób rozładunku</div><div class="grid three"><button class="method on" data-method="kibel">🏗<br>Kibel</button><button class="method" data-method="taczka">🛒<br>Taczka</button><button class="method" data-method="inne">🚜<br>Inne</button></div>
+<div id="batchFields"><div class="label">Pojemność kosza / taczki / osprzętu (m³)</div><div id="presets" class="grid three"></div><label class="label" for="portion">Własna pojemność</label><input id="portion" inputmode="decimal" value="0,5"></div>
+<div id="photoChoice" class="panel" style="margin-top:13px;border-color:#4b6393;background:#121e36">
+  <h3>🪣 Wybór profilu rozładunku</h3>
+  <div class="grid two" style="margin-bottom:10px"><button type="button" class="pill on" id="chooseManual">✋ Ręcznie</button><button type="button" class="pill" id="choosePhoto">📸 Profil ze zdjęć</button></div>
+  <div id="manualHelp" class="hint">Wybierz standardową pojemność powyżej — bez zdjęć. Dla „Inne” działa tak samo.</div>
+  <div id="photoControls" class="hide">
+    <label class="label" for="savedBuckets">Moje zapisane kosze</label>
+    <select id="savedBuckets" style="width:100%;padding:12px;color:white;background:#0b1225;border:1px solid #5b76a4;border-radius:12px"><option value="">Wybierz profil…</option></select>
+    <div id="selectedBucketPhotos" class="grid two" style="margin-top:8px"></div><div id="selectedBucketInfo" class="hint" style="margin:8px 0">Wybierz profil albo utwórz nowy.</div>
+    <div class="row"><button type="button" id="openPhotoForm" class="primary">+ Dodaj kosz</button><button type="button" id="removePhotoProfile" class="warn">Usuń profil</button></div>
+    <details style="margin:12px 0"><summary>📥 Import kalibracji ze zdjęć przeanalizowanych w ChatGPT</summary><p class="hint">Prześlij zdjęcia kosza do ChatGPT, odbierz plik profilu JSON i zaimportuj go tutaj. Aplikacja nie wysyła zdjęć ani nie wykonuje analizy AI samodzielnie.</p><input id="bucketJsonImport" type="file" accept=".json,application/json"><div id="bucketImportStatus" class="hint"></div></details>
+    <div id="photoForm" class="hide" style="border-top:1px solid #52617b;margin-top:14px;padding-top:10px">
+      <h3>Nowy profil · zdjęcia sprzętu / kosza</h3><p class="hint">Dla kibla najlepiej: przód, bok, góra, tabliczka. Dla „Inne” zwykle wystarczy przód, bok i tabliczka, jeśli jest. Automatyczna analiza AI zdjęć nie działa w tym lokalnym pliku HTML.</p>
+      <label class="label" for="photoName">Nazwa kosza</label><input id="photoName" placeholder="np. Pomarańczowy z budowy">
+      <div class="grid two">
+        <div><label class="label" for="photoFront">Przód</label><input id="photoFront" type="file" accept="image/*" capture="environment" style="font-size:11px;padding:9px"></div>
+        <div><label class="label" for="photoSide">Bok</label><input id="photoSide" type="file" accept="image/*" capture="environment" style="font-size:11px;padding:9px"></div>
+        <div><label class="label" for="photoTop">Góra (opcjonalnie)</label><input id="photoTop" type="file" accept="image/*" capture="environment" style="font-size:11px;padding:9px"></div>
+        <div><label class="label" for="photoPlate">Tabliczka</label><input id="photoPlate" type="file" accept="image/*" capture="environment" style="font-size:11px;padding:9px"></div>
+      </div>
+      <label class="label" for="photoCapacity">Pojemność (m³) — z tabliczki lub z obliczeń</label><p class="hint">Po zapisaniu profil automatycznie ustawi się jako aktywny i podmieni ręczny wariant na tej budowie.</p><input id="photoCapacity" inputmode="decimal" placeholder="np. 0,75 — albo wpisz wymiary niżej"><p class="hint" id="capacityPreview" aria-live="polite">Po podaniu wymiarów pojemność policzy się automatycznie. Ze zdjęcia bez skali jej nie zgadujemy.</p>
+      <p class="hint">Sama fotografia nie wyznacza pewnej pojemności. Jeśli jej nie znasz, wybierz szacunkową wartość i oznacz profil jako roboczy.</p>
+      <label class="label" for="photoShape">Kształt wnętrza zbiornika</label><select id="photoShape" style="width:100%;padding:12px;color:white;background:#0b1225;border:1px solid #5b76a4;border-radius:12px"><option value="taper">Zwężany ku dołowi (ścięty stożek)</option><option value="cylinder">Proste ścianki (walec)</option></select>
+      <details><summary style="margin-top:10px">📏 Wymiary — oblicz pojemność i dokładniejszą podziałkę</summary>
+      <label class="label" for="photoTopDiameter">Średnica wewnętrzna u góry (cm)</label><input id="photoTopDiameter" inputmode="decimal" placeholder="np. 110">
+      <label class="label" for="photoBottomDiameter">Średnica wewnętrzna na dole (cm)</label><input id="photoBottomDiameter" inputmode="decimal" placeholder="np. 55">
+      <label class="label" for="photoHeight">Wysokość użytkowa (cm)</label><input id="photoHeight" inputmode="decimal" placeholder="np. 100">
+      <p class="hint">Dla walca wystarczy średnica i wysokość. Dla kosza zwężanego wszystkie trzy wartości pomagają wyliczyć wysokości kresek.</p></details>
+      <label class="label" style="display:flex;gap:8px;align-items:center"><input id="photoVerified" type="checkbox" style="width:auto"> Pojemność odczytana z tabliczki lub sprawdzona</label>
+      <button type="button" class="primary full" id="savePhotoProfile">💾 Zapisz i ustaw jako aktywny kosz</button><p class="hint">Po zapisaniu ten kosz automatycznie zastąpi ręczny wariant przy tej budowie. Jeśli nie ma danych o pojemności, nie zapisujemy fałszywej wartości.</p>
+      <div class="error" id="photoError"></div>
+    </div>
+  </div>
+</div>
+<div id="otherFields" class="hide"><p class="hint">Tryb „Inne” jest do rozładunku na koparkę, ładowarkę albo inny sprzęt. Liczenie działa porcjami tak samo jak przy kiblu — możesz też użyć profilu ze zdjęć.</p></div>
+<div id="cycleFields"><label class="label" for="cycleMin">Przewidywany czas kursu (minuty)</label><input id="cycleMin" inputmode="decimal" value="2" placeholder="np. 2 lub 2,5"><div class="hint">Np. 2,5 = dwie minuty i trzydzieści sekund. Później aplikacja wyliczy średnią z kursów.</div></div>
+<p id="error" class="error" aria-live="polite"></p><button class="primary full" id="start">▶ ROZPOCZNIJ BETONOWANIE</button>
+</div><details class="panel"><summary>⚙️ Ustawienia głosu i alarmów</summary><label class="label"><input type="checkbox" id="alarmOn" checked> Przypomnienie dźwiękowe (krótki sygnał)</label><label class="label"><input type="checkbox" id="confirmOn" checked> Potwierdzenie po naliczeniu</label><label class="label" for="notifyMode">Tryb komunikatów</label><select id="notifyMode" style="width:100%;margin-bottom:10px"><option value="full">Pełny lektor / dialogi</option><option value="short">Krótkie powiadomienie</option><option value="sound">Sam dźwięk</option></select><p class="hint">Jeśli ktoś nie chce lektora, może przełączyć aplikację na krótkie teksty albo sam sygnał.</p><p class="hint">Wybierz styl lektora. DOMINO — nowy lektor. Obecnie polski głos systemowy; własne nagrania DOMINO będzie można dodać później.</p><label class="label" style="display:flex;align-items:center;gap:10px"><input type="checkbox" id="ttsOn" style="width:22px;height:22px"> Czytaj komunikaty głosowo</label><label class="label" for="ttsProfile">Styl lektora</label><select id="ttsProfile" style="width:100%;margin-bottom:8px"><option value="normal">Naturalny — spokojny</option><option value="baca">Baca — wolniej, ciepło</option><option value="majster">Stary majster — głębiej</option><option value="radio">Radiowiec — wyraźnie</option><option value="domino">DOMINO — głos systemowy (tymczasowy)</option></select><div class="hint" id="voiceInfo">Dostępne barwy zależą od głosów zainstalowanych w telefonie.</div><label class="label" for="ttsVoice">Dostępny polski głos urządzenia</label><select id="ttsVoice" style="width:100%;margin-bottom:10px"><option value="">Automatyczny polski głos</option></select><button type="button" id="ttsTest" class="full" style="margin-bottom:10px">🔊 Sprawdź aktualnego lektora</button><button type="button" id="dominoTestDirect" class="orange-btn full" style="margin-bottom:10px">🎧 Test DOMINO</button><div class="audio-status" id="dominoStatus" aria-live="polite" style="margin-bottom:9px">DOMINO: lektor systemowy gotowy do testu.</div><button id="sample2" class="full">▶ DOMINO — odsłuch pytania</button><button id="sampleWarm" class="full" style="margin-top:8px">▶ DOMINO — odsłuch odpowiedzi</button><p class="hint">W trybie DOMINO nowe teksty czyta polski głos systemowy. Gdy dostarczysz nagrania DOMINO, można je podmienić.</p></details><details class="panel"><summary>📜 Kwestie staropolskiego bota</summary><p class="hint">Każdą kwestię możesz odsłuchać osobno. Komunikaty są obecnie czytane głosem systemowym.</p><div id="botDictionary"></div><h3 style="margin-top:16px">Dodatkowe nagrania</h3><div id="extraDictionary"></div></details></section>
+<section id="work" class="hide"><div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag" id="modeLabel">Kibel</span></div>
+<div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small>Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
+<div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas betonowania</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do przypomnienia</small></div></div><div class="status" id="status">Gotowy</div><div class="bot-quote" aria-live="polite"><span>📜 Staropolski bot · komunikaty 1.7</span><strong id="botText">Gotowy do betonowania.</strong></div></div>
+<div id="bucketPanel" class="panel"><p class="bucket-guide" id="touchText">DOTKNIJ KIBLA, ŻEBY DODAĆ PORCJĘ</p>
+<button id="bucket" class="bucket" aria-label="Dodaj jedną porcję betonu"><span id="bucketSvgWrap"></span></button>
+<div id="liveBucketSwitch" style="margin:12px 0;padding:12px;border:1px solid #506fa8;border-radius:12px;background:#142440"><label class="label" for="liveBucketProfile" style="margin:0 0 6px">🪣 Zmień kosz podczas betonowania</label><select id="liveBucketProfile" style="width:100%;padding:12px;border-radius:10px;color:white;background:#0b1225;border:1px solid #61779c"><option value="manual">✋ Ręczny — obecna pojemność</option></select><p class="hint">Wybór zapisanego kosza zmienia pojemność i podziałkę; nie dodaje betonu do licznika.</p></div><div id="activeBucketBadge" class="hint" style="text-align:center;color:#b0f2ff;font-weight:700;margin:9px 0">Tryb ręczny</div><div class="bucket-meta">Kosz <b><span id="bucketCap">0,5</span> m³</b> · aktualnie nalane: <b><span id="bucketNow">0,5</span> m³</b></div>
+<div class="bigadd">+ <span id="dose">0,5</span> m³ po kliknięciu</div>
+<label class="label" for="bucketRange">Przesuń — ustaw ile faktycznie wlano (m³)</label>
+<input id="bucketRange" type="range" min="0" max="0.5" step="0.05" value="0.5" aria-label="Ilość aktualnie wlana do kosza">
+<div class="bucket-marks" id="bucketMarksText">Podziałka dopasowana do pojemności kosza.</div><p class="hint" style="text-align:center;margin:7px 0 5px">Wskazania na rysunku są orientacyjne. Realna wysokość betonu zależy od wymiarów konkretnego kosza — nie jest to certyfikowana miara.</p>
+<div class="controls"><button id="less">− 0,05</button><button id="more">+ 0,05</button><button id="undo">↶ Cofnij</button></div><div class="label" style="text-align:center;margin-top:16px">Wybierz pojemność kosza</div><div class="quick" id="quick"></div>
+<details style="margin-top:12px"><summary>✏️ Wpisz inną ilość</summary><div class="row" style="margin-top:12px"><input id="manual" inputmode="decimal" placeholder="np. 0,35" style="margin:0"><button id="setManual">Ustaw</button></div></details></div>
+<div id="pumpPanel" class="panel hide"><h2>🚜 Inne — szybki ręczny wpis</h2><label class="label" for="pumpAmount">Ilość dodawana ręcznie (m³)</label><input id="pumpAmount" inputmode="decimal" value="0,5"><button id="pumpAdd" class="primary full">+ DODAJ RĘCZNIE</button><button id="pumpUndo" class="full" style="margin-top:8px">↶ Cofnij ostatnie</button><p class="help" id="pumpEst"></p></div>
+<div id="travelPanel" class="panel slim"><div class="actions"><button id="depart">▶ Kosz wyjechał</button><button id="returned" class="good">✓ Kosz już jest</button></div><p class="hint">Kosz wrócił wcześniej? Kliknij „Kosz już jest”. Sam powrót nie dolicza betonu.</p></div>
+<div id="alert" class="notice hide"><h3>🔔 Czy kosz już jest?</h3><div class="actions"><button id="late">Jeszcze nie</button><button id="arrived" class="good">Tak, jest</button></div><p class="hint">„Nie” — przypomnienie za 30 sekund. „Tak” — zapis powrotu, bez naliczania.</p></div>
+<div class="panel slim"><div id="foregroundStatus" class="audio-status" style="margin-bottom:10px;border-color:#b78145">⚠️ Na iPhonie zablokowany ekran zatrzymuje mikrofon i może wyciszyć alarm. To ograniczenie wersji przeglądarkowej; do niezawodnych alarmów potrzebna jest aplikacja natywna.</div><div id="alarmAudioStatus" class="audio-status" style="margin-bottom:10px">🔊 Aby sprawdzić głos STACHA, wybierz test alarmu z odblokowanym ekranem.</div></div>
+<div class="panel slim"><button type="button" id="openVoiceGuide" class="voice-cta">🎙️ ŚCIĄGAWKA — CO MOGĘ POWIEDZIEĆ BOTOWI? <span>›</span></button><div class="actions"><button id="mic">🎙️ Włącz mikrofon</button><button id="testAlarm">🔔 Test alarmu</button></div><div class="audio-status" style="margin-top:8px">🔉 Odczyt tekstów: <strong id="ttsState">wyłączony</strong>. Zmienisz go w zakładce „Nowe” → „Ustawienia głosu”.</div><div id="micStatus" class="audio-status" aria-live="polite" style="margin-top:11px">Mikrofon wyłączony. Dotknij, żeby zezwolić na nasłuchiwanie.</div>
+<details class="voice-help" style="margin-top:13px"><summary>🎙️ Lista komend głosowych</summary><div id="voiceCommands"><p class="hint">Komendy rozpoznawane przy włączonym mikrofonie:</p><div class="cmd-grid"><span>„Dodaj kibel”</span><small>Nalicza porcję z suwaka</small><span>„Ustaw porcję 0,35”</span><small>Zmienia ilość do naliczenia</small><span>„Kosz 0,75”</span><small>Zmienia pojemność kosza</small><span>„Pełny kosz”</span><small>Ustawia pełną pojemność</small><span>„Pół kosza”</span><small>Ustawia połowę pojemności</small><span>„Kosz wyjechał”</span><small>Rozpoczyna pomiar kursu</small><span>„Tak, jest” / „Kosz wrócił”</span><small>Kończy pomiar powrotu</small><span>„Nie, nie ma”</span><small>Powtórka alarmu po 30 s</small><span>„Cofnij”</span><small>Usuwa ostatnie naliczenie</small><span>„Ile zostało?”</span><small>Podaje pozostałą ilość</small><span>„Ile wylano?”</span><small>Podaje naliczoną ilość</small><span>„Ile czasu?”</span><small>Podaje czas betonowania</small></div></div></details>
+<details style="margin-top:13px"><summary>🧪 Test komend bez mikrofonu</summary><p class="hint">Sprawdza działanie komend, nawet gdy iPhone nie rozpoznaje głosu.</p><div class="row"><input id="commandTest" placeholder="np. dodaj kibel" style="margin:0"><button id="runCommand">Wykonaj</button></div></details></div>
+<div class="actions" style="margin-top:12px"><button id="new" class="primary">+ Nowe betonowanie</button><button id="finish" class="warn">✓ Zakończ betonowanie</button></div>
+<details class="panel"><summary>▤ Historia dolewek</summary><div id="entries" style="margin-top:8px"></div></details></section>
+<section id="history" class="hide"><div class="panel"><h2>📋 Historia budów</h2><p class="hint">Zapisywana lokalnie na tym telefonie i adresie strony. Zmiana hostingu może zmienić dostępną historię.</p><div id="historyRows"></div><button id="export" class="full csv">⬇ Pobierz historię CSV</button>
+<div class="panel" style="margin-top:16px"><h3>💾 Kopia danych</h3><p class="hint">Zapisz historię, rozpoczęte betonowanie i własne kosze przed zmianą telefonu lub hostingu.</p>
+<button id="backupExport" class="full" type="button">⬇ Pobierz kopię zapasową JSON</button>
+<label class="label" for="backupImport">Przywróć kopię danych</label>
+<input type="file" id="backupImport" accept=".json,application/json" style="font-size:12px;padding:10px">
+<p class="hint">Przywracanie zastępuje dane zapisane w tej aplikacji. Najpierw pobierz aktualną kopię.</p>
+</div></div></section>
+<div class="footer">Wersja 2.6 PWA · Pomiary na podstawie wpisów kierowcy, nie oficjalny pomiar betonu.</div><section id="drum" class="hide">
+  <div class="panel drum-panel">
+    <h2>🛢 Twój diagram gruszki</h2>
+    <p class="hint">Oryginalny diagram, który mi wysłałeś — bez przerabiania bębna na nowy kształt.</p>
+    <img src="/diagram_gruszki_oryginal.png" alt="Oryginalny diagram bębna betoniarki użytkownika" style="width:100%;height:auto;display:block;border-radius:14px;background:#fff;border:1px solid #5b76a4" />
+    <p class="hint" style="margin-top:12px">Podziałka to Twoja robocza ściągawka. Nie zastępuje pomiaru skalibrowanego dla konkretnego bębna.</p>
+  </div>
+</section></main>
+<div id="voiceGuideOverlay" class="guide-overlay" hidden>
+  <div class="guide-backdrop" id="voiceGuideBackdrop"></div>
+  <section class="guide-sheet" role="dialog" aria-modal="true" aria-labelledby="voiceGuideTitle" tabindex="-1">
+    <div class="guide-top"><div><h2 id="voiceGuideTitle">🎙️ Ściągawka komend</h2><p class="hint">Powiedz dokładnie tak, po włączeniu mikrofonu.</p></div><button id="voiceGuideClose" type="button" aria-label="Zamknij ściągawkę">✕</button></div>
+    <div class="guide-scroll" id="voiceGuideContent"></div>
+    <p class="hint" style="margin:8px 0 0">Na iPhonie głos działa tylko, gdy Safari pozwala na rozpoznawanie mowy i aplikacja jest aktywna. Komendy nie wykonują się przy wyłączonym mikrofonie.</p>
+    <button type="button" id="voiceGuideDone" class="primary full">Rozumiem — wracam do betonowania</button>
+  </section>
+</div><div id="toast" role="status"></div>
+<script type="module" src="/src/main.js"></script></body></html>

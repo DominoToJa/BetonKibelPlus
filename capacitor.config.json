@@ -1,0 +1,8 @@
+{
+  "appId": "com.betonkibelplus.mobile",
+  "appName": "BetonKibelPlus",
+  "webDir": "dist",
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}

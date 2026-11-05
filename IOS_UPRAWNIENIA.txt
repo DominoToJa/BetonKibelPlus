@@ -1,0 +1,4 @@
+W Xcode (Info.plist) dodaj przed użyciem mikrofonu i rozpoznawania mowy:
+NSMicrophoneUsageDescription = Mikrofon służy do sterowania licznikiem komendami głosowymi.
+NSSpeechRecognitionUsageDescription = Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus.
+Powiadomienia lokalne: aplikacja poprosi o zgodę w momencie pierwszego zaplanowanego alarmu.
