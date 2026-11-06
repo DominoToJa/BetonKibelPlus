@@ -51,9 +51,12 @@ workflows:
 
       - name: Spakowanie wyniku
         script: |
-          cd build/ios/Build/Products/Release-iphoneos
-          zip -r "$CM_BUILD_DIR/BetonKibelPlus_unsigned.zip" App.app
+          # .ipa bez podpisu — do podpisania na Windowsie w Sideloadly (darmowe Apple ID)
+          mkdir -p ipa_tmp/Payload
+          cp -R build/ios/Build/Products/Release-iphoneos/App.app ipa_tmp/Payload/
+          cd ipa_tmp
+          zip -qr "$CM_BUILD_DIR/BetonKibelPlus_unsigned.ipa" Payload
 
     artifacts:
-      - BetonKibelPlus_unsigned.zip
+      - BetonKibelPlus_unsigned.ipa
       - /tmp/xcodebuild_logs/*.log
