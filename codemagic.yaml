@@ -1,0 +1,59 @@
+# BetonKibelPlus DOMINO — Codemagic (Capacitor 7 + Vite)
+# Etap 1: build iOS BEZ PODPISU — tylko sprawdzenie, czy projekt się kompiluje.
+# Nie wymaga konta Apple Developer. Wynik (App.app w zipie) NIE da się zainstalować na iPhonie.
+
+workflows:
+  ios-unsigned:
+    name: iOS bez podpisu (test kompilacji)
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      node: 22
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Instalacja pakietów npm
+        script: |
+          npm ci || npm install
+
+      - name: Build frontendu (Vite -> dist)
+        script: |
+          npm run build
+
+      - name: Dodanie / synchronizacja platformy iOS (Capacitor)
+        script: |
+          if [ ! -d ios ]; then
+            npx cap add ios
+          fi
+          npx cap sync ios
+
+      - name: Opisy uprawnień w Info.plist (mikrofon, mowa)
+        script: |
+          PLIST=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Mikrofon służy do sterowania licznikiem komendami głosowymi.'" "$PLIST" \
+            || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Mikrofon służy do sterowania licznikiem komendami głosowymi.'" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus.'" "$PLIST" \
+            || /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus.'" "$PLIST"
+
+      - name: Kompilacja Xcode bez podpisu
+        script: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Spakowanie wyniku
+        script: |
+          cd build/ios/Build/Products/Release-iphoneos
+          zip -r "$CM_BUILD_DIR/BetonKibelPlus_unsigned.zip" App.app
+
+    artifacts:
+      - BetonKibelPlus_unsigned.zip
+      - /tmp/xcodebuild_logs/*.log
