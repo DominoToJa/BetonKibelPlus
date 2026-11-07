@@ -117,7 +117,9 @@
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <label class="label" for="ttsVoice">Głos lektora</label><select id="ttsVoice"><option value="">Najlepszy polski głos</option></select>
 <p class="hint" id="voiceHint"></p>
-<label class="label" for="ttsRate">Tempo mowy</label><input id="ttsRate" type="range" min="0.35" max="0.6" step="0.01" value="0.5">
+<div class="label">Styl głosu</div><div class="chips" id="voiceStyles"></div>
+<label class="label" for="ttsRate">Tempo mowy</label><input id="ttsRate" type="range" min="0.35" max="0.65" step="0.01" value="0.5">
+<label class="label" for="ttsPitch">Wysokość głosu</label><input id="ttsPitch" type="range" min="0.5" max="1.6" step="0.05" value="1">
 <button type="button" id="ttsTest" class="full" style="margin-top:12px">🔊 Sprawdź głos</button>
 <label class="label check"><input type="checkbox" id="alarmOn" checked> Krótki sygnał przy pytaniu o kosz</label>
 <label class="label check"><input type="checkbox" id="confirmOn" checked> Sygnał po naliczeniu</label>

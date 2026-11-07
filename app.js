@@ -40,7 +40,8 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.5, alarm: true, confirm: true };
+let settings = { mode: 'full', voice: '', rate: 0.5, pitch: 1, style: 'natural', alarm: true, confirm: true };
+const VOICE_STYLES = [['natural', 'Naturalny', .5, 1], ['calm', 'Spokojny', .43, .95], ['fast', 'Szybki budowlaniec', .6, 1.05], ['deep', 'Stary majster (niski)', .45, .7], ['baca', 'Baca (wolno, ciepło)', .39, .82], ['radio', 'Radiowiec (wyraźnie)', .52, 1.2], ['squeak', 'Wkurzony (wysoko)', .58, 1.45]];
 try {
   const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (s) Object.assign(settings, s);
@@ -52,7 +53,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: settings.voice || '', rate: Number(settings.rate) || 0.5, pitch: 1, useClips: true, voiceOn: settings.mode === 'full' }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: settings.voice || '', rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full' }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -61,8 +62,8 @@ function speak(key, text) {
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
   try {
-    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2;
-    const v = polishVoices().find(v => v.voiceURI === settings.voice) || polishVoices()[0]; if (v) u.voice = v; speechSynthesis.speak(u);
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2; u.pitch = Number(settings.pitch) || 1;
+    const pv = polishVoices(); const v = pv.find(v => v.voiceURI === settings.voice) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
 }
 function sayBot(key, text) {
@@ -507,16 +508,23 @@ function bucketListRender() {
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings() });
-$('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
+$('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); settings.style = ''; saveSettings(); stylesRender() });
+$('ttsPitch').value = String(settings.pitch ?? 1);
+$('ttsPitch').addEventListener('change', () => { settings.pitch = Number($('ttsPitch').value); settings.style = ''; saveSettings(); stylesRender() });
+function stylesRender() {
+  const box = $('voiceStyles'); box.replaceChildren();
+  for (const [id, name, rate, pitch] of VOICE_STYLES) box.append(el('button', { type: 'button', class: 'pill' + (settings.style === id ? ' on' : ''), text: name, onclick: () => { settings.style = id; settings.rate = rate; settings.pitch = pitch; $('ttsRate').value = String(rate); $('ttsPitch').value = String(pitch); saveSettings(); stylesRender(); speak('ask', TEXTS.ask || 'Czy kosz już wrócił?') } }));
+}
+stylesRender();
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
 $('textsReset').addEventListener('click', () => { if (!confirm('Przywrócić domyślne teksty lektora?')) return; TEXTS = { ...DEFAULT_TEXTS }; saveTexts(); settingsRender() });
 async function loadVoices() {
-  const sel = $('ttsVoice'); const keep = settings.voice; sel.replaceChildren(el('option', { value: '', text: 'Najlepszy polski głos' }));
+  const sel = $('ttsVoice'); const keep = settings.voice; sel.replaceChildren(el('option', { value: '', text: nativeVoice ? 'Najlepszy polski głos' : 'Automatycznie (Google polski, jeśli jest)' }));
   let list = [], hasGood = false;
   if (nativeVoice) { const r = await NV.voices().catch(() => ({ voices: [] })); list = (r.voices || []).map(v => ({ id: v.id, name: v.name + (v.quality === 'premium' ? ' ★★ premium' : v.quality === 'enhanced' ? ' ★ rozszerzony' : '') })); hasGood = (r.voices || []).some(v => v.quality !== 'default') }
-  else list = polishVoices().map(v => ({ id: v.voiceURI, name: v.name }));
+  else list = polishVoices().sort((a, b) => /google/i.test(b.name) - /google/i.test(a.name)).map(v => ({ id: v.voiceURI, name: v.name + (/google/i.test(v.name) ? ' ★' : '') }));
   for (const v of list) sel.append(el('option', { value: v.id, text: v.name }));
   sel.value = list.some(v => v.id === keep) ? keep : '';
   $('voiceHint').textContent = nativeVoice && !hasGood ? 'Lepszy głos: Ustawienia iPhone’a → Dostępność → Treść mówiona → Głosy → Polski → pobierz „Zosia (rozszerzony)” lub „Krzysztof (rozszerzony)”.' : '';
