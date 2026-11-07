@@ -40,8 +40,29 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.5, pitch: 1, style: 'natural', alarm: true, confirm: true };
-const VOICE_STYLES = [['natural', 'Naturalny', .5, 1], ['calm', 'Spokojny', .43, .95], ['fast', 'Szybki budowlaniec', .6, 1.05], ['deep', 'Stary majster (niski)', .45, .7], ['baca', 'Baca (wolno, ciepło)', .39, .82], ['radio', 'Radiowiec (wyraźnie)', .52, 1.2], ['squeak', 'Wkurzony (wysoko)', .58, 1.45]];
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true };
+const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
+const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
+// [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
+const LEKTORS = [
+  ['zosia', 'Zosia — spokojna', 'Ciepły, równy głos. Najprzyjemniejszy na co dzień.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], .47, 1.02],
+  ['zosia_pogodna', 'Zosia — pogodna', 'Trochę jaśniej i żywiej, nie męczy.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], .52, 1.12],
+  ['google', 'Google — naturalna', 'Głos Google polski w zwykłym tempie.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], .5, 1],
+  ['google_szybka', 'Google — szybka i konkretna', 'Krótko i na temat, gdy leje się szybko.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], .58, 1.02],
+  ['asystentka', 'Asystentka — miękka', 'Wolniej i łagodnie, dobra przy hałasie w tle.', 'f', [/zofia/i, /zosia/i, /paulina/i, /google/i, ...F], .44, 1.16],
+  ['krzysztof', 'Krzysztof — spokojny', 'Męski, spokojny i wyraźny.', 'm', [/krzysztof/i, /marek/i, ...M], .47, .98],
+  ['krzysztof_radio', 'Krzysztof — radiowy', 'Jak prezenter: płynnie i czytelnie.', 'm', [/krzysztof/i, /marek/i, ...M], .52, .92],
+  ['majster', 'Majster — niski', 'Niższy męski głos, bez pośpiechu.', 'm', [/marek/i, /krzysztof/i, ...M], .45, .84],
+  ['dyspozytor', 'Dyspozytor — wyraźny', 'Szybciej i dobitnie, dobry na komendy.', 'm', [/krzysztof/i, /marek/i, ...M], .55, 1],
+  ['lektor', 'Lektor filmowy', 'Niski, wolny, z powagą.', 'm', [/marek/i, /krzysztof/i, ...M], .43, .78],
+];
+let voiceList = []; // {id, name, quality}
+const qScore = v => (v.quality === 'premium' ? 3 : v.quality === 'enhanced' ? 2 : 1) + (/natural|online/i.test(v.name) ? 2 : 0);
+function lektorVoice(L) {
+  for (const rx of L[4]) { const hit = voiceList.filter(v => rx.test(v.name)).sort((a, b) => qScore(b) - qScore(a))[0]; if (hit) return { voice: hit, exact: L[4].indexOf(rx) === 0 || (L[3] === 'm' ? M : F).some(r => r.test(hit.name)) } }
+  return { voice: voiceList[0] || null, exact: false };
+}
+function resolvedVoiceId() { if (settings.voice) return settings.voice; const L = LEKTORS.find(x => x[0] === settings.lektor); return L ? (lektorVoice(L).voice?.id || '') : (voiceList.slice().sort((a, b) => qScore(b) - qScore(a))[0]?.id || '') }
 try {
   const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (s) Object.assign(settings, s);
@@ -53,7 +74,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: settings.voice || '', rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full' }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full' }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -63,7 +84,7 @@ function speak(key, text) {
   if (!text || !('speechSynthesis' in window)) return;
   try {
     speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2; u.pitch = Number(settings.pitch) || 1;
-    const pv = polishVoices(); const v = pv.find(v => v.voiceURI === settings.voice) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
+    const pv = polishVoices(); const id = resolvedVoiceId(); const v = pv.find(v => v.voiceURI === id) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
 }
 function sayBot(key, text) {
@@ -507,27 +528,34 @@ function bucketListRender() {
 // ───────────────────────── ustawienia ─────────────────────────
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
-$('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings() });
-$('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); settings.style = ''; saveSettings(); stylesRender() });
+$('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
+$('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
 $('ttsPitch').value = String(settings.pitch ?? 1);
-$('ttsPitch').addEventListener('change', () => { settings.pitch = Number($('ttsPitch').value); settings.style = ''; saveSettings(); stylesRender() });
-function stylesRender() {
-  const box = $('voiceStyles'); box.replaceChildren();
-  for (const [id, name, rate, pitch] of VOICE_STYLES) box.append(el('button', { type: 'button', class: 'pill' + (settings.style === id ? ' on' : ''), text: name, onclick: () => { settings.style = id; settings.rate = rate; settings.pitch = pitch; $('ttsRate').value = String(rate); $('ttsPitch').value = String(pitch); saveSettings(); stylesRender(); speak('ask', TEXTS.ask || 'Czy kosz już wrócił?') } }));
+$('ttsPitch').addEventListener('change', () => { settings.pitch = Number($('ttsPitch').value); saveSettings() });
+function lektorRender() {
+  const box = $('lektorList'); box.replaceChildren();
+  for (const L of LEKTORS) {
+    const [id, name, desc] = L, r = lektorVoice(L), on = settings.lektor === id && !settings.voice;
+    const used = r.voice ? (r.exact ? '🔊 ' + r.voice.name : '⚠️ brak tego głosu — zastępczo ' + r.voice.name) : '';
+    box.append(el('button', { type: 'button', class: 'lektor' + (on ? ' on' : ''), onclick: () => { settings.lektor = id; settings.voice = ''; settings.rate = L[5]; settings.pitch = L[6]; $('ttsRate').value = String(L[5]); $('ttsPitch').value = String(L[6]); $('ttsVoice').value = ''; saveSettings(); lektorRender(); speak('ask', TEXTS.ask || 'Czy kosz już wrócił?') } },
+      el('strong', { text: (on ? '✓ ' : '') + name }), el('small', { text: desc }), el('em', { text: used })));
+  }
 }
-stylesRender();
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
 $('textsReset').addEventListener('click', () => { if (!confirm('Przywrócić domyślne teksty lektora?')) return; TEXTS = { ...DEFAULT_TEXTS }; saveTexts(); settingsRender() });
 async function loadVoices() {
-  const sel = $('ttsVoice'); const keep = settings.voice; sel.replaceChildren(el('option', { value: '', text: nativeVoice ? 'Najlepszy polski głos' : 'Automatycznie (Google polski, jeśli jest)' }));
-  let list = [], hasGood = false;
-  if (nativeVoice) { const r = await NV.voices().catch(() => ({ voices: [] })); list = (r.voices || []).map(v => ({ id: v.id, name: v.name + (v.quality === 'premium' ? ' ★★ premium' : v.quality === 'enhanced' ? ' ★ rozszerzony' : '') })); hasGood = (r.voices || []).some(v => v.quality !== 'default') }
-  else list = polishVoices().sort((a, b) => /google/i.test(b.name) - /google/i.test(a.name)).map(v => ({ id: v.voiceURI, name: v.name + (/google/i.test(v.name) ? ' ★' : '') }));
-  for (const v of list) sel.append(el('option', { value: v.id, text: v.name }));
-  sel.value = list.some(v => v.id === keep) ? keep : '';
-  $('voiceHint').textContent = nativeVoice && !hasGood ? 'Lepszy głos: Ustawienia iPhone’a → Dostępność → Treść mówiona → Głosy → Polski → pobierz „Zosia (rozszerzony)” lub „Krzysztof (rozszerzony)”.' : '';
+  if (nativeVoice) { const r = await NV.voices().catch(() => ({ voices: [] })); voiceList = (r.voices || []).map(v => ({ id: v.id, name: v.name, quality: v.quality })) }
+  else voiceList = polishVoices().map(v => ({ id: v.voiceURI, name: v.name, quality: /google|natural|online/i.test(v.name) ? 'enhanced' : 'default' }));
+  const sel = $('ttsVoice'), keep = settings.voice; sel.replaceChildren(el('option', { value: '', text: 'Według lektora' }));
+  for (const v of voiceList.slice().sort((a, b) => qScore(b) - qScore(a))) sel.append(el('option', { value: v.id, text: v.name + (v.quality === 'premium' ? ' ★★' : v.quality === 'enhanced' ? ' ★' : '') }));
+  sel.value = voiceList.some(v => v.id === keep) ? keep : '';
+  const hasMale = voiceList.some(v => M.some(r => r.test(v.name))), hasGood = voiceList.some(v => v.quality !== 'default');
+  $('voiceHint').textContent = nativeVoice
+    ? (!hasGood || !hasMale ? 'Więcej i ładniejszych głosów: Ustawienia iPhone’a → Dostępność → Treść mówiona → Głosy → Polski → pobierz „Zosia” i „Krzysztof” w wersji rozszerzonej / premium.' : '')
+    : (!hasMale ? 'W tej przeglądarce nie ma polskiego głosu męskiego — męscy lektorzy użyją głosu zastępczego. W Edge są ładne głosy „Zofia” i „Marek (Natural)”.' : '');
+  lektorRender(); configureNative();
 }
 async function settingsRender() {
   loadVoices();
@@ -593,6 +621,7 @@ try {
 saveProfiles();
 selectMethod('kibel'); configureNative(); syncNative();
 if (nativeVoice) NV.listClips().then(k => clipKeys = new Set(k)).catch(() => { });
+loadVoices();
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if (currentTab === 'settings') loadVoices() };
 tab('home'); setInterval(tick, 500);
 drainNative();
