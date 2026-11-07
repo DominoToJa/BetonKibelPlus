@@ -1,15 +1,52 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-const ID=2101;
-const isNative=Capacitor.isNativePlatform();
-let allowed=false;
-async function permission(){if(!isNative)return false;try{const state=await LocalNotifications.requestPermissions();allowed=state.display==='granted';return allowed}catch(e){console.warn('Notifications permissions',e);return false}}
-async function schedule(at){if(!isNative)return; if(!(await permission()))return;try{await LocalNotifications.cancel({notifications:[{id:ID}]});await LocalNotifications.schedule({notifications:[{id:ID,title:'BetonKibelPlus — powrót kosza',body:'Czy kosz już jest?',schedule:{at:new Date(Math.max(Date.now()+1000,at))},sound:'default',actionTypeId:'KOSZ',extra:{kind:'bucket'}}]})}catch(e){console.warn('Schedule notification',e)}}
-async function cancel(){if(!isNative)return;try{await LocalNotifications.cancel({notifications:[{id:ID}]})}catch(e){console.warn('Cancel notification',e)}}
-window.BKPnative={schedule,cancel,isNative};
-if(isNative){
- LocalNotifications.registerActionTypes({types:[{id:'KOSZ',actions:[{id:'ARRIVED',title:'Kosz jest'},{id:'LATER',title:'Jeszcze nie'}]}]}).catch(e=>console.warn('Actions',e));
- LocalNotifications.addListener('localNotificationActionPerformed',event=>{
-   if(event.notification?.id===ID){window.dispatchEvent(new CustomEvent('bkp:notification-action',{detail:{action:event.actionId}}))}
- }).catch(e=>console.warn('Notification listener',e));
+
+const ID = 2101;
+const isNative = Capacitor.isNativePlatform();
+const Domino = registerPlugin('DominoNative');
+let allowed = false;
+
+async function permission() {
+  if (!isNative) return false;
+  try { const state = await LocalNotifications.requestPermissions(); allowed = state.display === 'granted'; return allowed }
+  catch (e) { console.warn('Notifications permissions', e); return false }
+}
+async function schedule(at, body) {
+  if (!isNative) return; if (!(await permission())) return;
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: ID }] });
+    await LocalNotifications.schedule({ notifications: [{ id: ID, title: 'BetonKibelPlus', body: body || 'Czy kosz już jest?', schedule: { at: new Date(Math.max(Date.now() + 1000, at)), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', extra: { kind: 'bucket' } }] });
+  } catch (e) { console.warn('Schedule notification', e) }
+}
+async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: [{ id: ID }] }) } catch (e) { console.warn('Cancel notification', e) } }
+
+const safe = (fn, fallback) => async (...args) => { if (!isNative) return fallback; try { return await fn(...args) } catch (e) { console.warn('DOMINO native', e); throw e } };
+
+const voice = {
+  available: isNative,
+  askPermissions: safe(() => Domino.askPermissions(), { speech: false, mic: false }),
+  start: safe(() => Domino.startListening({ lang: 'pl-PL' }), null),
+  stop: safe(() => Domino.stopListening(), null),
+  speak: safe((key, text, interrupt = true) => Domino.speak({ key: key || undefined, text: text || '', interrupt }), null),
+  stopSpeaking: safe(() => Domino.stopSpeaking(), null),
+  voices: safe(() => Domino.getVoices(), { voices: [], best: '' }),
+  configure: safe(cfg => Domino.configure(cfg), null),
+  setState: safe(st => Domino.setState(st), null),
+  drain: safe(async () => (await Domino.drainEvents()).events || [], []),
+  startRecording: safe(key => Domino.startRecording({ key }), null),
+  stopRecording: safe(() => Domino.stopRecording(), { saved: false }),
+  playClip: safe(key => Domino.playClip({ key }), { played: false }),
+  listClips: safe(async () => (await Domino.listClips()).keys || [], []),
+  deleteClip: safe(key => Domino.deleteClip({ key }), null),
+  onHeard(cb) { if (isNative) Domino.addListener('heard', e => cb(e.text || '')) },
+  onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
+};
+
+window.BKPnative = { schedule, cancel, isNative, voice };
+
+if (isNative) {
+  LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: 'Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }] }] }).catch(e => console.warn('Actions', e));
+  LocalNotifications.addListener('localNotificationActionPerformed', event => {
+    if (event.notification?.id === ID) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
+  }).catch(e => console.warn('Notification listener', e));
 }

@@ -1,6 +1,6 @@
 {
   "name": "betonkibelplus-domino",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,8 @@
   "dependencies": {
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
-    "@capacitor/local-notifications": "^7.0.0"
+    "@capacitor/local-notifications": "^7.0.0",
+    "domino-native": "file:plugins/domino-native"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",

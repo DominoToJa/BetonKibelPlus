@@ -1,0 +1,572 @@
+import Foundation
+import UIKit
+import AVFoundation
+import Speech
+import Capacitor
+
+/// BetonKibelPlus DOMINO — moduł natywny:
+/// - ciągłe rozpoznawanie mowy (działa też na zablokowanym ekranie dzięki trybowi audio w tle),
+/// - lektor (AVSpeechSynthesizer, najlepszy polski głos) i własne nagrania komunikatów,
+/// - gdy aplikacja jest w tle: sam pyta o kosz, obsługuje odpowiedzi i zapisuje zdarzenia
+///   do kolejki, którą JS odbiera po powrocie (drainEvents).
+@objc(DominoNativePlugin)
+public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
+    public let identifier = "DominoNativePlugin"
+    public let jsName = "DominoNative"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "askPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopListening", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "speak", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopSpeaking", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getVoices", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configure", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setState", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "drainEvents", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "startRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playClip", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listClips", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "deleteClip", returnType: CAPPluginReturnPromise)
+    ]
+
+    // MARK: - Audio / mowa
+    private let synth = AVSpeechSynthesizer()
+    private let engine = AVAudioEngine()
+    private var recognizer: SFSpeechRecognizer?
+    private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var task: SFSpeechRecognitionTask?
+    private var generation = 0
+    private var listening = false
+    private var tapInstalled = false
+    private var lastPartial = ""
+    private var silenceTimer: Timer?
+    private var restartTimer: Timer?
+    private var language = "pl-PL"
+
+    private var isSpeaking = false
+    private var speakingUntil = Date.distantPast
+    private var sayQueue: [(key: String?, text: String)] = []
+    private var player: AVAudioPlayer?
+    private var recorder: AVAudioRecorder?
+    private var recordingKey: String?
+    private var resumeListeningAfterRecording = false
+
+    // MARK: - Ustawienia z JS
+    private var texts: [String: String] = [:]
+    private var voiceId = ""
+    private var rate: Float = 0.5
+    private var pitch: Float = 1.0
+    private var useClips = true
+    private var voiceOn = true
+
+    // MARK: - Stan betonowania (kopia z JS)
+    private var active = false
+    private var method = "kibel"
+    private var phase = "ready"
+    private var deadline: Double = 0      // ms od 1970
+    private var departed: Double = 0
+    private var meanTripSec: Double = 120
+    private var dose: Double = 0.5
+    private var leftM3: Double = 0
+    private var poured: Double = 0
+    private var load: Double = 0
+    private var fired: Set<String> = []
+    private var askTimer: Timer?
+    private var reminders = 0
+    private var pending: [[String: Any]] = []
+
+    override public func load() {
+        synth.delegate = self
+        let nc = NotificationCenter.default
+        nc.addObserver(self, selector: #selector(onInterruption(_:)), name: AVAudioSession.interruptionNotification, object: nil)
+        nc.addObserver(self, selector: #selector(onMediaReset(_:)), name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
+        nc.addObserver(self, selector: #selector(onEngineConfig(_:)), name: .AVAudioEngineConfigurationChange, object: engine)
+    }
+
+    // MARK: - Uprawnienia
+    @objc func askPermissions(_ call: CAPPluginCall) {
+        SFSpeechRecognizer.requestAuthorization { status in
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                call.resolve(["speech": status == .authorized, "mic": granted])
+            }
+        }
+    }
+
+    private func configureSession() throws {
+        let s = AVAudioSession.sharedInstance()
+        try s.setCategory(.playAndRecord, mode: .default,
+                          options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
+        try s.setActive(true, options: [])
+    }
+
+    // MARK: - Słuchanie
+    @objc func startListening(_ call: CAPPluginCall) {
+        let lang = call.getString("lang") ?? "pl-PL"
+        DispatchQueue.main.async {
+            self.language = lang
+            guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+                call.reject("Brak zgody na rozpoznawanie mowy"); return
+            }
+            guard let rec = SFSpeechRecognizer(locale: Locale(identifier: lang)), rec.isAvailable else {
+                call.reject("Rozpoznawanie mowy jest teraz niedostępne"); return
+            }
+            self.recognizer = rec
+            do {
+                try self.configureSession()
+                self.listening = true
+                try self.startEngine()
+                self.startTask()
+                call.resolve(["onDevice": rec.supportsOnDeviceRecognition])
+            } catch {
+                self.listening = false
+                call.reject("Nie mogę uruchomić mikrofonu: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func stopListening(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.stopAll()
+            call.resolve()
+        }
+    }
+
+    private func stopAll() {
+        listening = false
+        generation += 1
+        silenceTimer?.invalidate(); silenceTimer = nil
+        restartTimer?.invalidate(); restartTimer = nil
+        request?.endAudio(); task?.cancel(); task = nil; request = nil
+        if engine.isRunning { engine.stop() }
+        if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
+    }
+
+    private func startEngine() throws {
+        if engine.isRunning { engine.stop() }
+        let input = engine.inputNode
+        if tapInstalled { input.removeTap(onBus: 0); tapInstalled = false }
+        let format = input.outputFormat(forBus: 0)
+        guard format.sampleRate > 0 && format.channelCount > 0 else {
+            throw NSError(domain: "DominoNative", code: 1, userInfo: [NSLocalizedDescriptionKey: "Brak wejścia mikrofonu"])
+        }
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+            self?.request?.append(buffer)
+        }
+        tapInstalled = true
+        engine.prepare()
+        try engine.start()
+    }
+
+    private func startTask() {
+        guard listening, let rec = recognizer else { return }
+        generation += 1
+        let gen = generation
+        task?.cancel(); task = nil
+        let req = SFSpeechAudioBufferRecognitionRequest()
+        req.shouldReportPartialResults = true
+        if rec.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
+        if #available(iOS 16.0, *) { req.addsPunctuation = false }
+        req.contextualStrings = ["dodaj kibel", "tak jest", "kosz jest", "nie ma", "jeszcze nie", "cofnij",
+                                 "kosz wyjechał", "ile zostało", "ile wylano", "pełny kosz", "pół kosza"]
+        request = req
+        lastPartial = ""
+        task = rec.recognitionTask(with: req) { [weak self] result, error in
+            DispatchQueue.main.async {
+                guard let self = self, gen == self.generation else { return }
+                if let r = result {
+                    let t = r.bestTranscription.formattedString
+                    if t != self.lastPartial { self.lastPartial = t; self.armSilence(gen) }
+                    if r.isFinal { self.finish(gen); return }
+                }
+                if error != nil { self.finish(gen) }
+            }
+        }
+        restartTimer?.invalidate()
+        restartTimer = Timer.scheduledTimer(withTimeInterval: 50, repeats: false) { [weak self] _ in
+            self?.finish(gen)
+        }
+    }
+
+    private func armSilence(_ gen: Int) {
+        silenceTimer?.invalidate()
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+            self?.finish(gen)
+        }
+    }
+
+    /// Koniec wypowiedzi: oddaj tekst i od razu słuchaj dalej.
+    private func finish(_ gen: Int) {
+        guard gen == generation else { return }
+        silenceTimer?.invalidate(); silenceTimer = nil
+        restartTimer?.invalidate(); restartTimer = nil
+        let text = lastPartial.trimmingCharacters(in: .whitespacesAndNewlines)
+        generation += 1
+        request?.endAudio(); task?.cancel(); task = nil; request = nil
+        lastPartial = ""
+        if !text.isEmpty && !isSpeaking && Date() > speakingUntil {
+            heard(text)
+        }
+        if listening {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.startTask() }
+        }
+    }
+
+    private func heard(_ text: String) {
+        if UIApplication.shared.applicationState == .active {
+            notifyListeners("heard", data: ["text": text])
+        } else {
+            handleInBackground(text)
+        }
+    }
+
+    // MARK: - Przerwania (telefon, Siri, słuchawki)
+    @objc private func onInterruption(_ n: Notification) {
+        guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        DispatchQueue.main.async {
+            if type == .ended { self.resumeAfterBreak() }
+        }
+    }
+    @objc private func onMediaReset(_ n: Notification) {
+        DispatchQueue.main.async { self.resumeAfterBreak() }
+    }
+    @objc private func onEngineConfig(_ n: Notification) {
+        DispatchQueue.main.async { self.resumeAfterBreak() }
+    }
+    private func resumeAfterBreak() {
+        guard listening else { return }
+        do {
+            try configureSession()
+            try startEngine()
+            startTask()
+        } catch {
+            notifyListeners("status", data: ["text": "Mikrofon przerwany: \(error.localizedDescription)"])
+        }
+    }
+
+    // MARK: - Lektor
+    @objc func configure(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let t = call.getObject("texts") {
+                var out: [String: String] = [:]
+                for (k, v) in t { if let s = v as? String { out[k] = s } }
+                self.texts = out
+            }
+            if let v = call.getString("voiceId") { self.voiceId = v }
+            if let r = call.getDouble("rate") { self.rate = Float(max(0.3, min(0.65, r))) }
+            if let p = call.getDouble("pitch") { self.pitch = Float(max(0.5, min(2.0, p))) }
+            if let u = call.getBool("useClips") { self.useClips = u }
+            if let v = call.getBool("voiceOn") { self.voiceOn = v }
+            call.resolve()
+        }
+    }
+
+    @objc func speak(_ call: CAPPluginCall) {
+        let text = call.getString("text") ?? ""
+        let key = call.getString("key")
+        let interrupt = call.getBool("interrupt") ?? true
+        DispatchQueue.main.async {
+            if interrupt { self.stopSpeech() }
+            self.say(key: key, text: text, force: true)
+            call.resolve()
+        }
+    }
+
+    @objc func stopSpeaking(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { self.stopSpeech(); call.resolve() }
+    }
+
+    private func stopSpeech() {
+        sayQueue.removeAll()
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        player?.stop(); player = nil
+        isSpeaking = false
+    }
+
+    @objc func getVoices(_ call: CAPPluginCall) {
+        let list = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.lowercased().hasPrefix("pl") }
+            .map { v -> [String: Any] in
+                return ["id": v.identifier, "name": v.name, "lang": v.language, "quality": self.qualityName(v)]
+            }
+        call.resolve(["voices": list, "best": bestPolishVoice()?.identifier ?? ""])
+    }
+
+    private func qualityName(_ v: AVSpeechSynthesisVoice) -> String {
+        if #available(iOS 16.0, *) { if v.quality == .premium { return "premium" } }
+        return v.quality == .enhanced ? "enhanced" : "default"
+    }
+
+    private func bestPolishVoice() -> AVSpeechSynthesisVoice? {
+        let pl = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.lowercased().hasPrefix("pl") }
+        func score(_ v: AVSpeechSynthesisVoice) -> Int {
+            switch qualityName(v) { case "premium": return 3; case "enhanced": return 2; default: return 1 }
+        }
+        return pl.max(by: { score($0) < score($1) }) ?? AVSpeechSynthesisVoice(language: "pl-PL")
+    }
+
+    /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
+    private func say(key: String?, text: String?, force: Bool = false) {
+        if !voiceOn && !force { return }
+        let t = (text?.isEmpty == false ? text! : (key.flatMap { texts[$0] } ?? ""))
+        let clip = key.map { hasClip($0) } ?? false
+        if t.isEmpty && !clip { return }
+        sayQueue.append((key, t))
+        if !isSpeaking { nextSay() }
+    }
+
+    private func nextSay() {
+        guard !sayQueue.isEmpty else {
+            isSpeaking = false
+            speakingUntil = Date().addingTimeInterval(0.8)
+            notifyListeners("spoken", data: [:])
+            return
+        }
+        let item = sayQueue.removeFirst()
+        isSpeaking = true
+        if useClips, let k = item.key, hasClip(k) {
+            do {
+                try configureSession()
+                let p = try AVAudioPlayer(contentsOf: clipURL(k))
+                p.delegate = self
+                player = p
+                if p.play() { return }
+            } catch { }
+        }
+        if item.text.isEmpty { nextSay(); return }
+        try? configureSession()
+        let u = AVSpeechUtterance(string: item.text)
+        u.voice = (voiceId.isEmpty ? nil : AVSpeechSynthesisVoice(identifier: voiceId)) ?? bestPolishVoice()
+        u.rate = rate
+        u.pitchMultiplier = pitch
+        synth.speak(u)
+    }
+
+    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { self.nextSay() }
+    }
+    public func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        DispatchQueue.main.async { if self.isSpeaking { self.nextSay() } }
+    }
+    public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        DispatchQueue.main.async { self.player = nil; self.nextSay() }
+    }
+
+    // MARK: - Nagrania własne
+    private func clipsDir() -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("clips", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+    private func safeKey(_ key: String) -> String {
+        let allowed = key.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "-" }
+        return String(String.UnicodeScalarView(allowed))
+    }
+    private func clipURL(_ key: String) -> URL {
+        return clipsDir().appendingPathComponent(safeKey(key) + ".m4a")
+    }
+    private func hasClip(_ key: String) -> Bool {
+        return FileManager.default.fileExists(atPath: clipURL(key).path)
+    }
+
+    @objc func startRecording(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), !safeKey(key).isEmpty else { call.reject("Brak nazwy komunikatu"); return }
+        DispatchQueue.main.async {
+            self.stopSpeech()
+            self.resumeListeningAfterRecording = self.listening
+            if self.listening { self.stopAll() }
+            do {
+                try self.configureSession()
+                let settings: [String: Any] = [
+                    AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+                    AVSampleRateKey: 44100,
+                    AVNumberOfChannelsKey: 1,
+                    AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+                ]
+                let tmp = self.clipsDir().appendingPathComponent("_nagrywanie.m4a")
+                try? FileManager.default.removeItem(at: tmp)
+                let r = try AVAudioRecorder(url: tmp, settings: settings)
+                self.recorder = r
+                self.recordingKey = key
+                if !r.record() { throw NSError(domain: "DominoNative", code: 2, userInfo: [NSLocalizedDescriptionKey: "Nagrywanie nie wystartowało"]) }
+                call.resolve()
+            } catch {
+                self.recorder = nil; self.recordingKey = nil
+                call.reject("Nie mogę nagrywać: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @objc func stopRecording(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let r = self.recorder, let key = self.recordingKey else { call.reject("Nic nie jest nagrywane"); return }
+            let duration = r.currentTime
+            r.stop()
+            self.recorder = nil; self.recordingKey = nil
+            let tmp = self.clipsDir().appendingPathComponent("_nagrywanie.m4a")
+            let dest = self.clipURL(key)
+            var saved = false
+            if duration >= 0.3 {
+                try? FileManager.default.removeItem(at: dest)
+                saved = (try? FileManager.default.moveItem(at: tmp, to: dest)) != nil
+            } else {
+                try? FileManager.default.removeItem(at: tmp)
+            }
+            if self.resumeListeningAfterRecording, self.recognizer != nil {
+                self.listening = true
+                try? self.configureSession()
+                try? self.startEngine()
+                self.startTask()
+            }
+            call.resolve(["saved": saved, "duration": duration])
+        }
+    }
+
+    @objc func playClip(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("Brak nazwy"); return }
+        DispatchQueue.main.async {
+            guard self.hasClip(key) else { call.resolve(["played": false]); return }
+            self.stopSpeech()
+            let keep = self.useClips
+            self.useClips = true
+            self.say(key: key, text: "", force: true)
+            self.useClips = keep
+            call.resolve(["played": true])
+        }
+    }
+
+    @objc func listClips(_ call: CAPPluginCall) {
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: clipsDir().path)) ?? []
+        let keys = files.filter { $0.hasSuffix(".m4a") && !$0.hasPrefix("_") }.map { String($0.dropLast(4)) }
+        call.resolve(["keys": keys])
+    }
+
+    @objc func deleteClip(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else { call.reject("Brak nazwy"); return }
+        try? FileManager.default.removeItem(at: clipURL(key))
+        call.resolve()
+    }
+
+    // MARK: - Stan i obsługa w tle
+    @objc func setState(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.active = call.getBool("active") ?? false
+            self.method = call.getString("method") ?? "kibel"
+            self.phase = call.getString("phase") ?? "ready"
+            self.deadline = call.getDouble("deadline") ?? 0
+            self.departed = call.getDouble("departed") ?? 0
+            self.meanTripSec = max(10, call.getDouble("meanTripSec") ?? 120)
+            self.dose = call.getDouble("dose") ?? 0.5
+            self.leftM3 = call.getDouble("left") ?? 0
+            self.poured = call.getDouble("poured") ?? 0
+            self.load = call.getDouble("load") ?? 0
+            if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
+            self.scheduleAsk()
+            call.resolve()
+        }
+    }
+
+    @objc func drainEvents(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let out = self.pending
+            self.pending.removeAll()
+            call.resolve(["events": out])
+        }
+    }
+
+    private func nowMs() -> Double { return Date().timeIntervalSince1970 * 1000 }
+
+    private func scheduleAsk() {
+        askTimer?.invalidate(); askTimer = nil
+        guard active, method != "taczka", (phase == "away" || phase == "late"), deadline > 0 else { return }
+        let delay = max(0.5, (deadline - nowMs()) / 1000)
+        askTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in self?.askFired() }
+    }
+
+    /// Termin powrotu kosza minął. Na pierwszym planie zajmuje się tym JS; w tle — moduł natywny.
+    private func askFired() {
+        guard active, phase == "away" || phase == "late" else { return }
+        if UIApplication.shared.applicationState == .active {
+            return
+        }
+        let first = phase == "away"
+        phase = "late"
+        reminders += 1
+        deadline = nowMs() + 30000
+        pending.append(["type": "alarm", "at": nowMs()])
+        say(key: first ? "ask" : "remind", text: nil)
+        if reminders < 40 { scheduleAsk() }
+    }
+
+    private func norm(_ s: String) -> String {
+        let x = s.lowercased().replacingOccurrences(of: "ł", with: "l")
+        let folded = x.folding(options: .diacriticInsensitive, locale: Locale(identifier: "pl_PL"))
+        let cleaned = folded.unicodeScalars.map { CharacterSet.letters.contains($0) || CharacterSet.decimalDigits.contains($0) ? Character($0) : " " }
+        return " " + String(cleaned).split(separator: " ").joined(separator: " ") + " "
+    }
+    private func has(_ t: String, _ phrases: [String]) -> Bool {
+        return phrases.contains { t.contains(" " + $0 + " ") }
+    }
+    private func fmt(_ v: Double) -> String {
+        let f = NumberFormatter()
+        f.locale = Locale(identifier: "pl_PL")
+        f.maximumFractionDigits = 2
+        f.minimumFractionDigits = 0
+        return f.string(from: NSNumber(value: (v * 100).rounded() / 100)) ?? String(v)
+    }
+
+    private func handleInBackground(_ raw: String) {
+        let t = norm(raw)
+        let now = nowMs()
+        guard active else { return }
+        if has(t, ["nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie jest"]) {
+            guard method != "taczka" else { return }
+            phase = "late"; deadline = now + 30000
+            pending.append(["type": "delay", "at": now])
+            say(key: "late", text: nil)
+            scheduleAsk()
+        } else if has(t, ["tak", "juz jest", "kosz jest", "kibel jest", "wrocil", "przyjechal", "jest"]) {
+            guard method != "taczka" else { return }
+            phase = "returned"; deadline = 0; departed = 0; reminders = 0
+            askTimer?.invalidate()
+            pending.append(["type": "returned", "at": now])
+            say(key: "arrived", text: nil)
+        } else if has(t, ["cofnij", "anuluj", "usun ostatni"]) {
+            pending.append(["type": "undo", "at": now])
+            say(key: "undo", text: nil)
+        } else if has(t, ["ile zostalo", "ile betonu", "stan betonu"]) {
+            say(key: "reportLeft", text: (texts["reportLeftPrefix"] ?? "Zostało") + " " + fmt(leftM3) + " metra sześciennego")
+        } else if has(t, ["ile wylano", "ile nalano"]) {
+            say(key: "reportPoured", text: (texts["reportPouredPrefix"] ?? "Wylano") + " " + fmt(poured) + " metra sześciennego")
+        } else if has(t, ["wyjechal", "ruszyl", "pojechal"]) {
+            guard method != "taczka" else { return }
+            departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
+            pending.append(["type": "depart", "at": now])
+            say(key: "depart", text: nil)
+            scheduleAsk()
+        } else if has(t, ["dodaj", "nalicz", "dolej", "zalicz"]) {
+            guard leftM3 > 0.0001 else { return }
+            let before = leftM3
+            let amount = min(dose, leftM3)
+            leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
+            poured += amount
+            pending.append(["type": "add", "at": now, "amount": amount])
+            say(key: "added", text: nil)
+            for (thr, key) in [(3.0, "left3"), (1.5, "left15"), (0.5, "left05")] {
+                if before > thr + 0.00001 && leftM3 > 0 && leftM3 <= thr + 0.00001 && !fired.contains(key) {
+                    fired.insert(key); say(key: key, text: nil)
+                }
+            }
+            if leftM3 <= 0.0001 {
+                phase = "ready"; askTimer?.invalidate()
+            } else if method != "taczka" {
+                departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
+                scheduleAsk()
+            }
+        } else {
+            say(key: "error", text: nil)
+        }
+    }
+}

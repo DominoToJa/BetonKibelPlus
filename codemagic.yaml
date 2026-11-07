@@ -38,13 +38,22 @@ workflows:
             echo "ikona: $f ($W px)"
           done
 
-      - name: Opisy uprawnień w Info.plist (mikrofon, mowa)
+      - name: Uprawnienia i tryb pracy w tle (Info.plist)
         script: |
           PLIST=ios/App/App/Info.plist
-          /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string 'Mikrofon służy do sterowania licznikiem komendami głosowymi.'" "$PLIST" \
-            || /usr/libexec/PlistBuddy -c "Set :NSMicrophoneUsageDescription 'Mikrofon służy do sterowania licznikiem komendami głosowymi.'" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :NSSpeechRecognitionUsageDescription string 'Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus.'" "$PLIST" \
-            || /usr/libexec/PlistBuddy -c "Set :NSSpeechRecognitionUsageDescription 'Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus.'" "$PLIST"
+          setkey() {
+            /usr/libexec/PlistBuddy -c "Delete :$1" "$PLIST" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Add :$1 string '$2'" "$PLIST"
+          }
+          setkey NSMicrophoneUsageDescription "Mikrofon służy do sterowania licznikiem komendami głosowymi i do nagrywania własnych komunikatów."
+          setkey NSSpeechRecognitionUsageDescription "Rozpoznawanie mowy służy do wydawania komend BetonKibelPlus, także przy zablokowanym ekranie."
+          setkey NSCameraUsageDescription "Aparat służy do zdjęć kosza."
+          setkey NSPhotoLibraryUsageDescription "Galeria służy do wyboru zdjęć kosza."
+          /usr/libexec/PlistBuddy -c "Delete :UIBackgroundModes" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string audio" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Print" "$PLIST" | grep -E "Usage|audio" || true
+          grep -n "DominoNative" ios/App/Podfile ios/App/App/capacitor.config.json || echo "UWAGA: brak DominoNative w projekcie"
 
       - name: Kompilacja Xcode bez podpisu
         script: |

@@ -1,0 +1,16 @@
+{
+  "name": "domino-native",
+  "version": "0.1.0",
+  "description": "BetonKibelPlus DOMINO: rozpoznawanie mowy w tle, lektor i nagrania (iOS)",
+  "main": "index.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^7.0.0"
+  }
+}
