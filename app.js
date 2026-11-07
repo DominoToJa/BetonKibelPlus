@@ -136,7 +136,7 @@ function syncNative() {
   NV.setState({ active: !!s, method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
-let modelCache = { key: '', model: null };
+let modelCache = { key: '', model: null }, quickOpen = false;
 function currentModel() {
   const p = session?.bucketProfile, cap = Number(session?.capacity || session?.dose || .5);
   const k = JSON.stringify([p?.id, p?.shape, p?.dims, cap]);
@@ -357,9 +357,13 @@ function render() {
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
   $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ, ŻEBY DODAĆ TACZKĘ' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
-  const q = $('quick'); q.replaceChildren();
-  if (s.method !== 'taczka') for (const p of profiles) q.append(el('button', { type: 'button', class: 'pill profile' + (s.bucketProfile?.id === p.id ? ' on' : ''), text: '📐 ' + p.name + ' · ' + fmt(p.capacity), onclick: () => changeCapacity(p.capacity, p) }));
-  for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!s.bucketProfile && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => changeCapacity(v, null) }));
+  const ab = $('activeBucket'); ab.replaceChildren();
+  const cur = s.bucketProfile;
+  ab.append(el('div', { class: 'ab-info' }, el('strong', { text: cur ? '📐 ' + cur.name : (s.method === 'taczka' ? '🛒 Taczka' : '🪣 Kosz ręczny') }), el('small', { text: fmt(s.capacity) + ' m³ · ' + (cur ? (model.measured ? 'podziałka z zapisanego kosza' : 'podziałka orientacyjna') : 'podziałka orientacyjna') })));
+  ab.append(el('button', { type: 'button', class: 'ab-change', text: quickOpen ? 'Zamknij' : 'Zmień kosz', onclick: () => { quickOpen = !quickOpen; render() } }));
+  const q = $('quick'); q.replaceChildren(); q.classList.toggle('hide', !quickOpen);
+  if (s.method !== 'taczka') for (const p of profiles) q.append(el('button', { type: 'button', class: 'pill profile' + (s.bucketProfile?.id === p.id ? ' on' : ''), text: '📐 ' + p.name + ' · ' + fmt(p.capacity), onclick: () => { quickOpen = false; changeCapacity(p.capacity, p) } }));
+  for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!s.bucketProfile && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { quickOpen = false; changeCapacity(v, null) } }));
   $('status').textContent = s.method === 'taczka' ? 'Taczka' : phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : phase === 'returned' ? 'Kosz wrócił — ustaw ile wlano i dotknij kibla' : 'Gotowy';
   $('entries').innerHTML = s.entries.length ? s.entries.slice().reverse().map(e => '<div class="history-entry"><span>' + new Date(e.at).toLocaleTimeString('pl-PL') + '</span><strong>+' + fmt(e.amount) + ' m³</strong></div>').join('') : '<div class="help">Brak dolewek</div>';
 }
@@ -540,7 +544,7 @@ function bucketListRender() {
 let formEstimated = false;
 const PC_STEPS = ['side-photo', 'side', 'fill', 'top-photo', 'top', 'scale', 'result'];
 const PC_SIDE = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
-const PC_TOP = ['lewą krawędź otworu', 'prawą krawędź otworu', 'przednią krawędź (bliżej Ciebie)', 'tylną krawędź (dalej)'];
+const PC_TOP = ['1 — LEWĄ krawędź otworu', '2 — PRAWĄ krawędź otworu', '3 — PRZEDNIĄ krawędź (bliżej Ciebie)', '4 — TYLNĄ krawędź (dalej)'];
 const newPhoto = () => ({ img: null, file: null, pts: [] });
 const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'plate', cap: .75, ref: [], k: 1, drag: -1 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -578,6 +582,7 @@ function pcUI() {
   $('pcPickText').textContent = '📸 Zrób zdjęcie';
   $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i sfotografuj otwór z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
   $('pcShapeToggle').classList.toggle('hide', !['top-photo', 'top'].includes(st));
+  $('pcTopHint').classList.toggle('hide', !['top-photo', 'top'].includes(st) || (st === 'top' && pc.top.pts.length > 0));
   document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
   $('pcWrap').classList.toggle('hide', !canvasStep());
   $('pcScale').classList.toggle('hide', st !== 'scale');
@@ -595,7 +600,7 @@ function pcUI() {
   if (st === 'side-photo') txt = 'Krok 1 · Zdjęcie kosza z boku.';
   else if (st === 'side') { ok = pc.side.pts.length === 4; txt = ok ? 'Przeciągnij punkty na krawędzie wnętrza, potem „Dalej”.' : 'Dotknij: ' + PC_SIDE[pc.side.pts.length] + '.' }
   else if (st === 'fill') { ok = !!pc.fill; txt = 'Dotknij wysokości, do której FAKTYCZNIE dochodzi beton (np. spaw, pasek, ślad betonu). Jeśli do samej krawędzi — „Beton do krawędzi”.' }
-  else if (st === 'top-photo') txt = 'Krok 2 · Zdjęcie z góry pokaże, czy kosz jest okrągły, owalny czy kanciasty. Wybierz też kształt poniżej.';
+  else if (st === 'top-photo') txt = 'Krok 2 (można pominąć) · Zdjęcie otworu z góry — pokaże, czy kosz jest owalny albo kanciasty.';
   else if (st === 'top') { ok = pc.top.pts.length === 4; txt = ok ? 'Gotowe — „Dalej”. Możesz poprawić punkty.' : 'Dotknij: ' + PC_TOP[pc.top.pts.length] + '.' }
   else if (st === 'scale') {
     txt = 'Krok 3 · Skąd znamy wielkość kosza?';

@@ -153,3 +153,9 @@ details.fine{margin-top:14px}
 .pc-pick-sub{color:#c6c4ea;font-size:13px;margin:0 0 10px}
 .pc-pick-small{text-align:center;cursor:pointer;display:block}
 .pc-pick-row .big-btn.primary{background:linear-gradient(120deg,#8BD1E0,#9B4CD3);color:#0e1030;border-color:#c3e9f1}
+.pc-tophint{background:#1a1638;border:1px solid #4a4582;border-radius:14px;padding:10px;margin-bottom:10px}
+.pc-tophint svg{width:100%;max-width:300px;display:block;margin:0 auto}
+.pc-tophint p{font-size:13px;line-height:1.45;margin:6px 0 0;color:#dcebf5}
+.active-bucket{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:#1a1638;border:1px solid #8BD1E0}
+.ab-info{flex:1;min-width:0}.ab-info strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ab-info small{color:var(--muted);font-size:12px}
+.ab-change{flex:none;padding:9px 12px;font-size:13px}
