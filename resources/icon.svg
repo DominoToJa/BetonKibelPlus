@@ -1,47 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1d1546"/>
-      <stop offset="1" stop-color="#0c1630"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.55">
-      <stop offset="0" stop-color="#9B4CD3" stop-opacity="0.45"/>
-      <stop offset="0.6" stop-color="#8BD1E0" stop-opacity="0.10"/>
-      <stop offset="1" stop-color="#8BD1E0" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="body" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8BD1E0"/>
-      <stop offset="1" stop-color="#9B4CD3"/>
-    </linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6a3aa6"/>
-      <stop offset="1" stop-color="#4b2a86"/>
-    </linearGradient>
-    <linearGradient id="handle" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#eaf8fc"/>
-      <stop offset="1" stop-color="#b9dfea"/>
-    </linearGradient>
-    <linearGradient id="fill" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#d9f3f9" stop-opacity="0.95"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-  <rect width="1024" height="1024" fill="url(#glow)"/>
-  <!-- handle -->
-  <path d="M398 342 L432 196 Q512 128 592 196 L626 342" fill="none" stroke="url(#handle)" stroke-width="40" stroke-linejoin="round" stroke-linecap="round"/>
-  <!-- bucket body -->
-  <path d="M226 352 L798 352 L716 790 Q712 812 690 812 L334 812 Q312 812 308 790 Z" fill="url(#body)"/>
-  <!-- right side shade -->
-  <path d="M694 352 L798 352 L716 790 Q712 812 690 812 L622 812 Z" fill="url(#side)" opacity="0.55"/>
-  <!-- soft highlight -->
-  <path d="M262 380 L330 380 L380 770 L346 770 Z" fill="#ffffff" opacity="0.18"/>
-  <!-- rim -->
-  <rect x="196" y="318" width="632" height="54" rx="27" fill="#4a3a9a"/>
-  <rect x="196" y="318" width="632" height="18" rx="9" fill="#ffffff" opacity="0.12"/>
-  <!-- m3 badge -->
-  <rect x="384" y="448" width="256" height="128" rx="34" fill="#120e2e" opacity="0.92"/>
-  <text x="512" y="545" text-anchor="middle" font-family="Inter, DejaVu Sans, sans-serif" font-weight="800" font-size="92" fill="#ffffff">m³</text>
-  <!-- level line -->
-  <rect x="300" y="628" width="424" height="22" rx="11" fill="url(#fill)"/>
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8BD1E0"/><stop offset="1" stop-color="#9B4CD3"/></linearGradient>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d1546"/><stop offset="1" stop-color="#0c1630"/></linearGradient></defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="512" r="330" fill="none" stroke="url(#g)" stroke-width="56"/>
+<text x="512" y="575" text-anchor="middle" font-family="Inter, sans-serif" font-weight="900" font-size="230" fill="url(#g)">BK+</text>
+<text x="512" y="690" text-anchor="middle" font-family="Inter, sans-serif" font-weight="800" font-size="62" letter-spacing="14" fill="#cfe9f1">DOMINO</text>
 </svg>
