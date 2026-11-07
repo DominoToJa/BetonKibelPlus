@@ -490,10 +490,11 @@ function bucketPreview() {
   }
 }
 $('bShape').addEventListener('change', () => dimFields($('bShape').value)); $('bPlate').addEventListener('input', bucketPreview); $('bReal').addEventListener('input', bucketPreview);
-$('bPhotos').addEventListener('change', async e => {
+const addFormPhotos = async e => {
   for (const f of [...(e.target.files || [])].slice(0, 4)) { try { formPhotos.push(await thumbFromFile(f)) } catch (err) { $('bError').textContent = 'Nie odczytano zdjęcia' } }
   formPhotos = formPhotos.slice(-4); thumbsRender(); e.target.value = '';
-});
+};
+$('bPhotos').addEventListener('change', addFormPhotos); $('bPhotosCam').addEventListener('change', addFormPhotos);
 function thumbsRender() { const t = $('bPhotoThumbs'); t.replaceChildren(...formPhotos.map((src, i) => el('button', { type: 'button', class: 'thumb', title: 'Usuń', onclick: () => { formPhotos.splice(i, 1); thumbsRender() } }, el('img', { src, alt: '' })))) }
 function openBucketForm(p = null) {
   editingId = p?.id || ''; formEstimated = !!p?.estimated; formPhotos = (p?.photos || []).map(x => x.data || x).filter(Boolean);
@@ -574,8 +575,8 @@ function pcUI() {
   $('pcProgress').replaceChildren(...['Bok', 'Beton', 'Góra', 'Skala', 'Wynik'].map((t, j) => el('span', { class: [1, 2, 4, 5, 6][j] <= i ? 'on' : '', text: t })));
   const isPick = st === 'side-photo' || st === 'top-photo';
   $('pcPick').classList.toggle('hide', !isPick);
-  $('pcPickText').textContent = st === 'top-photo' ? '🖼 Zdjęcie z góry (do środka kosza)' : '🖼 Zdjęcie z boku';
-  $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i zrób zdjęcie otworu z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
+  $('pcPickText').textContent = '📸 Zrób zdjęcie';
+  $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i sfotografuj otwór z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
   $('pcShapeToggle').classList.toggle('hide', !['top-photo', 'top'].includes(st));
   document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
   $('pcWrap').classList.toggle('hide', !canvasStep());
@@ -662,18 +663,20 @@ function pcDraw() {
   const up = () => { if (pc.drag >= 0) { pc.drag = -1; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
-$('pcFile').addEventListener('change', e => {
+function pcFilePicked(e) {
   const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
   const ph = pcPhoto(), rd = new FileReader();
   rd.onload = () => { const img = new Image(); img.onload = () => { ph.img = img; ph.file = f; ph.pts = []; pc.step = ph === pc.top ? 'top' : 'side'; pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result };
   rd.readAsDataURL(f);
-});
+}
+$('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
+const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
 document.querySelectorAll('[data-pcmode]').forEach(b => b.addEventListener('click', () => { pc.mode = b.dataset.pcmode; pc.ref = []; pcUI() }));
 ['pcPlate', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI()));
 $('pcRefType').addEventListener('change', () => pcUI());
 const go = st => { pc.step = st; pcUI() };
-$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; go('top-photo') } else { pc.top = newPhoto(); go('scale') } });
+$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; go('top-photo'); pcCameraNow() } else { pc.top = newPhoto(); go('scale') } });
 $('pcBack').addEventListener('click', () => {
   const st = pc.step;
   if (st === 'side') { if (pc.side.pts.length) pc.side.pts.pop(); else return go('side-photo') }
@@ -687,7 +690,7 @@ $('pcBack').addEventListener('click', () => {
 $('pcNext').addEventListener('click', async () => {
   const st = pc.step;
   if (st === 'side') return go('fill');
-  if (st === 'fill') return go('top-photo');
+  if (st === 'fill') { go('top-photo'); return pcCameraNow() }
   if (st === 'top') return go('scale');
   if (st === 'scale') return go('result');
   if (st !== 'result') return;
@@ -701,7 +704,7 @@ $('pcNext').addEventListener('click', async () => {
   $('bName').focus(); announce('Faktycznie ≈ ' + fmt(r.real) + ' m³ — nazwij kosz i zapisz');
 });
 $('pcClose').addEventListener('click', pcClose);
-$('bPhotoCalc').addEventListener('click', pcOpen);
+$('bPhotoCalc').addEventListener('click', () => { pcOpen(); pcCameraNow() });
 
 // ───────────────────────── ustawienia ─────────────────────────
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;

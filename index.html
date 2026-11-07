@@ -59,7 +59,8 @@
   <label class="label" for="bPlate">Pojemność z tabliczki (m³) <span class="muted">— jeśli jest</span></label><input id="bPlate" inputmode="decimal" placeholder="np. 0,75">
   <label class="label" for="bReal">Faktycznie wchodzi (m³) <span class="muted">— jeśli wiesz, np. tabliczka 0,75, a wchodzi 0,6</span></label><input id="bReal" inputmode="decimal" placeholder="np. 0,6">
   <div id="bPreview" class="calc-box" aria-live="polite"></div>
-  <label class="label" for="bPhotos">Zdjęcia (opcjonalnie — z aparatu lub galerii)</label><input id="bPhotos" type="file" accept="image/*" multiple>
+  <div class="label">Zdjęcia (opcjonalnie)</div>
+  <div class="pc-pick-row"><label class="pill pc-pick-small">📸 Zrób zdjęcie<input id="bPhotosCam" type="file" accept="image/*" capture="environment" hidden></label><label class="pill pc-pick-small">🖼 Z galerii<input id="bPhotos" type="file" accept="image/*" multiple hidden></label></div>
   <div id="bPhotoThumbs" class="thumbs"></div>
   <div class="error" id="bError"></div>
   <div class="row"><button type="button" id="bSave" class="primary">💾 Zapisz</button><button type="button" id="bCancel">Anuluj</button></div>
@@ -142,7 +143,13 @@
   <div class="pc-top"><strong id="pcTitle">📷 Kosz ze zdjęć</strong><button type="button" id="pcClose" class="icon-btn" aria-label="Zamknij">✕</button></div>
   <div class="pc-progress" id="pcProgress"></div>
   <p class="pc-step" id="pcStep"></p>
-  <label class="big-btn pc-pick hide" id="pcPick"><span id="pcPickText">🖼 Zdjęcie z boku</span><small id="pcPickSub"></small><input id="pcFile" type="file" accept="image/*" hidden></label>
+  <div id="pcPick" class="hide">
+   <p class="pc-pick-sub" id="pcPickSub"></p>
+   <div class="pc-pick-row">
+    <label class="big-btn primary pc-pick"><span id="pcPickText">📸 Zrób zdjęcie</span><input id="pcCamera" type="file" accept="image/*" capture="environment" hidden></label>
+    <label class="big-btn pc-pick">🖼 Z galerii<input id="pcFile" type="file" accept="image/*" hidden></label>
+   </div>
+  </div>
   <div class="chips hide" id="pcShapeToggle"><button type="button" class="pill" data-pcshape="round">⭕ Okrągły / owalny</button><button type="button" class="pill" data-pcshape="rect">⬛ Kanciasty</button></div>
   <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas></div>
   <div id="pcScale" class="hide">
