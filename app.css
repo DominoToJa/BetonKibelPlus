@@ -159,3 +159,5 @@ details.fine{margin-top:14px}
 .active-bucket{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:14px;background:#1a1638;border:1px solid #8BD1E0}
 .ab-info{flex:1;min-width:0}.ab-info strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ab-info small{color:var(--muted);font-size:12px}
 .ab-change{flex:none;padding:9px 12px;font-size:13px}
+.quick-caps{justify-content:center}.quick-caps .pill{min-width:72px}
+.custom-row{width:100%;margin-top:4px}

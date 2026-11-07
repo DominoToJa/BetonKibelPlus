@@ -116,7 +116,7 @@ const saveProfiles = () => { try { localStorage.setItem(PROFILE_KEY, JSON.string
 const storeSiteAssignments = () => { try { localStorage.setItem(SITE_BUCKET_KEY, JSON.stringify(siteAssignments)) } catch (e) { } };
 function rememberSiteBucket(name, id) { const k = siteKey(name); if (!k) return; siteAssignments[k] = id || 'manual'; storeSiteAssignments() }
 const snapshot = p => p ? { id: p.id, name: p.name, shape: p.shape, dims: p.dims, capacity: p.capacity } : null;
-const opts = { kibel: [0.5, 0.75, 1, 1.5], taczka: [0.05, 0.06, 0.08, 0.1], inne: [0.25, 0.5, 0.75, 1] };
+const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1], inne: [0.5, 1, 1.5, 2, 2.5, 3] };
 
 // ───────────────────────── stan ─────────────────────────
 let session = null, archive = [], method = 'kibel', chosenProfileId = '';
@@ -136,7 +136,7 @@ function syncNative() {
   NV.setState({ active: !!s, method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
-let modelCache = { key: '', model: null }, quickOpen = false;
+let modelCache = { key: '', model: null }, customOpen = false;
 function currentModel() {
   const p = session?.bucketProfile, cap = Number(session?.capacity || session?.dose || .5);
   const k = JSON.stringify([p?.id, p?.shape, p?.dims, cap]);
@@ -173,7 +173,7 @@ function homeRender() {
 
 // ───────────────────────── nowe betonowanie ─────────────────────────
 function refreshKnownSites() { const list = $('knownSites'); list.replaceChildren(); const sites = new Set([...Object.keys(siteAssignments), ...archive.map(s => s.site || '').filter(Boolean)]); for (const s of sites) list.append(el('option', { value: s })) }
-function chooseProfile(id) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p) $('portion').value = fmt(p.capacity); renderPresets() }
+function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
   const useProfiles = method !== 'taczka';
@@ -187,7 +187,7 @@ function restoreSiteBucket() {
   const id = siteAssignments[siteKey($('site').value)];
   const p = id && id !== 'manual' ? getProfile(id) : null;
   $('autoBucketHint').textContent = p ? '✅ Kosz z tej budowy: ' + p.name + ' (' + fmt(p.capacity) + ' m³)' : '';
-  if (p) chooseProfile(p.id);
+  if (p) chooseProfile(p.id, false);
 }
 function selectMethod(m) {
   method = m; chosenProfileId = '';
@@ -289,7 +289,7 @@ const bucketStep = cap => { cap = Number(cap) || .5; if (cap <= .1) return .01; 
 const bucketMarks = cap => {
   cap = Number(cap) || .5;
   const step = cap <= .12 ? .02 : cap <= .3 ? .05 : cap <= .65 ? .1 : cap <= 1.3 ? .2 : cap <= 2.6 ? .5 : 1;
-  const out = []; for (let v = step; v < cap - step * .35; v += step) out.push(Math.round(v * 100) / 100);
+  const out = []; for (let v = step; v < cap - step * .6; v += step) out.push(Math.round(v * 100) / 100);
   out.push(Math.round(cap * 100) / 100); return out;
 };
 function changeDose(v, quiet = false) {
@@ -351,19 +351,25 @@ function render() {
   $('loaded').textContent = fmt(s.load); $('poured').textContent = fmt(entriesSum()); $('left').textContent = fmt(left());
   $('progress').style.width = Math.min(100, 100 * entriesSum() / s.load) + '%';
   $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
-  $('levelHint').textContent = model.measured && s.dose > 0 ? '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią' : '';
+  $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
   $('bucketSvgWrap').innerHTML = makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
   $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ, ŻEBY DODAĆ TACZKĘ' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
   const ab = $('activeBucket'); ab.replaceChildren();
-  const cur = s.bucketProfile;
-  ab.append(el('div', { class: 'ab-info' }, el('strong', { text: cur ? '📐 ' + cur.name : (s.method === 'taczka' ? '🛒 Taczka' : '🪣 Kosz ręczny') }), el('small', { text: fmt(s.capacity) + ' m³ · ' + (cur ? (model.measured ? 'podziałka z zapisanego kosza' : 'podziałka orientacyjna') : 'podziałka orientacyjna') })));
-  ab.append(el('button', { type: 'button', class: 'ab-change', text: quickOpen ? 'Zamknij' : 'Zmień kosz', onclick: () => { quickOpen = !quickOpen; render() } }));
-  const q = $('quick'); q.replaceChildren(); q.classList.toggle('hide', !quickOpen);
-  if (s.method !== 'taczka') for (const p of profiles) q.append(el('button', { type: 'button', class: 'pill profile' + (s.bucketProfile?.id === p.id ? ' on' : ''), text: '📐 ' + p.name + ' · ' + fmt(p.capacity), onclick: () => { quickOpen = false; changeCapacity(p.capacity, p) } }));
-  for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!s.bucketProfile && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { quickOpen = false; changeCapacity(v, null) } }));
+  const cur = s.bucketProfile; ab.classList.toggle('hide', !cur);
+  if (cur) ab.append(el('div', { class: 'ab-info' }, el('strong', { text: '📐 ' + cur.name + ' · ' + fmt(s.capacity) + ' m³' }), el('small', { text: model.measured ? 'dokładna podziałka z pomiaru / zdjęć' : 'zapisany kosz' })));
+  const q = $('quick'); q.replaceChildren(); q.classList.remove('hide');
+  for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!cur && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { customOpen = false; changeCapacity(v, null) } }));
+  const isCustom = !cur && !(opts[s.method] || []).some(v => Math.abs(v - s.capacity) < 1e-4);
+  q.append(el('button', { type: 'button', class: 'pill' + (isCustom || customOpen ? ' on' : ''), text: isCustom ? '✏️ ' + fmt(s.capacity) + ' m³' : '✏️ Inna', onclick: () => { customOpen = !customOpen; render(); if (customOpen) setTimeout(() => $('customCap')?.focus(), 30) } }));
+  if (customOpen) {
+    const inp = el('input', { id: 'customCap', inputmode: 'decimal', placeholder: 'np. 0,8', style: 'margin:0' });
+    const ok = () => { const v = number(inp.value); if (!(v > 0 && v <= 5)) return announce('Wpisz od 0,01 do 5 m³'); customOpen = false; changeCapacity(v, null) };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok() });
+    q.append(el('div', { class: 'row custom-row' }, inp, el('button', { type: 'button', class: 'primary', text: 'Ustaw', onclick: ok })));
+  }
   $('status').textContent = s.method === 'taczka' ? 'Taczka' : phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : phase === 'returned' ? 'Kosz wrócił — ustaw ile wlano i dotknij kibla' : 'Gotowy';
   $('entries').innerHTML = s.entries.length ? s.entries.slice().reverse().map(e => '<div class="history-entry"><span>' + new Date(e.at).toLocaleTimeString('pl-PL') + '</span><strong>+' + fmt(e.amount) + ' m³</strong></div>').join('') : '<div class="help">Brak dolewek</div>';
 }
