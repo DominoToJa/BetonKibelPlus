@@ -462,7 +462,7 @@ function dimFields(shape, values = {}) {
   const box = $('bDims'); box.replaceChildren();
   for (const [k, label, ph] of SHAPES[shape].fields) {
     const inp = el('input', { id: 'bd_' + k, inputmode: 'decimal', placeholder: 'np. ' + ph }); if (values[k] != null) inp.value = fmt(values[k]);
-    inp.addEventListener('input', bucketPreview);
+    inp.addEventListener('input', () => { formEstimated = false; bucketPreview() });
     box.append(el('div', {}, el('label', { class: 'label', for: 'bd_' + k, text: label }), inp));
   }
   $('bShapeHint').textContent = SHAPES[shape].hint; bucketPreview();
@@ -489,7 +489,7 @@ $('bPhotos').addEventListener('change', async e => {
 });
 function thumbsRender() { const t = $('bPhotoThumbs'); t.replaceChildren(...formPhotos.map((src, i) => el('button', { type: 'button', class: 'thumb', title: 'Usuń', onclick: () => { formPhotos.splice(i, 1); thumbsRender() } }, el('img', { src, alt: '' })))) }
 function openBucketForm(p = null) {
-  editingId = p?.id || ''; formPhotos = (p?.photos || []).map(x => x.data || x).filter(Boolean);
+  editingId = p?.id || ''; formEstimated = !!p?.estimated; formPhotos = (p?.photos || []).map(x => x.data || x).filter(Boolean);
   $('bucketFormTitle').textContent = p ? 'Edytuj kosz' : 'Nowy kosz';
   $('bName').value = p?.name || ''; $('bShape').value = p?.shape && SHAPES[p.shape] ? p.shape : 'cone';
   $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims ? fmt(p.capacity) : '');
@@ -503,7 +503,7 @@ $('bSave').addEventListener('click', () => {
   if (shape !== 'plate' && !dims) return $('bError').textContent = 'Uzupełnij wszystkie wymiary (w cm).';
   const capacity = plate > 0 ? plate : geo;
   if (!(capacity > 0 && capacity <= 5)) return $('bError').textContent = 'Pojemność musi być od 0 do 5 m³.';
-  const p = { id: editingId || 'bucket-' + Date.now(), name: $('bName').value.trim() || 'Mój kosz', shape, dims, plate: plate > 0 ? plate : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  const p = { id: editingId || 'bucket-' + Date.now(), name: $('bName').value.trim() || 'Mój kosz', shape, dims, estimated: formEstimated, plate: plate > 0 ? plate : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
   const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
   if (i >= 0) profiles[i] = p; else profiles.push(p);
   if (!saveProfiles()) { profiles = backup; return }
@@ -516,7 +516,7 @@ function bucketListRender() {
   if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
   for (const p of profiles) {
     const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : el('div', { class: 'bucket-thumb ph', text: '🪣' });
-    const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³ · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.dims ? ' · zmierzony' : '') }));
+    const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³ · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęcia' : p.dims ? ' · zmierzony' : '') }));
     const acts = el('div', { class: 'bucket-acts' });
     if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
     acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
@@ -524,6 +524,119 @@ function bucketListRender() {
     box.append(el('div', { class: 'bucket-row' }, img, info, acts));
   }
 }
+
+// ───────────────────────── kosz ze zdjęcia (szacunek bez mierzenia) ─────────────────────────
+let formEstimated = false;
+const pc = { img: null, src: '', file: null, pts: [], ref: [], step: 'photo', cap: .75, k: 1, drag: -1 };
+const PC_CORNERS = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+function pcRefCm() { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v }
+function pcOpen() { Object.assign(pc, { img: null, src: '', pts: [], ref: [], step: 'photo', drag: -1 }); $('pcRefType').value = '0'; $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI() }
+function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
+function pcCompute() {
+  const [TL, TR, BR, BL] = pc.pts; const topW = dist(TL, TR), botW = dist(BL, BR), hPx = dist(mid(TL, TR), mid(BL, BR));
+  if (!(topW > 5 && botW > 2 && hPx > 5)) return null;
+  const rect = $('bShape').value === 'rect';
+  const mk = c => rect ? { lTop: topW * c, wTop: topW * c, lBottom: botW * c, wBottom: botW * c, h: hPx * c } : { dTop: topW * c, dBottom: botW * c, h: hPx * c };
+  const shape = rect ? 'rect' : 'cone';
+  const refCm = pcRefCm(), refPx = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0;
+  let dims, cap, scaled = false;
+  if (refCm > 0 && refPx > 3) { dims = mk(refCm / refPx); cap = geoCapacity(shape, dims) }
+  else { const base = geoCapacity(shape, mk(100 / topW)); const c = Math.cbrt(pc.cap / base) * 100 / topW; dims = mk(c); cap = pc.cap; scaled = true }
+  return { shape, dims, cap, scaled, ratio: botW / topW, aspect: hPx / topW };
+}
+function pcUI() {
+  const st = pc.step, need = st === 'bucket' ? 4 : 2, refCm = pcRefCm();
+  $('pcPick').classList.toggle('hide', st !== 'photo');
+  $('pcWrap').classList.toggle('hide', st === 'photo' || st === 'result');
+  $('pcRef').classList.toggle('hide', st !== 'ref');
+  $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
+  $('pcCapPick').classList.toggle('hide', !(st === 'ref' && !(refCm > 0)));
+  $('pcResult').classList.toggle('hide', st !== 'result');
+  $('pcBack').classList.toggle('hide', st === 'photo');
+  $('pcNext').classList.toggle('hide', st === 'photo');
+  let txt = '';
+  if (st === 'photo') txt = 'Krok 1/3 · Zdjęcie kosza z boku, cały kosz w kadrze.';
+  else if (st === 'bucket') txt = pc.pts.length < 4 ? 'Krok 2/3 · Dotknij: ' + PC_CORNERS[pc.pts.length] + '.' : 'Krok 2/3 · Przeciągnij punkty, żeby leżały na krawędziach wnętrza. Potem „Dalej”.';
+  else if (st === 'ref') txt = refCm > 0 ? (pc.ref.length < 2 ? 'Krok 3/3 · Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu na zdjęciu.' : 'Krok 3/3 · Gotowe — „Dalej”.') : 'Krok 3/3 · Wybierz, co jest obok kosza (wtedy policzę m³), albo typową pojemność.';
+  else txt = 'Wynik szacunku';
+  $('pcStep').textContent = txt;
+  $('pcNext').textContent = st === 'result' ? '✓ Użyj w koszu' : 'Dalej ›';
+  $('pcNext').disabled = (st === 'bucket' && pc.pts.length < 4) || (st === 'ref' && refCm > 0 && pc.ref.length < 2);
+  if (st === 'ref') { const box = $('pcCapPick'); box.replaceChildren(...[.25, .5, .75, 1, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(pc.cap - v) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { pc.cap = v; pcUI() } }))) }
+  if (st === 'result') {
+    const r = pcCompute(), box = $('pcResult'); box.replaceChildren();
+    if (!r) { box.append(el('div', { class: 'error', text: 'Punkty są za blisko siebie — cofnij i zaznacz rogi jeszcze raz.' })); $('pcNext').disabled = true; return }
+    const d = r.dims, dimTxt = r.shape === 'rect' ? 'góra ' + Math.round(d.lTop) + ' cm · dół ' + Math.round(d.lBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' : 'Ø góra ' + Math.round(d.dTop) + ' cm · Ø dół ' + Math.round(d.dBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm';
+    box.append(el('div', { class: 'calc-main', text: (r.scaled ? 'Pojemność: ' : 'Szacowana pojemność: ≈ ') + fmt(r.cap) + ' m³' }));
+    box.append(el('div', { class: 'muted', text: r.scaled ? 'Kształt i podziałka ze zdjęcia, pojemność wybrana przez Ciebie.' : 'Szacunek ze zdjęcia, błąd zwykle ±10–20%. Jeśli znasz tabliczkę — wpisz ją, będzie dokładniej.' }));
+    box.append(el('div', { class: 'muted', text: 'Wymiary (szacunek): ' + dimTxt }));
+    if (!r.scaled && (r.cap > 5 || r.cap < .03)) box.append(el('div', { class: 'error', text: '⚠️ Wynik wygląda nierealnie — sprawdź punkty przedmiotu odniesienia.' }));
+    $('pcNext').disabled = !(r.cap > 0 && r.cap <= 5);
+  }
+  pcDraw();
+}
+function pcDraw() {
+  const cv = $('pcCanvas'); if (!pc.img || $('pcWrap').classList.contains('hide')) return;
+  const wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = wrap.clientWidth || 340, maxH = Math.max(220, window.innerHeight * .52);
+  const k = Math.min(maxW / pc.img.width, maxH / pc.img.height); pc.k = k;
+  const w = Math.round(pc.img.width * k), h = Math.round(pc.img.height * k);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
+  const lw = 3 / k, r = 11 / k;
+  if (pc.pts.length) {
+    g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.18)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (pc.pts.length === 4) { g.closePath(); g.fill() } g.stroke();
+    pc.pts.forEach((p, i) => { g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fillStyle = '#8BD1E0'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#14112e'; g.stroke(); g.fillStyle = '#14112e'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y) });
+  }
+  if (pc.ref.length) {
+    g.lineWidth = lw; g.strokeStyle = '#ffd17e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke();
+    pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, r * .8, 0, Math.PI * 2); g.fillStyle = '#ffd17e'; g.fill() });
+  }
+}
+(function pcInput() {
+  const cv = $('pcCanvas');
+  const pos = e => { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / pc.k, y: (e.clientY - b.top) / pc.k } };
+  const list = () => pc.step === 'bucket' ? pc.pts : pc.step === 'ref' ? pc.ref : null;
+  cv.addEventListener('pointerdown', e => {
+    const L = list(); if (!L) return; const p = pos(e); e.preventDefault(); cv.setPointerCapture(e.pointerId);
+    let best = -1, bd = 30 / pc.k; L.forEach((q, i) => { const d = dist(p, q); if (d < bd) { bd = d; best = i } });
+    const max = pc.step === 'bucket' ? 4 : (pcRefCm() > 0 ? 2 : 0);
+    if (best >= 0) pc.drag = best; else if (L.length < max) { L.push(p); pc.drag = L.length - 1 } else pc.drag = -1;
+    pcUI();
+  });
+  cv.addEventListener('pointermove', e => { const L = list(); if (!L || pc.drag < 0) return; L[pc.drag] = pos(e); pcDraw() });
+  const up = () => { pc.drag = -1; pcUI() }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
+})();
+$('pcFile').addEventListener('change', e => {
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; pc.file = f;
+  const rd = new FileReader(); rd.onload = () => { const img = new Image(); img.onload = () => { pc.img = img; pc.src = rd.result; pc.pts = []; pc.ref = []; pc.step = 'bucket'; pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result }; rd.readAsDataURL(f);
+});
+$('pcRefType').addEventListener('change', () => { pc.ref = []; pcUI() });
+$('pcRefCustom').addEventListener('input', () => pcUI());
+$('pcBack').addEventListener('click', () => {
+  if (pc.step === 'result') pc.step = 'ref';
+  else if (pc.step === 'ref') { if (pc.ref.length) pc.ref.pop(); else pc.step = 'bucket' }
+  else if (pc.step === 'bucket') { if (pc.pts.length) pc.pts.pop(); else pc.step = 'photo' }
+  pcUI();
+});
+$('pcNext').addEventListener('click', async () => {
+  if (pc.step === 'bucket') pc.step = 'ref';
+  else if (pc.step === 'ref') pc.step = 'result';
+  else if (pc.step === 'result') {
+    const r = pcCompute(); if (!r) return;
+    $('bShape').value = r.shape; dimFields(r.shape, r.dims);
+    $('bPlate').value = r.scaled ? fmt(r.cap) : '';
+    formEstimated = true;
+    try { formPhotos.push(await thumbFromFile(pc.file)); formPhotos = formPhotos.slice(-4); thumbsRender() } catch (e) { }
+    bucketPreview(); pcClose(); announce('Szacunek: ' + fmt(r.cap) + ' m³ — sprawdź i zapisz');
+    return;
+  }
+  pcUI();
+});
+$('pcClose').addEventListener('click', pcClose);
+$('bPhotoCalc').addEventListener('click', pcOpen);
 
 // ───────────────────────── ustawienia ─────────────────────────
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;

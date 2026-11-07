@@ -136,3 +136,12 @@ textarea{resize:vertical;min-height:52px;line-height:1.35}
 .lektor strong{font-size:15px}.lektor small{font-size:12px;color:#c6c4ea;font-weight:600}.lektor em{font-size:11px;font-style:normal;color:#8BD1E0;font-weight:700}
 .lektor.on{background:#2b2160;border-color:#8BD1E0}
 details.fine{margin-top:14px}
+.calc-photo-btn{margin:6px 0 4px;background:linear-gradient(120deg,#8BD1E033,#9B4CD344);border-color:#8BD1E0}
+.pc{position:fixed;inset:0;z-index:150;background:#000c;display:flex;align-items:flex-end;justify-content:center}
+.pc-sheet{width:min(100%,590px);max-height:100dvh;overflow:auto;background:#141131;border:1px solid #5a5394;border-radius:22px 22px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+.pc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.pc-step{font-weight:800;color:#8BD1E0;margin:4px 0 10px}
+.pc-pick{cursor:pointer;text-align:center}
+.pc-canvas-wrap{display:flex;justify-content:center;background:#0b0920;border-radius:14px;padding:4px;margin-bottom:10px}
+.pc-canvas-wrap canvas{touch-action:none;border-radius:10px;display:block}
+.pc-acts{margin-top:12px}
