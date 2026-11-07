@@ -27,6 +27,17 @@ workflows:
           fi
           npx cap sync ios
 
+      - name: Ikona aplikacji (resources/icon-1024.png)
+        script: |
+          ICONSET=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          for f in "$ICONSET"/*.png; do
+            [ -e "$f" ] || continue
+            W=$(sips -g pixelWidth "$f" | awk '/pixelWidth/{print $2}')
+            cp resources/icon-1024.png "$f"
+            sips -z "$W" "$W" "$f" >/dev/null
+            echo "ikona: $f ($W px)"
+          done
+
       - name: Opisy uprawnień w Info.plist (mikrofon, mowa)
         script: |
           PLIST=ios/App/App/Info.plist

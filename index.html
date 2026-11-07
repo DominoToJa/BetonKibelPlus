@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b1022"><title>BetonKibelPlus — DOMINO</title>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0c0a20"><title>BetonKibelPlus — DOMINO</title>
 
 <link rel="icon" href="/icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -21,17 +21,17 @@
 <label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
 <div class="label">Sposób rozładunku</div><div class="grid three"><button class="method on" data-method="kibel">🏗<br>Kibel</button><button class="method" data-method="taczka">🛒<br>Taczka</button><button class="method" data-method="inne">🚜<br>Inne</button></div>
 <div id="batchFields"><div class="label">Pojemność kosza / taczki / osprzętu (m³)</div><div id="presets" class="grid three"></div><label class="label" for="portion">Własna pojemność</label><input id="portion" inputmode="decimal" value="0,5"></div>
-<div id="photoChoice" class="panel" style="margin-top:13px;border-color:#4b6393;background:#121e36">
+<div id="photoChoice" class="panel" style="margin-top:13px;border-color:#4a4582;background:#16132f">
   <h3>🪣 Wybór profilu rozładunku</h3>
   <div class="grid two" style="margin-bottom:10px"><button type="button" class="pill on" id="chooseManual">✋ Ręcznie</button><button type="button" class="pill" id="choosePhoto">📸 Profil ze zdjęć</button></div>
   <div id="manualHelp" class="hint">Wybierz standardową pojemność powyżej — bez zdjęć. Dla „Inne” działa tak samo.</div>
   <div id="photoControls" class="hide">
     <label class="label" for="savedBuckets">Moje zapisane kosze</label>
-    <select id="savedBuckets" style="width:100%;padding:12px;color:white;background:#0b1225;border:1px solid #5b76a4;border-radius:12px"><option value="">Wybierz profil…</option></select>
+    <select id="savedBuckets" style="width:100%;padding:12px;color:white;background:#0e0b25;border:1px solid #5a5394;border-radius:12px"><option value="">Wybierz profil…</option></select>
     <div id="selectedBucketPhotos" class="grid two" style="margin-top:8px"></div><div id="selectedBucketInfo" class="hint" style="margin:8px 0">Wybierz profil albo utwórz nowy.</div>
     <div class="row"><button type="button" id="openPhotoForm" class="primary">+ Dodaj kosz</button><button type="button" id="removePhotoProfile" class="warn">Usuń profil</button></div>
     <details style="margin:12px 0"><summary>📥 Import kalibracji ze zdjęć przeanalizowanych w ChatGPT</summary><p class="hint">Prześlij zdjęcia kosza do ChatGPT, odbierz plik profilu JSON i zaimportuj go tutaj. Aplikacja nie wysyła zdjęć ani nie wykonuje analizy AI samodzielnie.</p><input id="bucketJsonImport" type="file" accept=".json,application/json"><div id="bucketImportStatus" class="hint"></div></details>
-    <div id="photoForm" class="hide" style="border-top:1px solid #52617b;margin-top:14px;padding-top:10px">
+    <div id="photoForm" class="hide" style="border-top:1px solid #3e3866;margin-top:14px;padding-top:10px">
       <h3>Nowy profil · zdjęcia sprzętu / kosza</h3><p class="hint">Dla kibla najlepiej: przód, bok, góra, tabliczka. Dla „Inne” zwykle wystarczy przód, bok i tabliczka, jeśli jest. Automatyczna analiza AI zdjęć nie działa w tym lokalnym pliku HTML.</p>
       <label class="label" for="photoName">Nazwa kosza</label><input id="photoName" placeholder="np. Pomarańczowy z budowy">
       <div class="grid two">
@@ -42,7 +42,7 @@
       </div>
       <label class="label" for="photoCapacity">Pojemność (m³) — z tabliczki lub z obliczeń</label><p class="hint">Po zapisaniu profil automatycznie ustawi się jako aktywny i podmieni ręczny wariant na tej budowie.</p><input id="photoCapacity" inputmode="decimal" placeholder="np. 0,75 — albo wpisz wymiary niżej"><p class="hint" id="capacityPreview" aria-live="polite">Po podaniu wymiarów pojemność policzy się automatycznie. Ze zdjęcia bez skali jej nie zgadujemy.</p>
       <p class="hint">Sama fotografia nie wyznacza pewnej pojemności. Jeśli jej nie znasz, wybierz szacunkową wartość i oznacz profil jako roboczy.</p>
-      <label class="label" for="photoShape">Kształt wnętrza zbiornika</label><select id="photoShape" style="width:100%;padding:12px;color:white;background:#0b1225;border:1px solid #5b76a4;border-radius:12px"><option value="taper">Zwężany ku dołowi (ścięty stożek)</option><option value="cylinder">Proste ścianki (walec)</option></select>
+      <label class="label" for="photoShape">Kształt wnętrza zbiornika</label><select id="photoShape" style="width:100%;padding:12px;color:white;background:#0e0b25;border:1px solid #5a5394;border-radius:12px"><option value="taper">Zwężany ku dołowi (ścięty stożek)</option><option value="cylinder">Proste ścianki (walec)</option></select>
       <details><summary style="margin-top:10px">📏 Wymiary — oblicz pojemność i dokładniejszą podziałkę</summary>
       <label class="label" for="photoTopDiameter">Średnica wewnętrzna u góry (cm)</label><input id="photoTopDiameter" inputmode="decimal" placeholder="np. 110">
       <label class="label" for="photoBottomDiameter">Średnica wewnętrzna na dole (cm)</label><input id="photoBottomDiameter" inputmode="decimal" placeholder="np. 55">
@@ -63,7 +63,7 @@
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas betonowania</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do przypomnienia</small></div></div><div class="status" id="status">Gotowy</div><div class="bot-quote" aria-live="polite"><span>📜 Staropolski bot · komunikaty 1.7</span><strong id="botText">Gotowy do betonowania.</strong></div></div>
 <div id="bucketPanel" class="panel"><p class="bucket-guide" id="touchText">DOTKNIJ KIBLA, ŻEBY DODAĆ PORCJĘ</p>
 <button id="bucket" class="bucket" aria-label="Dodaj jedną porcję betonu"><span id="bucketSvgWrap"></span></button>
-<div id="liveBucketSwitch" style="margin:12px 0;padding:12px;border:1px solid #506fa8;border-radius:12px;background:#142440"><label class="label" for="liveBucketProfile" style="margin:0 0 6px">🪣 Zmień kosz podczas betonowania</label><select id="liveBucketProfile" style="width:100%;padding:12px;border-radius:10px;color:white;background:#0b1225;border:1px solid #61779c"><option value="manual">✋ Ręczny — obecna pojemność</option></select><p class="hint">Wybór zapisanego kosza zmienia pojemność i podziałkę; nie dodaje betonu do licznika.</p></div><div id="activeBucketBadge" class="hint" style="text-align:center;color:#b0f2ff;font-weight:700;margin:9px 0">Tryb ręczny</div><div class="bucket-meta">Kosz <b><span id="bucketCap">0,5</span> m³</b> · aktualnie nalane: <b><span id="bucketNow">0,5</span> m³</b></div>
+<div id="liveBucketSwitch" style="margin:12px 0;padding:12px;border:1px solid #5a5394;border-radius:12px;background:#1a1638"><label class="label" for="liveBucketProfile" style="margin:0 0 6px">🪣 Zmień kosz podczas betonowania</label><select id="liveBucketProfile" style="width:100%;padding:12px;border-radius:10px;color:white;background:#0e0b25;border:1px solid #5a5394"><option value="manual">✋ Ręczny — obecna pojemność</option></select><p class="hint">Wybór zapisanego kosza zmienia pojemność i podziałkę; nie dodaje betonu do licznika.</p></div><div id="activeBucketBadge" class="hint" style="text-align:center;color:#8BD1E0;font-weight:700;margin:9px 0">Tryb ręczny</div><div class="bucket-meta">Kosz <b><span id="bucketCap">0,5</span> m³</b> · aktualnie nalane: <b><span id="bucketNow">0,5</span> m³</b></div>
 <div class="bigadd">+ <span id="dose">0,5</span> m³ po kliknięciu</div>
 <label class="label" for="bucketRange">Przesuń — ustaw ile faktycznie wlano (m³)</label>
 <input id="bucketRange" type="range" min="0" max="0.5" step="0.05" value="0.5" aria-label="Ilość aktualnie wlana do kosza">
@@ -89,8 +89,9 @@
 <div class="footer">Wersja 2.6 PWA · Pomiary na podstawie wpisów kierowcy, nie oficjalny pomiar betonu.</div><section id="drum" class="hide">
   <div class="panel drum-panel">
     <h2>🛢 Twój diagram gruszki</h2>
-    <p class="hint">Oryginalny diagram, który mi wysłałeś — bez przerabiania bębna na nowy kształt.</p>
-    <img src="/diagram_gruszki_oryginal.png" alt="Oryginalny diagram bębna betoniarki użytkownika" style="width:100%;height:auto;display:block;border-radius:14px;background:#fff;border:1px solid #5b76a4" />
+    <p class="hint">Twój diagram w kolorach aplikacji — ten sam kształt bębna i te same miejsca podziałki.</p>
+    <img src="/diagram_gruszki_app.png" class="drum-diagram-img" alt="Diagram bębna betoniarki z podziałką od 0 do 3 m³" />
+    <details style="margin-top:10px"><summary>🖼 Pokaż oryginalne zdjęcie</summary><img src="/diagram_gruszki_oryginal.png" alt="Oryginalny diagram bębna betoniarki" style="width:100%;height:auto;display:block;border-radius:14px;background:#fff;margin-top:8px" /></details>
     <p class="hint" style="margin-top:12px">Podziałka to Twoja robocza ściągawka. Nie zastępuje pomiaru skalibrowanego dla konkretnego bębna.</p>
   </div>
 </section></main>
