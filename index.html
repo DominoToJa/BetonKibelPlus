@@ -169,8 +169,9 @@
   </div>
   <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas></div>
   <div id="pcScale" class="hide">
-   <div class="chips" id="pcModes"><button type="button" class="pill" data-pcmode="plate">🏷 Mam tabliczkę</button><button type="button" class="pill" data-pcmode="ref">📏 Przedmiot na zdjęciu</button><button type="button" class="pill" data-pcmode="typ">❔ Nie wiem</button></div>
-   <div id="pcModePlate" class="hide"><label class="label" for="pcPlate">Co jest na tabliczce (m³)?</label><input id="pcPlate" inputmode="decimal" placeholder="np. 0,75"></div>
+   <div class="chips" id="pcModes"><button type="button" class="pill" data-pcmode="ref">📏 Zmierz (przedmiot na zdjęciu)</button><button type="button" class="pill" data-pcmode="plate">🏷 Tylko tabliczka</button><button type="button" class="pill" data-pcmode="typ">❔ Nie wiem</button></div>
+   <p class="hint" id="pcModeHint"></p>
+   <div id="pcModePlate" class="hide"><label class="label" for="pcPlate" id="pcPlateLabel">Co jest na tabliczce (m³)?</label><input id="pcPlate" inputmode="decimal" placeholder="np. 0,75"></div>
    <div id="pcModeRef" class="hide">
     <label class="label" for="pcRefType">Co stoi obok kosza na zdjęciu z boku?</label>
     <select id="pcRefType">

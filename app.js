@@ -561,12 +561,12 @@ const PC_STEPS = ['side-photo', 'side', 'fill', 'top-photo', 'top', 'scale', 're
 const PC_SIDE = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
 const PC_TOP = ['1 — LEWĄ krawędź otworu', '2 — PRAWĄ krawędź otworu', '3 — PRZEDNIĄ krawędź (bliżej Ciebie)', '4 — TYLNĄ krawędź (dalej)'];
 const newPhoto = () => ({ img: null, file: null, pts: [] });
-const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'plate', cap: .75, ref: [], k: 1, drag: -1 };
+const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'ref', cap: .75, ref: [], k: 1, drag: -1 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
 function pcOpen() {
-  Object.assign(pc, { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: $('bShape').value === 'rect' ? 'rect' : 'round', mode: number($('bPlate').value) > 0 ? 'plate' : 'plate', ref: [], drag: -1 });
+  Object.assign(pc, { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: $('bShape').value === 'rect' ? 'rect' : 'round', mode: 'ref', ref: [], drag: -1 });
   $('pcPlate').value = $('bPlate').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
@@ -583,11 +583,12 @@ function pcCompute() {
   const rect = pc.shape === 'rect', shape = rect ? 'rect' : 'cone';
   const mk = c => { const d = rect ? { lTop: topW * c, wTop: topW * c * e, lBottom: botW * c, wBottom: botW * c * e, h: hPx * c } : { dTop: topW * c, dBottom: botW * c, h: hPx * c }; if (!rect && Math.abs(e - 1) > .01) d.e = e; return d };
   let c, nominal = 0, mode = pc.mode;
-  if (mode === 'ref') { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
+  if (mode === 'ref') { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp; const pl = number($('pcPlate').value); if (pl > 0) nominal = pl }
   else { nominal = mode === 'plate' ? number($('pcPlate').value) : pc.cap; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / topW; c = c0 * Math.cbrt(nominal / geoCapacity(shape, mk(c0))) }
   const dims = mk(c), rim = geoCapacity(shape, dims), real = volumeUpTo(shape, dims, fillFrac * dims.h);
   const u = mode === 'ref' ? .15 : (pc.fill && T.length === 4 ? .06 : .09);
-  return { shape, dims, rim, real, lo: real * (1 - u), hi: real * (1 + u), nominal: mode === 'ref' ? 0 : nominal, mode, fillFrac, belowRim: dims.h * (1 - fillFrac), e };
+  const onlyPlate = mode !== 'ref' && !pc.fill;
+  return { shape, dims, rim, real, lo: real * (1 - u), hi: real * (1 + u), nominal, mode, fillFrac, belowRim: dims.h * (1 - fillFrac), e, onlyPlate };
 }
 function pcUI() {
   const st = pc.step, i = PC_STEPS.indexOf(st), ph = pcPhoto();
@@ -603,7 +604,9 @@ function pcUI() {
   $('pcWrap').classList.toggle('hide', !canvasStep());
   $('pcScale').classList.toggle('hide', st !== 'scale');
   document.querySelectorAll('[data-pcmode]').forEach(b => b.classList.toggle('on', b.dataset.pcmode === pc.mode));
-  $('pcModePlate').classList.toggle('hide', pc.mode !== 'plate'); $('pcModeRef').classList.toggle('hide', pc.mode !== 'ref'); $('pcModeTyp').classList.toggle('hide', pc.mode !== 'typ');
+  $('pcModePlate').classList.toggle('hide', pc.mode === 'typ');
+  $('pcPlateLabel').textContent = pc.mode === 'ref' ? 'Tabliczka (m³) — opcjonalnie, do porównania' : 'Co jest na tabliczce (m³)?';
+  $('pcModeHint').textContent = pc.mode === 'ref' ? 'Najdokładniej: zaznacz na zdjęciu z boku przedmiot o znanym rozmiarze — policzę prawdziwą pojemność, niezależnie od tabliczki.' : pc.mode === 'plate' ? 'Zdjęcie da tylko kształt. Pojemność = tabliczka, chyba że zaznaczyłeś niżej linię betonu.' : 'Wielkość na oko — kształt i podziałka ze zdjęć.'; $('pcModeRef').classList.toggle('hide', pc.mode !== 'ref'); $('pcModeTyp').classList.toggle('hide', pc.mode !== 'typ');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
   $('pcCapPick').replaceChildren(...[.25, .5, .75, 1, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(pc.cap - v) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { pc.cap = v; pcUI() } })));
   $('pcResult').classList.toggle('hide', st !== 'result');
@@ -629,9 +632,11 @@ function pcUI() {
     if (!r) { box.append(el('div', { class: 'error', text: 'Brakuje danych — cofnij i sprawdź punkty lub tabliczkę.' })); ok = false }
     else {
       const d = r.dims, dimTxt = r.shape === 'rect' ? 'góra ' + Math.round(d.lTop) + '×' + Math.round(d.wTop) + ' cm · dół ' + Math.round(d.lBottom) + '×' + Math.round(d.wBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' : 'Ø góra ' + Math.round(d.dTop) + ' cm · Ø dół ' + Math.round(d.dBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' + (d.e ? ' · owal ' + Math.round(d.e * 100) + '%' : '');
-      box.append(el('div', { class: 'calc-main', text: 'Faktycznie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
-      box.append(el('div', { class: 'calc-range', text: 'realnie od ' + fmt(r.lo) + ' do ' + fmt(r.hi) + ' m³' }));
-      box.append(el('div', { class: 'muted', text: 'Do samej krawędzi: ' + fmt(r.rim) + ' m³' + (r.nominal && r.mode === 'plate' ? ' (tabliczka ' + fmt(r.nominal) + ')' : '') + (r.fillFrac < 1 ? ' · beton ok. ' + Math.round(r.belowRim) + ' cm pod krawędzią' : '') }));
+      box.append(el('div', { class: 'calc-main', text: (r.mode === 'ref' ? 'Zmierzone: wchodzi ≈ ' : 'Wchodzi ≈ ') + fmt(r.real) + ' m³' }));
+      if (r.onlyPlate) box.append(el('div', { class: 'error', text: 'ℹ️ To jest wartość z tabliczki — zdjęcie bez przedmiotu odniesienia nie mierzy wielkości. Żeby zmierzyć naprawdę: cofnij i wybierz „Zmierz (przedmiot na zdjęciu)” albo zaznacz linię betonu.' }));
+      else box.append(el('div', { class: 'calc-range', text: 'realnie od ' + fmt(r.lo) + ' do ' + fmt(r.hi) + ' m³' }));
+      if (r.mode === 'ref' && r.nominal > 0) box.append(el('div', { class: 'muted', text: 'Tabliczka mówi ' + fmt(r.nominal) + ' m³ → realnie ' + Math.round(r.real / r.nominal * 100) + '% tego' }));
+      box.append(el('div', { class: 'muted', text: 'Do samej krawędzi: ' + fmt(r.rim) + ' m³' + (r.fillFrac < 1 ? ' · beton ok. ' + Math.round(r.belowRim) + ' cm pod krawędzią' : '') }));
       box.append(el('div', { class: 'muted', text: 'Wymiary (szacunek): ' + dimTxt }));
       if (r.mode === 'typ') box.append(el('div', { class: 'muted', text: 'Wielkość wybrana „na oko” — kształt i podziałka są ze zdjęć.' }));
       if (r.real > 5 || r.real < .02) { box.append(el('div', { class: 'error', text: '⚠️ Wynik wygląda nierealnie — sprawdź punkty.' })); ok = false }
