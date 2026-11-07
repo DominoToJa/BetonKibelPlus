@@ -322,8 +322,17 @@ function makeBucketSvg(cap, current, model) {
   const xAt = (y, leftSide) => { const t = (y - SVG_TOP) / (SVG_BOTTOM - SVG_TOP); const a = leftSide ? lT : rT, b = leftSide ? lB : rB; return a + (b - a) * t };
   const fy = yAt(current), xL = xAt(fy, true), xR = xAt(fy, false);
   let ticks = '';
-  for (const v of bucketMarks(cap)) { const y = yAt(v), xr = xAt(y, false); ticks += `<line x1="${(xr - 16).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr + 2).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#14112e" stroke-width="3" stroke-linecap="round" opacity=".7"/>` }
-  return `<svg viewBox="0 0 330 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".28" stop-color="#9B4CD3"/><stop offset=".62" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="M92 86L238 86L204 229L126 229Z"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="M92 86L238 86L204 229L126 229Z" fill="#0f0c26" opacity=".35"/><g clip-path="url(#bkClip)"><path d="M${xL.toFixed(1)} ${fy.toFixed(1)}L${xR.toFixed(1)} ${fy.toFixed(1)}L204 229L126 229Z" fill="#9aa3b3" opacity=".95"/><path d="M${xL.toFixed(1)} ${(fy - 1).toFixed(1)}L${xR.toFixed(1)} ${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e">z ${fmt(cap)} m³</text></svg>`;
+  const marks = bucketMarks(cap), ys = marks.map(yAt);
+  marks.forEach((v, i) => {
+    const tooClose = i < marks.length - 1 && Math.abs(ys[i] - ys[marks.length - 1]) < 27;
+    const y = yAt(v), xl = xAt(y, true), xr = xAt(y, false), last = i === marks.length - 1;
+    const label = last ? 'MAX ' + fmt(v) : fmt(v), w = label.length * 11 + 14;
+    ticks += `<line x1="${(xl + 2).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr - 2).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="2" stroke-dasharray="6 5" opacity=".75"/>`;
+    ticks += `<line x1="${(xr - 22).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr + 6).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="6" stroke-linecap="round"/>`;
+    if (tooClose) return;
+    ticks += `<g transform="translate(${(xr + 12).toFixed(1)} ${y.toFixed(1)})"><rect x="0" y="-13" width="${w}" height="26" rx="8" fill="#ff3b4e" stroke="#14112e" stroke-width="2"/><text x="${(w / 2).toFixed(1)}" y="6" text-anchor="middle" font-size="17" font-weight="950" fill="#ffffff">${label}</text></g>`;
+  });
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".28" stop-color="#9B4CD3"/><stop offset=".62" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="M92 86L238 86L204 229L126 229Z"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="M92 86L238 86L204 229L126 229Z" fill="#0f0c26" opacity=".35"/><g clip-path="url(#bkClip)"><path d="M${xL.toFixed(1)} ${fy.toFixed(1)}L${xR.toFixed(1)} ${fy.toFixed(1)}L204 229L126 229Z" fill="#9aa3b3" opacity=".95"/><path d="M${xL.toFixed(1)} ${(fy - 1).toFixed(1)}L${xR.toFixed(1)} ${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e">z ${fmt(cap)} m³</text></svg>`;
 }
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
@@ -586,6 +595,7 @@ function pcUI() {
   const isPick = st === 'side-photo' || st === 'top-photo';
   $('pcPick').classList.toggle('hide', !isPick);
   $('pcPickText').textContent = '📸 Zrób zdjęcie';
+  $('pcGalSub').textContent = st === 'side-photo' ? 'możesz zaznaczyć 2 naraz: bok + góra' : '';
   $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i sfotografuj otwór z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
   $('pcShapeToggle').classList.toggle('hide', !['top-photo', 'top'].includes(st));
   $('pcTopHint').classList.toggle('hide', !['top-photo', 'top'].includes(st) || (st === 'top' && pc.top.pts.length > 0));
@@ -674,11 +684,15 @@ function pcDraw() {
   const up = () => { if (pc.drag >= 0) { pc.drag = -1; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
-function pcFilePicked(e) {
-  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
-  const ph = pcPhoto(), rd = new FileReader();
-  rd.onload = () => { const img = new Image(); img.onload = () => { ph.img = img; ph.file = f; ph.pts = []; pc.step = ph === pc.top ? 'top' : 'side'; pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result };
-  rd.readAsDataURL(f);
+const loadImg = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
+async function pcFilePicked(e) {
+  const files = [...(e.target.files || [])].slice(0, 2); e.target.value = ''; if (!files.length) return;
+  try {
+    const ph = pcPhoto(), first = await loadImg(files[0]);
+    Object.assign(ph, { img: first, file: files[0], pts: [] });
+    if (ph === pc.side && files[1]) { Object.assign(pc.top, { img: await loadImg(files[1]), file: files[1], pts: [] }); announce('2 zdjęcia: pierwsze = bok, drugie = góra') }
+    pc.step = ph === pc.top ? 'top' : 'side'; pcUI();
+  } catch (err) { announce('Nie mogę otworzyć zdjęcia') }
 }
 $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
 const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
@@ -687,7 +701,7 @@ document.querySelectorAll('[data-pcmode]').forEach(b => b.addEventListener('clic
 ['pcPlate', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI()));
 $('pcRefType').addEventListener('change', () => pcUI());
 const go = st => { pc.step = st; pcUI() };
-$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; go('top-photo'); pcCameraNow() } else { pc.top = newPhoto(); go('scale') } });
+$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; if (pc.top.img) return go('top'); go('top-photo'); pcCameraNow() } else { pc.top = newPhoto(); go('scale') } });
 $('pcBack').addEventListener('click', () => {
   const st = pc.step;
   if (st === 'side') { if (pc.side.pts.length) pc.side.pts.pop(); else return go('side-photo') }
@@ -701,7 +715,7 @@ $('pcBack').addEventListener('click', () => {
 $('pcNext').addEventListener('click', async () => {
   const st = pc.step;
   if (st === 'side') return go('fill');
-  if (st === 'fill') { go('top-photo'); return pcCameraNow() }
+  if (st === 'fill') { if (pc.top.img) return go('top'); go('top-photo'); return pcCameraNow() }
   if (st === 'top') return go('scale');
   if (st === 'scale') return go('result');
   if (st !== 'result') return;
