@@ -1,5 +1,5 @@
 'use strict';
-import { SHAPES, cleanDims, geoCapacity, bucketModel, migrateProfile } from './geometry.js';
+import { SHAPES, cleanDims, geoCapacity, volumeUpTo, bucketModel, migrateProfile } from './geometry.js';
 
 const $ = id => document.getElementById(id), KEY = 'beton09', HKEY = 'beton09history';
 const NATIVE = window.BKPnative || {};
@@ -286,7 +286,12 @@ function undo({ silent = false } = {}) {
 $('undo').addEventListener('click', () => undo());
 
 const bucketStep = cap => { cap = Number(cap) || .5; if (cap <= .1) return .01; if (cap <= .75) return .05; return .1 };
-const bucketMarks = cap => { cap = Number(cap) || .5; const out = []; for (let i = 1; i <= 5; i++) out.push(Math.round(cap * i / 5 * 100) / 100); return out };
+const bucketMarks = cap => {
+  cap = Number(cap) || .5;
+  const step = cap <= .12 ? .02 : cap <= .3 ? .05 : cap <= .65 ? .1 : cap <= 1.3 ? .2 : cap <= 2.6 ? .5 : 1;
+  const out = []; for (let v = step; v < cap - step * .35; v += step) out.push(Math.round(v * 100) / 100);
+  out.push(Math.round(cap * 100) / 100); return out;
+};
 function changeDose(v, quiet = false) {
   if (!session) return; const n = Math.round(Number(v) * 100) / 100; const cap = Number(session.capacity || .5);
   if (!Number.isFinite(n) || n < 0 || n > 5) return announce('Podaj ilość od 0 do 5 m³');
@@ -462,18 +467,20 @@ function dimFields(shape, values = {}) {
   const box = $('bDims'); box.replaceChildren();
   for (const [k, label, ph] of SHAPES[shape].fields) {
     const inp = el('input', { id: 'bd_' + k, inputmode: 'decimal', placeholder: 'np. ' + ph }); if (values[k] != null) inp.value = fmt(values[k]);
-    inp.addEventListener('input', () => { formEstimated = false; bucketPreview() });
+    inp.addEventListener('input', () => { formEstimated = false; $('bd_e')?.remove(); bucketPreview() });
     box.append(el('div', {}, el('label', { class: 'label', for: 'bd_' + k, text: label }), inp));
   }
+  if (values.e) box.append(el('input', { type: 'hidden', id: 'bd_e', value: String(values.e) }));
   $('bShapeHint').textContent = SHAPES[shape].hint; bucketPreview();
 }
-function formDims() { const shape = $('bShape').value; const raw = {}; for (const [k] of SHAPES[shape].fields) raw[k] = $('bd_' + k)?.value; return cleanDims(shape, raw) }
+function formDims() { const shape = $('bShape').value; const raw = { e: $('bd_e')?.value }; for (const [k] of SHAPES[shape].fields) raw[k] = $('bd_' + k)?.value; return cleanDims(shape, raw) }
 function bucketPreview() {
-  const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), geo = dims ? geoCapacity(shape, dims) : null, plate = number($('bPlate').value);
+  const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), geo = dims ? geoCapacity(shape, dims) : null, plate = number($('bPlate').value), real = number($('bReal').value);
   const box = $('bPreview'); box.replaceChildren();
-  if (!geo && !(plate > 0)) { box.append(el('div', { class: 'muted', text: shape === 'plate' ? 'Wpisz pojemność z tabliczki.' : 'Wpisz wszystkie wymiary — policzę pojemność i wysokości kresek.' })); return }
-  const cap = plate > 0 ? plate : geo;
-  box.append(el('div', { class: 'calc-main', text: 'Pojemność: ' + fmt(cap) + ' m³' }));
+  if (!geo && !(plate > 0) && !(real > 0)) { box.append(el('div', { class: 'muted', text: shape === 'plate' ? 'Wpisz pojemność z tabliczki albo ile faktycznie wchodzi.' : 'Wpisz wymiary albo użyj „Policz ze zdjęć” — policzę pojemność i kreski.' })); return }
+  const cap = real > 0 ? real : plate > 0 ? plate : geo;
+  box.append(el('div', { class: 'calc-main', text: (real > 0 ? 'Faktycznie wchodzi: ' : 'Pojemność: ') + fmt(cap) + ' m³' + (formEstimated ? ' (szacunek ze zdjęć)' : '') }));
+  if (real > 0 && plate > 0 && Math.abs(real - plate) > .005) box.append(el('div', { class: 'muted', text: 'Tabliczka: ' + fmt(plate) + ' m³ · realnie ' + Math.round(real / plate * 100) + '% tego' }));
   if (geo) box.append(el('div', { class: 'muted', text: 'Z wymiarów do krawędzi: ' + fmt(geo) + ' m³' + (plate > 0 ? ' · tabliczka: ' + fmt(plate) + ' m³' : '') }));
   if (geo && plate > 0 && Math.abs(plate - geo) / geo > 0.25) box.append(el('div', { class: 'error', text: '⚠️ Tabliczka i wymiary bardzo się różnią — sprawdź pomiar.' }));
   if (dims) {
@@ -482,7 +489,7 @@ function bucketPreview() {
     box.append(el('div', { class: 'marks' }, ...rows));
   }
 }
-$('bShape').addEventListener('change', () => dimFields($('bShape').value)); $('bPlate').addEventListener('input', bucketPreview);
+$('bShape').addEventListener('change', () => dimFields($('bShape').value)); $('bPlate').addEventListener('input', bucketPreview); $('bReal').addEventListener('input', bucketPreview);
 $('bPhotos').addEventListener('change', async e => {
   for (const f of [...(e.target.files || [])].slice(0, 4)) { try { formPhotos.push(await thumbFromFile(f)) } catch (err) { $('bError').textContent = 'Nie odczytano zdjęcia' } }
   formPhotos = formPhotos.slice(-4); thumbsRender(); e.target.value = '';
@@ -492,31 +499,34 @@ function openBucketForm(p = null) {
   editingId = p?.id || ''; formEstimated = !!p?.estimated; formPhotos = (p?.photos || []).map(x => x.data || x).filter(Boolean);
   $('bucketFormTitle').textContent = p ? 'Edytuj kosz' : 'Nowy kosz';
   $('bName').value = p?.name || ''; $('bShape').value = p?.shape && SHAPES[p.shape] ? p.shape : 'cone';
-  $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims ? fmt(p.capacity) : '');
+  $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims && !p.real ? fmt(p.capacity) : '');
+  $('bReal').value = p?.real ? fmt(p.real) : '';
   $('bError').textContent = ''; dimFields($('bShape').value, p?.dims || {}); thumbsRender();
   $('bucketForm').classList.remove('hide'); $('newBucket').classList.add('hide'); $('bName').focus();
 }
 function closeBucketForm() { $('bucketForm').classList.add('hide'); $('newBucket').classList.remove('hide'); editingId = '' }
 $('newBucket').addEventListener('click', () => openBucketForm()); $('bCancel').addEventListener('click', closeBucketForm);
 $('bSave').addEventListener('click', () => {
-  const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), plate = number($('bPlate').value), geo = dims ? geoCapacity(shape, dims) : null;
-  if (shape !== 'plate' && !dims) return $('bError').textContent = 'Uzupełnij wszystkie wymiary (w cm).';
-  const capacity = plate > 0 ? plate : geo;
+  const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), plate = number($('bPlate').value), real = number($('bReal').value), geo = dims ? geoCapacity(shape, dims) : null;
+  if (shape !== 'plate' && !dims && !(real > 0 || plate > 0)) return $('bError').textContent = 'Uzupełnij wymiary albo policz ze zdjęć.';
+  const capacity = real > 0 ? real : plate > 0 ? plate : geo;
   if (!(capacity > 0 && capacity <= 5)) return $('bError').textContent = 'Pojemność musi być od 0 do 5 m³.';
-  const p = { id: editingId || 'bucket-' + Date.now(), name: $('bName').value.trim() || 'Mój kosz', shape, dims, estimated: formEstimated, plate: plate > 0 ? plate : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  const p = { id: editingId || 'bucket-' + Date.now(), name: $('bName').value.trim() || 'Mój kosz', shape: dims ? shape : 'plate', dims, estimated: formEstimated, plate: plate > 0 ? plate : null, real: real > 0 ? real : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
   const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
   if (i >= 0) profiles[i] = p; else profiles.push(p);
   if (!saveProfiles()) { profiles = backup; return }
   if (session?.bucketProfile?.id === p.id) { session.bucketProfile = snapshot(p); session.capacity = p.capacity; session.dose = Math.min(session.dose, p.capacity); remember() }
   closeBucketForm(); announce('Zapisano: ' + p.name + ' · ' + fmt(p.capacity) + ' m³');
-  if (bucketReturn === 'setup') { chosenProfileId = p.id; $('portion').value = fmt(p.capacity); rememberSiteBucket($('site').value, p.id); tab('setup') } else bucketListRender();
+  // od razu do licznika z podziałką tego kosza
+  if (session && session.method !== 'taczka') { changeCapacity(p.capacity, p); tab('work') }
+  else { if (method === 'taczka') selectMethod('kibel'); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
 });
 function bucketListRender() {
   const box = $('bucketList'); box.replaceChildren();
   if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
   for (const p of profiles) {
     const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : el('div', { class: 'bucket-thumb ph', text: '🪣' });
-    const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³ · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęcia' : p.dims ? ' · zmierzony' : '') }));
+    const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
     const acts = el('div', { class: 'bucket-acts' });
     if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
     acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
@@ -525,115 +535,170 @@ function bucketListRender() {
   }
 }
 
-// ───────────────────────── kosz ze zdjęcia (szacunek bez mierzenia) ─────────────────────────
+// ───────────────────────── kosz ze zdjęć: bok + góra → rzeczywista pojemność ─────────────────────────
 let formEstimated = false;
-const pc = { img: null, src: '', file: null, pts: [], ref: [], step: 'photo', cap: .75, k: 1, drag: -1 };
-const PC_CORNERS = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
+const PC_STEPS = ['side-photo', 'side', 'fill', 'top-photo', 'top', 'scale', 'result'];
+const PC_SIDE = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
+const PC_TOP = ['lewą krawędź otworu', 'prawą krawędź otworu', 'przednią krawędź (bliżej Ciebie)', 'tylną krawędź (dalej)'];
+const newPhoto = () => ({ img: null, file: null, pts: [] });
+const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'plate', cap: .75, ref: [], k: 1, drag: -1 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-function pcRefCm() { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v }
-function pcOpen() { Object.assign(pc, { img: null, src: '', pts: [], ref: [], step: 'photo', drag: -1 }); $('pcRefType').value = '0'; $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI() }
+const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
+function pcOpen() {
+  Object.assign(pc, { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: $('bShape').value === 'rect' ? 'rect' : 'round', mode: number($('bPlate').value) > 0 ? 'plate' : 'plate', ref: [], drag: -1 });
+  $('pcPlate').value = $('bPlate').value || '';
+  $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
+}
 function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
+const pcPhoto = () => ['top-photo', 'top'].includes(pc.step) ? pc.top : pc.side;
+const canvasStep = () => ['side', 'fill', 'top'].includes(pc.step) || (pc.step === 'scale' && pc.mode === 'ref');
 function pcCompute() {
-  const [TL, TR, BR, BL] = pc.pts; const topW = dist(TL, TR), botW = dist(BL, BR), hPx = dist(mid(TL, TR), mid(BL, BR));
+  const [TL, TR, BR, BL] = pc.side.pts; if (!BL) return null;
+  const topW = dist(TL, TR), botW = dist(BL, BR), mT = mid(TL, TR), mB = mid(BL, BR), hPx = dist(mT, mB);
   if (!(topW > 5 && botW > 2 && hPx > 5)) return null;
-  const rect = $('bShape').value === 'rect';
-  const mk = c => rect ? { lTop: topW * c, wTop: topW * c, lBottom: botW * c, wBottom: botW * c, h: hPx * c } : { dTop: topW * c, dBottom: botW * c, h: hPx * c };
-  const shape = rect ? 'rect' : 'cone';
-  const refCm = pcRefCm(), refPx = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0;
-  let dims, cap, scaled = false;
-  if (refCm > 0 && refPx > 3) { dims = mk(refCm / refPx); cap = geoCapacity(shape, dims) }
-  else { const base = geoCapacity(shape, mk(100 / topW)); const c = Math.cbrt(pc.cap / base) * 100 / topW; dims = mk(c); cap = pc.cap; scaled = true }
-  return { shape, dims, cap, scaled, ratio: botW / topW, aspect: hPx / topW };
+  let fillFrac = 1;
+  if (pc.fill) { const vx = mT.x - mB.x, vy = mT.y - mB.y; fillFrac = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); fillFrac = Math.min(1, Math.max(.3, fillFrac)) }
+  let e = 1; const T = pc.top.pts; if (T.length === 4) { const w = dist(T[0], T[1]), dpt = dist(T[2], T[3]); if (w > 5 && dpt > 3) e = Math.min(3, Math.max(.3, dpt / w)) }
+  const rect = pc.shape === 'rect', shape = rect ? 'rect' : 'cone';
+  const mk = c => { const d = rect ? { lTop: topW * c, wTop: topW * c * e, lBottom: botW * c, wBottom: botW * c * e, h: hPx * c } : { dTop: topW * c, dBottom: botW * c, h: hPx * c }; if (!rect && Math.abs(e - 1) > .01) d.e = e; return d };
+  let c, nominal = 0, mode = pc.mode;
+  if (mode === 'ref') { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
+  else { nominal = mode === 'plate' ? number($('pcPlate').value) : pc.cap; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / topW; c = c0 * Math.cbrt(nominal / geoCapacity(shape, mk(c0))) }
+  const dims = mk(c), rim = geoCapacity(shape, dims), real = volumeUpTo(shape, dims, fillFrac * dims.h);
+  const u = mode === 'ref' ? .15 : (pc.fill && T.length === 4 ? .06 : .09);
+  return { shape, dims, rim, real, lo: real * (1 - u), hi: real * (1 + u), nominal: mode === 'ref' ? 0 : nominal, mode, fillFrac, belowRim: dims.h * (1 - fillFrac), e };
 }
 function pcUI() {
-  const st = pc.step, need = st === 'bucket' ? 4 : 2, refCm = pcRefCm();
-  $('pcPick').classList.toggle('hide', st !== 'photo');
-  $('pcWrap').classList.toggle('hide', st === 'photo' || st === 'result');
-  $('pcRef').classList.toggle('hide', st !== 'ref');
+  const st = pc.step, i = PC_STEPS.indexOf(st), ph = pcPhoto();
+  $('pcProgress').replaceChildren(...['Bok', 'Beton', 'Góra', 'Skala', 'Wynik'].map((t, j) => el('span', { class: [1, 2, 4, 5, 6][j] <= i ? 'on' : '', text: t })));
+  const isPick = st === 'side-photo' || st === 'top-photo';
+  $('pcPick').classList.toggle('hide', !isPick);
+  $('pcPickText').textContent = st === 'top-photo' ? '🖼 Zdjęcie z góry (do środka kosza)' : '🖼 Zdjęcie z boku';
+  $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i zrób zdjęcie otworu z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
+  $('pcShapeToggle').classList.toggle('hide', !['top-photo', 'top'].includes(st));
+  document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
+  $('pcWrap').classList.toggle('hide', !canvasStep());
+  $('pcScale').classList.toggle('hide', st !== 'scale');
+  document.querySelectorAll('[data-pcmode]').forEach(b => b.classList.toggle('on', b.dataset.pcmode === pc.mode));
+  $('pcModePlate').classList.toggle('hide', pc.mode !== 'plate'); $('pcModeRef').classList.toggle('hide', pc.mode !== 'ref'); $('pcModeTyp').classList.toggle('hide', pc.mode !== 'typ');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
-  $('pcCapPick').classList.toggle('hide', !(st === 'ref' && !(refCm > 0)));
+  $('pcCapPick').replaceChildren(...[.25, .5, .75, 1, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(pc.cap - v) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { pc.cap = v; pcUI() } })));
   $('pcResult').classList.toggle('hide', st !== 'result');
-  $('pcBack').classList.toggle('hide', st === 'photo');
-  $('pcNext').classList.toggle('hide', st === 'photo');
-  let txt = '';
-  if (st === 'photo') txt = 'Krok 1/3 · Zdjęcie kosza z boku, cały kosz w kadrze.';
-  else if (st === 'bucket') txt = pc.pts.length < 4 ? 'Krok 2/3 · Dotknij: ' + PC_CORNERS[pc.pts.length] + '.' : 'Krok 2/3 · Przeciągnij punkty, żeby leżały na krawędziach wnętrza. Potem „Dalej”.';
-  else if (st === 'ref') txt = refCm > 0 ? (pc.ref.length < 2 ? 'Krok 3/3 · Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu na zdjęciu.' : 'Krok 3/3 · Gotowe — „Dalej”.') : 'Krok 3/3 · Wybierz, co jest obok kosza (wtedy policzę m³), albo typową pojemność.';
-  else txt = 'Wynik szacunku';
-  $('pcStep').textContent = txt;
+  $('pcBack').classList.toggle('hide', st === 'side-photo');
+  $('pcSkip').classList.toggle('hide', !['fill', 'top-photo', 'top'].includes(st));
+  $('pcSkip').textContent = st === 'fill' ? 'Beton do krawędzi' : 'Pomiń górę';
+  $('pcNext').classList.toggle('hide', isPick);
   $('pcNext').textContent = st === 'result' ? '✓ Użyj w koszu' : 'Dalej ›';
-  $('pcNext').disabled = (st === 'bucket' && pc.pts.length < 4) || (st === 'ref' && refCm > 0 && pc.ref.length < 2);
-  if (st === 'ref') { const box = $('pcCapPick'); box.replaceChildren(...[.25, .5, .75, 1, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(pc.cap - v) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { pc.cap = v; pcUI() } }))) }
-  if (st === 'result') {
-    const r = pcCompute(), box = $('pcResult'); box.replaceChildren();
-    if (!r) { box.append(el('div', { class: 'error', text: 'Punkty są za blisko siebie — cofnij i zaznacz rogi jeszcze raz.' })); $('pcNext').disabled = true; return }
-    const d = r.dims, dimTxt = r.shape === 'rect' ? 'góra ' + Math.round(d.lTop) + ' cm · dół ' + Math.round(d.lBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' : 'Ø góra ' + Math.round(d.dTop) + ' cm · Ø dół ' + Math.round(d.dBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm';
-    box.append(el('div', { class: 'calc-main', text: (r.scaled ? 'Pojemność: ' : 'Szacowana pojemność: ≈ ') + fmt(r.cap) + ' m³' }));
-    box.append(el('div', { class: 'muted', text: r.scaled ? 'Kształt i podziałka ze zdjęcia, pojemność wybrana przez Ciebie.' : 'Szacunek ze zdjęcia, błąd zwykle ±10–20%. Jeśli znasz tabliczkę — wpisz ją, będzie dokładniej.' }));
-    box.append(el('div', { class: 'muted', text: 'Wymiary (szacunek): ' + dimTxt }));
-    if (!r.scaled && (r.cap > 5 || r.cap < .03)) box.append(el('div', { class: 'error', text: '⚠️ Wynik wygląda nierealnie — sprawdź punkty przedmiotu odniesienia.' }));
-    $('pcNext').disabled = !(r.cap > 0 && r.cap <= 5);
+  let txt = '', ok = true;
+  if (st === 'side-photo') txt = 'Krok 1 · Zdjęcie kosza z boku.';
+  else if (st === 'side') { ok = pc.side.pts.length === 4; txt = ok ? 'Przeciągnij punkty na krawędzie wnętrza, potem „Dalej”.' : 'Dotknij: ' + PC_SIDE[pc.side.pts.length] + '.' }
+  else if (st === 'fill') { ok = !!pc.fill; txt = 'Dotknij wysokości, do której FAKTYCZNIE dochodzi beton (np. spaw, pasek, ślad betonu). Jeśli do samej krawędzi — „Beton do krawędzi”.' }
+  else if (st === 'top-photo') txt = 'Krok 2 · Zdjęcie z góry pokaże, czy kosz jest okrągły, owalny czy kanciasty. Wybierz też kształt poniżej.';
+  else if (st === 'top') { ok = pc.top.pts.length === 4; txt = ok ? 'Gotowe — „Dalej”. Możesz poprawić punkty.' : 'Dotknij: ' + PC_TOP[pc.top.pts.length] + '.' }
+  else if (st === 'scale') {
+    txt = 'Krok 3 · Skąd znamy wielkość kosza?';
+    if (pc.mode === 'plate') ok = number($('pcPlate').value) > 0;
+    if (pc.mode === 'ref') { ok = pc.ref.length === 2 && pcRefCm() > 0; txt = pc.ref.length < 2 ? 'Dotknij na zdjęciu ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu.' : 'Przedmiot zaznaczony — „Dalej”.' }
   }
+  else if (st === 'result') {
+    txt = 'Wynik';
+    const r = pcCompute(), box = $('pcResult'); box.replaceChildren();
+    if (!r) { box.append(el('div', { class: 'error', text: 'Brakuje danych — cofnij i sprawdź punkty lub tabliczkę.' })); ok = false }
+    else {
+      const d = r.dims, dimTxt = r.shape === 'rect' ? 'góra ' + Math.round(d.lTop) + '×' + Math.round(d.wTop) + ' cm · dół ' + Math.round(d.lBottom) + '×' + Math.round(d.wBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' : 'Ø góra ' + Math.round(d.dTop) + ' cm · Ø dół ' + Math.round(d.dBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' + (d.e ? ' · owal ' + Math.round(d.e * 100) + '%' : '');
+      box.append(el('div', { class: 'calc-main', text: 'Faktycznie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
+      box.append(el('div', { class: 'calc-range', text: 'realnie od ' + fmt(r.lo) + ' do ' + fmt(r.hi) + ' m³' }));
+      box.append(el('div', { class: 'muted', text: 'Do samej krawędzi: ' + fmt(r.rim) + ' m³' + (r.nominal && r.mode === 'plate' ? ' (tabliczka ' + fmt(r.nominal) + ')' : '') + (r.fillFrac < 1 ? ' · beton ok. ' + Math.round(r.belowRim) + ' cm pod krawędzią' : '') }));
+      box.append(el('div', { class: 'muted', text: 'Wymiary (szacunek): ' + dimTxt }));
+      if (r.mode === 'typ') box.append(el('div', { class: 'muted', text: 'Wielkość wybrana „na oko” — kształt i podziałka są ze zdjęć.' }));
+      if (r.real > 5 || r.real < .02) { box.append(el('div', { class: 'error', text: '⚠️ Wynik wygląda nierealnie — sprawdź punkty.' })); ok = false }
+    }
+  }
+  $('pcStep').textContent = txt; $('pcNext').disabled = !ok;
   pcDraw();
 }
 function pcDraw() {
-  const cv = $('pcCanvas'); if (!pc.img || $('pcWrap').classList.contains('hide')) return;
-  const wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = wrap.clientWidth || 340, maxH = Math.max(220, window.innerHeight * .52);
-  const k = Math.min(maxW / pc.img.width, maxH / pc.img.height); pc.k = k;
-  const w = Math.round(pc.img.width * k), h = Math.round(pc.img.height * k);
+  if (!canvasStep()) return; const ph = pc.step === 'top' ? pc.top : pc.side; if (!ph.img) return;
+  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(220, window.innerHeight * .5);
+  const k = Math.min(maxW / ph.img.width, maxH / ph.img.height); pc.k = k;
+  const w = Math.round(ph.img.width * k), h = Math.round(ph.img.height * k);
   cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = w * dpr; cv.height = h * dpr;
-  const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
+  const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(ph.img, 0, 0);
   const lw = 3 / k, r = 11 / k;
-  if (pc.pts.length) {
-    g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.18)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (pc.pts.length === 4) { g.closePath(); g.fill() } g.stroke();
-    pc.pts.forEach((p, i) => { g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fillStyle = '#8BD1E0'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#14112e'; g.stroke(); g.fillStyle = '#14112e'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y) });
-  }
-  if (pc.ref.length) {
-    g.lineWidth = lw; g.strokeStyle = '#ffd17e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke();
-    pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, r * .8, 0, Math.PI * 2); g.fillStyle = '#ffd17e'; g.fill() });
+  const dot = (p, label, color) => { g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fillStyle = color; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#14112e'; g.stroke(); if (label) { g.fillStyle = '#14112e'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, p.x, p.y) } };
+  if (ph === pc.side) {
+    const P = pc.side.pts;
+    if (P.length) { g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.16)'; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (P.length === 4) { g.closePath(); g.fill() } g.stroke() }
+    if (pc.fill && P.length === 4) {
+      const [TL, TR, BR, BL] = P, mT = mid(TL, TR), mB = mid(BL, BR); const vx = mT.x - mB.x, vy = mT.y - mB.y; let f = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); f = Math.min(1, Math.max(0, f));
+      const L = { x: BL.x + (TL.x - BL.x) * f, y: BL.y + (TL.y - BL.y) * f }, R = { x: BR.x + (TR.x - BR.x) * f, y: BR.y + (TR.y - BR.y) * f };
+      g.fillStyle = 'rgba(155,163,179,.55)'; g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.lineTo(BR.x, BR.y); g.lineTo(BL.x, BL.y); g.closePath(); g.fill();
+      g.lineWidth = lw * 1.3; g.strokeStyle = '#ffffff'; g.setLineDash([10 / k, 6 / k]); g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.stroke(); g.setLineDash([]);
+      dot(pc.fill, 'B', '#ffffff');
+    }
+    P.forEach((p, i) => dot(p, String(i + 1), '#8BD1E0'));
+    if (pc.step === 'scale' && pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ffd17e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => dot(p, '', '#ffd17e')) }
+  } else {
+    const T = pc.top.pts; g.lineWidth = lw;
+    if (T.length >= 2) { g.strokeStyle = '#8BD1E0'; g.beginPath(); g.moveTo(T[0].x, T[0].y); g.lineTo(T[1].x, T[1].y); g.stroke() }
+    if (T.length === 4) { g.strokeStyle = '#9B4CD3'; g.beginPath(); g.moveTo(T[2].x, T[2].y); g.lineTo(T[3].x, T[3].y); g.stroke() }
+    T.forEach((p, i) => dot(p, String(i + 1), i < 2 ? '#8BD1E0' : '#c39bf0'));
   }
 }
 (function pcInput() {
   const cv = $('pcCanvas');
   const pos = e => { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / pc.k, y: (e.clientY - b.top) / pc.k } };
-  const list = () => pc.step === 'bucket' ? pc.pts : pc.step === 'ref' ? pc.ref : null;
+  const target = () => pc.step === 'side' ? [pc.side.pts, 4] : pc.step === 'top' ? [pc.top.pts, 4] : pc.step === 'scale' ? [pc.ref, 2] : null;
   cv.addEventListener('pointerdown', e => {
-    const L = list(); if (!L) return; const p = pos(e); e.preventDefault(); cv.setPointerCapture(e.pointerId);
+    e.preventDefault(); cv.setPointerCapture(e.pointerId); const p = pos(e);
+    if (pc.step === 'fill') { pc.fill = p; pc.drag = 99; pcUI(); return }
+    const t = target(); if (!t) return; const [L, max] = t;
     let best = -1, bd = 30 / pc.k; L.forEach((q, i) => { const d = dist(p, q); if (d < bd) { bd = d; best = i } });
-    const max = pc.step === 'bucket' ? 4 : (pcRefCm() > 0 ? 2 : 0);
     if (best >= 0) pc.drag = best; else if (L.length < max) { L.push(p); pc.drag = L.length - 1 } else pc.drag = -1;
     pcUI();
   });
-  cv.addEventListener('pointermove', e => { const L = list(); if (!L || pc.drag < 0) return; L[pc.drag] = pos(e); pcDraw() });
-  const up = () => { pc.drag = -1; pcUI() }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointermove', e => { if (pc.drag < 0) return; const p = pos(e); if (pc.step === 'fill') pc.fill = p; else { const t = target(); if (t && t[0][pc.drag]) t[0][pc.drag] = p } pcDraw() });
+  const up = () => { if (pc.drag >= 0) { pc.drag = -1; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 $('pcFile').addEventListener('change', e => {
-  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return; pc.file = f;
-  const rd = new FileReader(); rd.onload = () => { const img = new Image(); img.onload = () => { pc.img = img; pc.src = rd.result; pc.pts = []; pc.ref = []; pc.step = 'bucket'; pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result }; rd.readAsDataURL(f);
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+  const ph = pcPhoto(), rd = new FileReader();
+  rd.onload = () => { const img = new Image(); img.onload = () => { ph.img = img; ph.file = f; ph.pts = []; pc.step = ph === pc.top ? 'top' : 'side'; pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result };
+  rd.readAsDataURL(f);
 });
-$('pcRefType').addEventListener('change', () => { pc.ref = []; pcUI() });
-$('pcRefCustom').addEventListener('input', () => pcUI());
+document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
+document.querySelectorAll('[data-pcmode]').forEach(b => b.addEventListener('click', () => { pc.mode = b.dataset.pcmode; pc.ref = []; pcUI() }));
+['pcPlate', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI()));
+$('pcRefType').addEventListener('change', () => pcUI());
+const go = st => { pc.step = st; pcUI() };
+$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; go('top-photo') } else { pc.top = newPhoto(); go('scale') } });
 $('pcBack').addEventListener('click', () => {
-  if (pc.step === 'result') pc.step = 'ref';
-  else if (pc.step === 'ref') { if (pc.ref.length) pc.ref.pop(); else pc.step = 'bucket' }
-  else if (pc.step === 'bucket') { if (pc.pts.length) pc.pts.pop(); else pc.step = 'photo' }
+  const st = pc.step;
+  if (st === 'side') { if (pc.side.pts.length) pc.side.pts.pop(); else return go('side-photo') }
+  else if (st === 'fill') { if (pc.fill) pc.fill = null; else return go('side') }
+  else if (st === 'top-photo') return go('fill');
+  else if (st === 'top') { if (pc.top.pts.length) pc.top.pts.pop(); else return go('top-photo') }
+  else if (st === 'scale') { if (pc.mode === 'ref' && pc.ref.length) pc.ref.pop(); else return go(pc.top.img ? 'top' : 'top-photo') }
+  else if (st === 'result') return go('scale');
   pcUI();
 });
 $('pcNext').addEventListener('click', async () => {
-  if (pc.step === 'bucket') pc.step = 'ref';
-  else if (pc.step === 'ref') pc.step = 'result';
-  else if (pc.step === 'result') {
-    const r = pcCompute(); if (!r) return;
-    $('bShape').value = r.shape; dimFields(r.shape, r.dims);
-    $('bPlate').value = r.scaled ? fmt(r.cap) : '';
-    formEstimated = true;
-    try { formPhotos.push(await thumbFromFile(pc.file)); formPhotos = formPhotos.slice(-4); thumbsRender() } catch (e) { }
-    bucketPreview(); pcClose(); announce('Szacunek: ' + fmt(r.cap) + ' m³ — sprawdź i zapisz');
-    return;
-  }
-  pcUI();
+  const st = pc.step;
+  if (st === 'side') return go('fill');
+  if (st === 'fill') return go('top-photo');
+  if (st === 'top') return go('scale');
+  if (st === 'scale') return go('result');
+  if (st !== 'result') return;
+  const r = pcCompute(); if (!r) return;
+  $('bShape').value = r.shape; dimFields(r.shape, r.dims);
+  $('bPlate').value = r.nominal ? fmt(r.nominal) : '';
+  $('bReal').value = fmt(r.real);
+  formEstimated = true;
+  for (const f of [pc.side.file, pc.top.file]) if (f) try { formPhotos.push(await thumbFromFile(f)) } catch (e) { }
+  formPhotos = formPhotos.slice(-4); thumbsRender(); bucketPreview(); pcClose();
+  $('bName').focus(); announce('Faktycznie ≈ ' + fmt(r.real) + ' m³ — nazwij kosz i zapisz');
 });
 $('pcClose').addEventListener('click', pcClose);
 $('bPhotoCalc').addEventListener('click', pcOpen);

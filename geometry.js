@@ -41,6 +41,8 @@ export function cleanDims(shape, raw) {
     if (!(v > 0 && v < 500)) return null;
     out[k] = v;
   }
+  const e = num(raw?.e);
+  if (e > 0.3 && e < 3 && Math.abs(e - 1) > 0.01) out.e = e;
   return out;
 }
 
@@ -53,12 +55,13 @@ export function totalHeight(shape, d) {
 export function areaAt(shape, d, y) {
   const H = totalHeight(shape, d);
   const t = Math.min(1, Math.max(0, y / H));
+  const e = d.e > 0 ? d.e : 1; // owalny kosz: głębokość / szerokość (ze zdjęcia z góry)
   switch (shape) {
-    case 'cone': { const r = lerp(d.dBottom, d.dTop, t) / 2; return Math.PI * r * r }
-    case 'cylinder': { const r = d.d / 2; return Math.PI * r * r }
+    case 'cone': { const r = lerp(d.dBottom, d.dTop, t) / 2; return Math.PI * r * r * e }
+    case 'cylinder': { const r = d.d / 2; return Math.PI * r * r * e }
     case 'cylcone': {
-      if (y >= d.hCone) { const r = d.d / 2; return Math.PI * r * r }
-      const r = lerp(d.dOut, d.d, Math.max(0, y) / d.hCone) / 2; return Math.PI * r * r;
+      if (y >= d.hCone) { const r = d.d / 2; return Math.PI * r * r * e }
+      const r = lerp(d.dOut, d.d, Math.max(0, y) / d.hCone) / 2; return Math.PI * r * r * e;
     }
     case 'rect': return lerp(d.lBottom, d.lTop, t) * lerp(d.wBottom, d.wTop, t);
     default: return 0;
@@ -77,6 +80,14 @@ export function volumeTable(shape, d, steps = 400) {
     ys.push(y1); vs.push(acc / 1e6);
   }
   return { H, ys, vs };
+}
+
+/** Objętość [m³] od dna do wysokości y [cm]. */
+export function volumeUpTo(shape, d, y) {
+  const t = volumeTable(shape, d); const { ys, vs } = t;
+  if (y >= t.H) return vs[vs.length - 1]; if (y <= 0) return 0;
+  const i = Math.min(ys.length - 2, Math.floor(y / t.H * (ys.length - 1)));
+  return lerp(vs[i], vs[i + 1], (y - ys[i]) / (ys[i + 1] - ys[i]));
 }
 
 export function geoCapacity(shape, d) {

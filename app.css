@@ -145,3 +145,6 @@ details.fine{margin-top:14px}
 .pc-canvas-wrap{display:flex;justify-content:center;background:#0b0920;border-radius:14px;padding:4px;margin-bottom:10px}
 .pc-canvas-wrap canvas{touch-action:none;border-radius:10px;display:block}
 .pc-acts{margin-top:12px}
+.pc-progress{display:flex;gap:4px;margin:4px 0 6px}.pc-progress span{flex:1;text-align:center;font-size:11px;font-weight:800;padding:5px 0;border-radius:8px;background:#201c45;color:#8f8bb5}.pc-progress span.on{background:linear-gradient(120deg,#8BD1E0,#9B4CD3);color:#0e1030}
+.calc-range{font-weight:800;color:#fff;margin-bottom:6px}
+#pcShapeToggle{margin-bottom:10px}#pcModes{margin-bottom:6px}

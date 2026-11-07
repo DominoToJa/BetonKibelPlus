@@ -54,9 +54,10 @@
   <label class="label" for="bName">Nazwa</label><input id="bName" placeholder="np. Pomarańczowy Eichinger">
   <label class="label" for="bShape">Kształt wnętrza</label><select id="bShape"></select>
   <p class="hint" id="bShapeHint"></p>
-  <button type="button" id="bPhotoCalc" class="full calc-photo-btn">📷 Oszacuj ze zdjęcia — bez mierzenia</button>
+  <button type="button" id="bPhotoCalc" class="full calc-photo-btn">📷 Policz ze zdjęć (bok + góra) — bez mierzenia</button>
   <div id="bDims" class="grid two"></div>
   <label class="label" for="bPlate">Pojemność z tabliczki (m³) <span class="muted">— jeśli jest</span></label><input id="bPlate" inputmode="decimal" placeholder="np. 0,75">
+  <label class="label" for="bReal">Faktycznie wchodzi (m³) <span class="muted">— jeśli wiesz, np. tabliczka 0,75, a wchodzi 0,6</span></label><input id="bReal" inputmode="decimal" placeholder="np. 0,6">
   <div id="bPreview" class="calc-box" aria-live="polite"></div>
   <label class="label" for="bPhotos">Zdjęcia (opcjonalnie — z aparatu lub galerii)</label><input id="bPhotos" type="file" accept="image/*" multiple>
   <div id="bPhotoThumbs" class="thumbs"></div>
@@ -138,29 +139,34 @@
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
-  <div class="pc-top"><strong id="pcTitle">📷 Kosz ze zdjęcia</strong><button type="button" id="pcClose" class="icon-btn" aria-label="Zamknij">✕</button></div>
+  <div class="pc-top"><strong id="pcTitle">📷 Kosz ze zdjęć</strong><button type="button" id="pcClose" class="icon-btn" aria-label="Zamknij">✕</button></div>
+  <div class="pc-progress" id="pcProgress"></div>
   <p class="pc-step" id="pcStep"></p>
-  <label class="big-btn pc-pick" id="pcPick">🖼 Wybierz zdjęcie kosza (z boku)<small>Z galerii albo zrób teraz. Najlepiej z wysokości połowy kosza.</small><input id="pcFile" type="file" accept="image/*" hidden></label>
+  <label class="big-btn pc-pick hide" id="pcPick"><span id="pcPickText">🖼 Zdjęcie z boku</span><small id="pcPickSub"></small><input id="pcFile" type="file" accept="image/*" hidden></label>
+  <div class="chips hide" id="pcShapeToggle"><button type="button" class="pill" data-pcshape="round">⭕ Okrągły / owalny</button><button type="button" class="pill" data-pcshape="rect">⬛ Kanciasty</button></div>
   <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas></div>
-  <div id="pcRef" class="hide">
-   <label class="label" for="pcRefType">Co jest na zdjęciu obok kosza?</label>
-   <select id="pcRefType">
-    <option value="0">Nic — wybiorę typową pojemność</option>
-    <option value="175">Człowiek (ok. 175 cm wzrostu)</option>
-    <option value="120">Europaleta — długość (120 cm)</option>
-    <option value="80">Europaleta — szerokość (80 cm)</option>
-    <option value="200">Drzwi (ok. 200 cm wysokości)</option>
-    <option value="65">Koło osobówki (ok. 65 cm)</option>
-    <option value="100">Koło ciężarówki / gruszki (ok. 100 cm)</option>
-    <option value="29.7">Kartka A4 — dłuższy bok (29,7 cm)</option>
-    <option value="25">Cegła — długość (25 cm)</option>
-    <option value="-1">Coś innego — wpiszę ile ma cm</option>
-   </select>
-   <input id="pcRefCustom" class="hide" inputmode="decimal" placeholder="ile cm ma ten przedmiot?" style="margin-top:8px">
-   <div id="pcCapPick" class="chips hide" style="margin-top:10px"></div>
+  <div id="pcScale" class="hide">
+   <div class="chips" id="pcModes"><button type="button" class="pill" data-pcmode="plate">🏷 Mam tabliczkę</button><button type="button" class="pill" data-pcmode="ref">📏 Przedmiot na zdjęciu</button><button type="button" class="pill" data-pcmode="typ">❔ Nie wiem</button></div>
+   <div id="pcModePlate" class="hide"><label class="label" for="pcPlate">Co jest na tabliczce (m³)?</label><input id="pcPlate" inputmode="decimal" placeholder="np. 0,75"></div>
+   <div id="pcModeRef" class="hide">
+    <label class="label" for="pcRefType">Co stoi obok kosza na zdjęciu z boku?</label>
+    <select id="pcRefType">
+     <option value="175">Człowiek (ok. 175 cm wzrostu)</option>
+     <option value="120">Europaleta — długość (120 cm)</option>
+     <option value="80">Europaleta — szerokość (80 cm)</option>
+     <option value="200">Drzwi (ok. 200 cm wysokości)</option>
+     <option value="65">Koło osobówki (ok. 65 cm)</option>
+     <option value="100">Koło ciężarówki / gruszki (ok. 100 cm)</option>
+     <option value="29.7">Kartka A4 — dłuższy bok (29,7 cm)</option>
+     <option value="25">Cegła — długość (25 cm)</option>
+     <option value="-1">Coś innego — wpiszę ile ma cm</option>
+    </select>
+    <input id="pcRefCustom" class="hide" inputmode="decimal" placeholder="ile cm ma ten przedmiot?" style="margin-top:8px">
+   </div>
+   <div id="pcModeTyp" class="hide"><div class="label">Na oko — jaki to kosz?</div><div id="pcCapPick" class="chips"></div></div>
   </div>
   <div id="pcResult" class="calc-box hide" aria-live="polite"></div>
-  <div class="row pc-acts"><button type="button" id="pcBack">↶ Cofnij</button><button type="button" id="pcNext" class="primary">Dalej</button></div>
+  <div class="row pc-acts"><button type="button" id="pcBack">↶ Cofnij</button><button type="button" id="pcSkip" class="hide">Pomiń</button><button type="button" id="pcNext" class="primary">Dalej ›</button></div>
  </div>
 </div>
 <div id="toast" role="status"></div>
