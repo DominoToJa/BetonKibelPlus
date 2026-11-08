@@ -462,6 +462,15 @@ function ask(msg, okText = 'Tak', danger = false, onlyOk = false) {
     box.append(card); box.addEventListener('click', e => { if (e.target === box) done(false) }); document.body.append(box); ok.focus();
   });
 }
+/* pytanie z kilkoma odpowiedziami: [[tekst, wartość, klasa, podpis]] — kliknięcie działa jak gest użytkownika (można otworzyć aparat) */
+function askChoice(msg, options, onPick) {
+  return new Promise(res => {
+    const box = el('div', { class: 'ask-back', role: 'dialog', 'aria-modal': 'true' }), card = el('div', { class: 'ask-card' });
+    const done = v => { box.remove(); res(v) };
+    card.append(el('p', { text: msg }), el('div', { class: 'ask-col' }, ...options.map(([t, v, cls, sub]) => el('button', { type: 'button', class: cls || '', onclick: () => { onPick?.(v); done(v) } }, el('span', { text: t }), ...(sub ? [el('small', { text: sub })] : [])))));
+    box.append(card); box.addEventListener('click', e => { if (e.target === box) done(null) }); document.body.append(box);
+  });
+}
 async function start() {
   const p = method !== 'taczka' ? getProfile(chosenProfileId) : null;
   const load = number($('load').value), dose = p ? p.capacity : number($('portion').value), cycleMin = method === 'taczka' ? 2 : number($('cycleMin').value);
@@ -1067,6 +1076,8 @@ function pcCompute() {
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
+  pc.moreAsked = pc.moreAsked || {};
+  clearTimeout(pc.moreT); if (has && !pc.moreAsked[pc.view] && levelsFor(pc.pts) && n >= 4) pc.moreT = setTimeout(() => { if (pc.moreAsked[pc.view] || $('pc').classList.contains('hide') || document.querySelector('.ask-back') || !levelsFor(pc.pts)) return; const free = ['front', 'side', 'top'].filter(v => v !== pc.view && !levelsFor(viewData(v).pts || [])); pc.moreAsked[pc.view] = true; if (free.length && pc.photos.length < 6) pcAskMore() }, 3500);
   pcStripRender();
   $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
   $('pcSettings').classList.toggle('hide', !levelsFor(viewData('front').pts));
@@ -1163,7 +1174,7 @@ function pcDraw() {
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 function pcOpen() {
-  Object.assign(pc, { view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
+  Object.assign(pc, { moreAsked: {}, view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
@@ -1173,9 +1184,29 @@ const loadImg = f => new Promise((res, rej) => { const rd = new FileReader(); rd
 async function pcAddFiles(files, measureFirstNew) {
   const start = pc.photos.length;
   for (const f of [...files].slice(0, 6 - pc.photos.length)) { try { const { img, url } = await loadImg(f); pc.photos.push({ img, url, file: f }) } catch (e) { announce('Nie mogę otworzyć zdjęcia') } }
-  if (pc.photos.length > start && (measureFirstNew || !pc.img)) pcSelect(pc.img ? start : 0);
-  else pcUI();
   if ([...files].length > 6 - start) announce('Maksymalnie 6 zdjęć');
+  let last = null;
+  for (let i = start; i < pc.photos.length; i++) {
+    const n = pc.photos.length - start > 1 ? ' (' + (i - start + 1) + ' z ' + (pc.photos.length - start) + ')' : '';
+    const v = await askChoice('Co widać na tym zdjęciu?' + n, [['⬜ Przód', 'front', 'primary', 'kosz od przodu, cały w kadrze'], ['◧ Bok', 'side', '', 'z boku, 90° od przodu (kosz L)'], ['◯ Góra', 'top', '', 'od góry, widać wlew'], ['🖼 Coś innego', 'other', '', 'tylko zachowaj zdjęcie']]);
+    if (v && v !== 'other') last = [i, v]; else if (!v && !last && !pc.img) last = [i, 'front'];
+  }
+  if (last) pcPutPhoto(last[0], last[1]); else if (!pc.img && pc.photos.length) pcPutPhoto(0, 'front'); else pcUI();
+}
+/** ustaw zdjęcie i jako widok v (przód / bok / góra) i przejdź do jego obrysu */
+function pcPutPhoto(i, v) {
+  const ph = pc.photos[i]; if (!ph) return;
+  if (v === 'side') pc.useSide = true; if (v === 'top') pc.useTop = true;
+  if (pc.view !== v) { pc.views[pc.view] = Object.fromEntries(VIEW_KEYS.map(k => [k, pc[k]])); pc.view = v; const old = pc.views[v]; delete pc.views[v]; Object.assign(pc, old && old.cur === i ? old : { pts: [], ref: [] }) }
+  else if (pc.cur !== i) { pc.pts = []; pc.ref = [] }
+  for (const [k, d] of Object.entries(pc.views)) if (d && d.cur === i && k !== v) pc.views[k] = { pts: [], ref: [], img: null, file: null, cur: -1 };
+  pc.cur = i; pc.img = ph.img; pc.file = ph.file; pc.moreAsked = pc.moreAsked || {}; pcUI();
+}
+/* po obrysie: „Dodać jeszcze zdjęcie?” → Tak → aparat albo galeria */
+async function pcAskMore() {
+  const want = await askChoice('Obrys gotowy ✓ Dodać jeszcze zdjęcie (np. bok albo górę), żeby było dokładniej?', [['＋ Tak, dodaj zdjęcie', 'yes', 'primary'], ['Nie, wystarczy', 'no', '']]);
+  if (want !== 'yes') return;
+  await askChoice('Skąd wziąć zdjęcie?', [['📸 Zrób zdjęcie aparatem', 'cam', 'primary'], ['🖼 Wybierz z galerii', 'gal', '']], v => $(v === 'cam' ? 'pcAddCam' : 'pcAddGal').click());
 }
 async function pcSelect(i) {
   const ph = pc.photos[i]; if (!ph) return;
