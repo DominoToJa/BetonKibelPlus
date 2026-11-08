@@ -40,7 +40,7 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green' };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -68,6 +68,7 @@ try {
   if (s) Object.assign(settings, s);
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
+const applyTheme = () => { document.body.classList.toggle('theme-green', settings.theme !== 'violet'); document.querySelector('meta[name=theme-color]')?.setAttribute('content', settings.theme !== 'violet' ? '#06141a' : '#0c0a20') };
 const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } configureNative() };
 const saveTexts = () => { try { localStorage.setItem(TEXT_KEY, JSON.stringify(TEXTS)) } catch (e) { } configureNative() };
 let clipKeys = new Set(), recordingKey = '';
@@ -107,7 +108,7 @@ const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag)
 
 // ───────────────────────── kosze ─────────────────────────
 let kibelN = 0;
-const kibelIcon = () => { const w = document.createElement('span'); w.className = 'tile-ico'; const id = 'kbx' + (++kibelN); w.innerHTML = '<svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#' + id + ')" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg>'; return w };
+const kibelIcon = () => { const w = document.createElement('span'); w.className = 'tile-ico'; const id = 'kbx' + (++kibelN); w.innerHTML = '<svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".35" style="stop-color:var(--c2)"/><stop offset=".7" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#' + id + ')" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg>'; return w };
 const PROFILE_KEY = 'beton_bucket_profiles_18', SITE_BUCKET_KEY = 'beton_site_bucket_assignments_24';
 let profiles = [];
 try { const st = JSON.parse(localStorage.getItem(PROFILE_KEY) || '[]'); if (Array.isArray(st)) profiles = st.map(migrateProfile) } catch (e) { }
@@ -198,6 +199,11 @@ function sheetRender() {
   }
   r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
+  const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
+  const ci = el('input', { inputmode: 'decimal', placeholder: 'np. 0,8', 'aria-label': 'Niestandardowa pojemność' }); if (!chosenProfileId && !isStd && cur > 0) ci.value = fmt(cur);
+  const ok = () => { const v = number(ci.value); if (!(v > 0 && v <= 5)) return announce('Wpisz od 0,01 do 5 m³'); chosenProfileId = ''; $('portion').value = fmt(v); renderPresets(); tab('setup') };
+  ci.addEventListener('keydown', e => { if (e.key === 'Enter') ok() });
+  r.append(el('div', { class: 'tile custom' + (!chosenProfileId && !isStd && cur > 0 ? ' on' : '') }, el('span', { text: '✏️ Niestandardowy' }), ci, el('button', { type: 'button', class: 'primary', text: 'OK', onclick: ok })));
 }
 $('bucketPick').addEventListener('click', () => tab('pickBucket')); $('pickBack').addEventListener('click', () => tab('setup'));
 function restoreSiteBucket() {
@@ -350,7 +356,7 @@ function makeBucketSvg(cap, current, model) {
     if (tooClose) return;
     ticks += `<g transform="translate(${(xr + 12).toFixed(1)} ${y.toFixed(1)})"><rect x="0" y="-13" width="${w}" height="26" rx="8" fill="#ff3b4e" stroke="#14112e" stroke-width="2"/><text x="${(w / 2).toFixed(1)}" y="6" text-anchor="middle" font-size="17" font-weight="950" fill="#ffffff">${label}</text></g>`;
   });
-  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".28" stop-color="#9B4CD3"/><stop offset=".62" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="M92 86L238 86L204 229L126 229Z"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="M92 86L238 86L204 229L126 229Z" fill="#0f0c26" opacity=".35"/><g clip-path="url(#bkClip)"><path d="M${xL.toFixed(1)} ${fy.toFixed(1)}L${xR.toFixed(1)} ${fy.toFixed(1)}L204 229L126 229Z" fill="#9aa3b3" opacity=".95"/><path d="M${xL.toFixed(1)} ${(fy - 1).toFixed(1)}L${xR.toFixed(1)} ${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e">z ${fmt(cap)} m³</text></svg>`;
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".28" style="stop-color:var(--c2)"/><stop offset=".62" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="M92 86L238 86L204 229L126 229Z"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="M92 86L238 86L204 229L126 229Z" fill="#0f0c26" opacity=".35"/><g clip-path="url(#bkClip)"><path d="M${xL.toFixed(1)} ${fy.toFixed(1)}L${xR.toFixed(1)} ${fy.toFixed(1)}L204 229L126 229Z" fill="#9aa3b3" opacity=".95"/><path d="M${xL.toFixed(1)} ${(fy - 1).toFixed(1)}L${xR.toFixed(1)} ${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e">z ${fmt(cap)} m³</text></svg>`;
 }
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
@@ -755,6 +761,7 @@ $('pcClose').addEventListener('click', pcClose);
 $('bPhotoCalc').addEventListener('click', () => { pcOpen(); pcCameraNow() });
 
 // ───────────────────────── ustawienia ─────────────────────────
+applyTheme(); $('themeSel').value = settings.theme || 'green'; $('themeSel').addEventListener('change', () => { settings.theme = $('themeSel').value; applyTheme(); saveSettings() });
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });

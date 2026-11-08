@@ -6,10 +6,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BetonKibelPlus">
 <link rel="stylesheet" href="/app.css"></head><body>
+<script>try{var t=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}").theme;if(t!=="violet")document.body.classList.add("theme-green")}catch(e){document.body.classList.add("theme-green")}</script>
 
 <div id="intro" aria-hidden="true">
   <svg class="intro-logo" viewBox="0 0 1024 1024" role="img" aria-label="BK+ DOMINO">
-    <defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8BD1E0"/><stop offset="1" stop-color="#9B4CD3"/></linearGradient></defs>
+    <defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:var(--c2)"/></linearGradient></defs>
     <circle class="intro-ring" cx="512" cy="512" r="330" fill="none" stroke="url(#ig)" stroke-width="56" stroke-linecap="round"/>
     <text class="intro-bk" x="512" y="575" text-anchor="middle" font-weight="900" font-size="230" fill="url(#ig)">BK+</text>
     <text class="intro-domino" x="512" y="690" text-anchor="middle" font-weight="800" font-size="62" letter-spacing="14" fill="#cfe9f1">DOMINO</text>
@@ -29,7 +30,7 @@
   <button id="homeContinue" type="button" class="big-btn primary hide">▶ Kontynuuj betonowanie<small id="homeContinueInfo"></small></button>
   <button id="homeNew" type="button" class="big-btn">＋ Nowe betonowanie<small>Budowa, ilość betonu, kosz</small></button>
   <div class="grid three home-small">
-    <button type="button" data-go="buckets"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg1" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg1)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg><br>Moje kosze</button>
+    <button type="button" data-go="buckets"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg1" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".35" style="stop-color:var(--c2)"/><stop offset=".7" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg1)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg><br>Moje kosze</button>
     <button type="button" data-go="history">▤<br>Budowy</button>
     <button type="button" data-go="settings">⚙️<br>Ustawienia</button>
   </div>
@@ -47,11 +48,11 @@
 </div></section>
 
 <section id="pickBucket" class="hide"><div class="panel">
-<div class="pick-head"><button type="button" id="pickBack" class="icon-btn" aria-label="Wróć">‹</button><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg3" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg3)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Wybierz kosz</h2></div>
+<div class="pick-head"><button type="button" id="pickBack" class="icon-btn" aria-label="Wróć">‹</button><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg3" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".35" style="stop-color:var(--c2)"/><stop offset=".7" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg3)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Wybierz kosz</h2></div>
 <div id="pickTiles" class="tiles"></div>
 </div></section>
 
-<section id="buckets" class="hide"><div class="panel"><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg2" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg2)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Moje kosze</h2>
+<section id="buckets" class="hide"><div class="panel"><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg2" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".35" style="stop-color:var(--c2)"/><stop offset=".7" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg2)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Moje kosze</h2>
 <div id="bucketList"></div>
 <button type="button" id="newBucket" class="primary full">＋ Nowy kosz</button>
 <div id="bucketForm" class="hide bucket-form">
@@ -123,6 +124,7 @@
 
 <section id="settings" class="hide">
 <div class="panel"><h2>⚙️ Ustawienia</h2>
+<label class="label" for="themeSel">Kolory aplikacji</label><select id="themeSel"><option value="green">Zielony (#2FD271 + #056C7F) — test</option><option value="violet">Błękit + fiolet (#8BD1E0 + #9B4CD3)</option></select>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <div class="label">Lektor</div><div id="lektorList" class="lektor-list"></div>
 <p class="hint" id="voiceHint"></p>
