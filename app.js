@@ -295,7 +295,7 @@ document.addEventListener('click', e => { const b = e.target.closest('button, .t
 /* odblokowanie dźwięku: każde dotknięcie (aż się uda) „budzi” oba odtwarzacze muzyki — iPhone/Safari wymaga gestu */
 let bgmPrimed = false, bgmPool = [];
 function bgmPrime() {
-  if (bgmPrimed) return; try {
+  if (bgmPrimed || !BGM_ENABLED) return; try {
     if (!bgmPool.length) bgmPool = [new Audio('sounds/bgm.mp3'), new Audio('sounds/bgm.mp3')];
     for (const a of bgmPool) { if (a === bgm && !a.paused) continue; a.volume = 0; a.muted = true; const pr = a.play(); if (pr) pr.then(() => { if (a !== bgm || !bgmWanted() || a.volume === 0) { if (a !== bgm || !bgmWanted()) a.pause() } a.muted = false; bgmPrimed = true; if (a === bgm && bgmWanted()) bgmFade(bgmTarget()) }, () => { a.muted = false }) }
   } catch (e) { }
