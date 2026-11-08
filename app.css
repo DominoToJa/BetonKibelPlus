@@ -319,3 +319,6 @@ body.lay-tiles #homeBig{display:contents}
 .pc-th-x{position:absolute;top:-6px;right:-6px;width:24px;height:24px;padding:0;border-radius:50%;font-size:12px;line-height:22px;background:#2a1018!important;border-color:#ff6b7f!important}
 .pc-add{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:9px 4px;font-size:13px;font-weight:800;border-radius:12px;border:1px solid color-mix(in srgb,var(--c2) 55%,#1a2228);background:color-mix(in srgb,var(--c2) 26%,#081016);cursor:pointer}
 #pc .pc-sheet>*{flex:none}#pc .pc-acts{margin-top:auto}.pc-strip{min-height:78px;padding-top:8px}
+.pc-fill-row{display:flex;gap:8px;align-items:center}.pc-fill-row input{flex:1;margin:0}
+.pc-filltap{flex:none;padding:9px 10px;font-size:13px}
+.pc-filltap.on{background:var(--grad)!important;color:var(--ink)}

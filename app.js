@@ -684,7 +684,7 @@ function bucketListRender() {
 
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
-const pc = { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, shape: 'round', k: 1, drag: -1, editId: '' };
+const pc = { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
 const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
@@ -716,6 +716,7 @@ function pcUI() {
   let t = '';
   if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
   else if (n < 4) t = (pc.photos.length > 1 ? 'Mierzysz na zdjęciu 📐 (zmień na pasku wyżej). ' : '') + 'Dotknij: ' + PT_HELP[n] + '.';
+  else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
   else if (pc.other === 'ref' && pc.ref.length < 2) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
   else if (n < 6) t = 'Gotowe. Dokładniej: dotknij 2 punkty (L) tam, gdzie zaczyna się lejek — lewo i prawo.';
   else if (n < 8) t = 'Jeszcze dokładniej: 2 punkty (P) w połowie wysokości lejka — lewo i prawo. Albo zapisz.';
@@ -727,6 +728,7 @@ function pcUI() {
   $('pcOtherRow').classList.toggle('hide', pc.other !== true); $('pcRefBox').classList.toggle('hide', pc.other !== 'ref');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
   $('pcFillTxt').textContent = pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy samej krawędzi';
+  $('pcFillTap').classList.toggle('on', pc.fillTap); $('pcFillTap').textContent = pc.fillTap ? '👆 Stuknij na zdjęciu…' : '📍 Zaznacz na zdjęciu';
   document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
   const box = $('pcResult'); box.replaceChildren();
   if (r) {
@@ -753,7 +755,7 @@ function pcDraw() {
   if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
-    if (pc.fill) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; let L = top.l, R = top.r; for (let i = 1; i < lv.length; i++) if (y >= lv[i].y) { const t = (y - lv[i - 1].y) / (lv[i].y - lv[i - 1].y); L = lv[i - 1].l + (lv[i].l - lv[i - 1].l) * t; R = lv[i - 1].r + (lv[i].r - lv[i - 1].r) * t; break } g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
+    if (pc.fill || pc.fillTap) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; let L = top.l, R = top.r; for (let i = 1; i < lv.length; i++) if (y >= lv[i].y) { const t = (y - lv[i - 1].y) / (lv[i].y - lv[i - 1].y); L = lv[i - 1].l + (lv[i].l - lv[i - 1].l) * t; R = lv[i - 1].r + (lv[i].r - lv[i - 1].r) * t; break } g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
   }
   pc.pts.forEach((p, i) => {
     const label = i < 2 ? 'G' : i < 4 ? 'W' : i < 6 ? 'L' : 'P';
@@ -767,6 +769,7 @@ function pcDraw() {
   const pos = e => { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / pc.k, y: (e.clientY - b.top) / pc.k } };
   cv.addEventListener('pointerdown', e => {
     e.preventDefault(); cv.setPointerCapture(e.pointerId); const p = pos(e);
+    if (pc.fillTap) { pcFillFromY(p.y); pc.drag = ['f']; return }
     const all = [...pc.pts.map((q, i) => ['p', i, q]), ...pc.ref.map((q, i) => ['r', i, q])];
     let best = null, bd = 28 / pc.k; for (const it of all) { const d = dist(p, it[2]); if (d < bd) { bd = d; best = it } }
     if (best) pc.drag = best;
@@ -775,8 +778,8 @@ function pcDraw() {
     else pc.drag = null;
     pcUI();
   });
-  cv.addEventListener('pointermove', e => { if (!pc.drag) return; const p = pos(e); (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw() });
-  const up = () => { if (pc.drag) { pc.drag = null; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointermove', e => { if (!pc.drag) return; const p = pos(e); if (pc.drag[0] === 'f') { pcFillFromY(p.y); return } (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw() });
+  const up = () => { if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')) } pc.drag = null; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 function pcOpen() {
@@ -815,6 +818,13 @@ $('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddCam').addEventLi
 $('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 $('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
 $('pcFill').addEventListener('input', () => { pc.fill = Number($('pcFill').value); pcUI() });
+/** stuknięcie na zdjęciu → ile cm pod krawędzią (wg profilu) */
+function pcFillFromY(y) {
+  const lv = pcLevels(), r = pcCompute(); if (!lv || !r) return;
+  const yt = lv.at(-1).y, yb = lv[0].y, f = Math.min(1, Math.max(.4, (yb - y) / (yb - yt)));
+  pc.fill = Math.max(0, Math.min(60, Math.round(r.dims.h * (1 - f)))); $('pcFill').value = String(pc.fill); pcUI();
+}
+$('pcFillTap').addEventListener('click', () => { if (!pcCompute()) return announce('Najpierw zaznacz kosz i wybierz wielkość'); pc.fillTap = !pc.fillTap; pcUI(); if (pc.fillTap) $('pcWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }) });
 ['pcOther', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
