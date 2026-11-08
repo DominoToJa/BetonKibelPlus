@@ -49,7 +49,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: '3d' };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud' };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -77,9 +77,11 @@ try {
   if (s) Object.assign(settings, s);
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
+/* jednorazowo: styl Panel HUD + kolory Hopper (cyjan) */
+if (!settings.hopperV1) { settings.ui = 'hud'; settings.theme = 'hopper'; settings.hopperV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 const LAYOUTS = [['classic', 'Klasyczny', 4], ['tiles', 'Kafelki 2×2', 5], ['compact', 'Kompaktowy', 5], ['big', 'Wielkie przyciski', 3]];
 const TEXTURES = [['none', 'Gładkie'], ['beton', 'Beton'], ['stal', 'Stal szczotkowana'], ['blacha', 'Blacha ryflowana'], ['carbon', 'Carbon'], ['siatka', 'Siatka zbrojeniowa']];
-const THEMES = [['green', 'Zieleń', '#2FD271', '#056C7F'], ['violet', 'Błękit i fiolet', '#8BD1E0', '#9B4CD3'], ['orange', 'Pomarańcz budowlany', '#FFB627', '#E4572E'], ['yellow', 'Kask i niebo', '#FFE45E', '#2E86AB'], ['red', 'Czerwień', '#FF6B6B', '#7A1F5C'], ['ice', 'Lód', '#A8E6FF', '#3D5AFE'], ['steel', 'Stal', '#C9D6DF', '#52616B'], ['lime', 'Limonka', '#C6F432', '#1B998B']];
+const THEMES = [['hopper', 'Hopper (cyjan)', '#22D3EE', '#0E7490'], ['green', 'Zieleń', '#2FD271', '#056C7F'], ['violet', 'Błękit i fiolet', '#8BD1E0', '#9B4CD3'], ['orange', 'Pomarańcz budowlany', '#FFB627', '#E4572E'], ['yellow', 'Kask i niebo', '#FFE45E', '#2E86AB'], ['red', 'Czerwień', '#FF6B6B', '#7A1F5C'], ['ice', 'Lód', '#A8E6FF', '#3D5AFE'], ['steel', 'Stal', '#C9D6DF', '#52616B'], ['lime', 'Limonka', '#C6F432', '#1B998B']];
 const themeColors = () => { if (settings.theme === 'custom') return [settings.c1 || '#2FD271', settings.c2 || '#056C7F']; const t = THEMES.find(x => x[0] === settings.theme) || THEMES[0]; return [t[2], t[3]] };
 const hexRgb = h => { h = String(h).replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255) };
 const relLum = c => { const l = hexRgb(c).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * l[0] + .7152 * l[1] + .0722 * l[2] };

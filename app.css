@@ -489,3 +489,12 @@ body.ui-hud .vslider{display:block}
 body.ui-neo .vs-tick.major{color:#2d3748!important}body.ui-neo .vs-tick.minor::before{background:#64748b88!important}
 body.ui-neo .vs-track{background:#e0e5ec!important;box-shadow:inset 3px 3px 6px #a3b1c6,inset -3px -3px 6px #fff!important;border:0!important}
 body.ui-machine .vs-track,body.ui-tactical .vs-track,body.ui-terminal .vs-track{border-radius:2px}
+
+/* ── HUD w granatowej tonacji (jak w makiecie Hopper) ── */
+body.ui-hud{--hud-card:rgba(14,22,38,.9);--hud-line:color-mix(in srgb,var(--c1) 14%,#1d2940);background:radial-gradient(ellipse at 50% 18%,color-mix(in srgb,var(--c1) 9%,transparent) 0,transparent 55%),linear-gradient(#0a1222,#050913)!important;background-attachment:fixed!important}
+body.ui-hud button{background:rgba(17,27,44,.95)!important;border-color:#22304a!important}
+body.ui-hud :is(input,select,textarea){background:#070d19!important;border-color:#22304a!important}
+body.ui-hud .tabs{background:rgba(9,15,28,.92)}
+body.ui-hud .bot-quote{background:#08101e!important}
+body.ui-hud .bar{background:#0b1426!important}
+body.ui-hud .vs-track{background:linear-gradient(#ffffff08,#00000030),#0b1426!important;border-color:#22304a!important}
