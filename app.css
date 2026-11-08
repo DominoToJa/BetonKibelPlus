@@ -568,3 +568,12 @@ body.test-on main{padding-top:calc(58px + env(safe-area-inset-top))!important}
 .work-modes button.on{border-color:var(--c1)!important;color:var(--c1)!important;background:color-mix(in srgb,var(--c1) 14%,#071018)!important;box-shadow:0 0 12px color-mix(in srgb,var(--c1) 25%,transparent)}
 #vslider.m-taczka .vs-track{top:46.88%!important;bottom:20.63%!important}
 #vslider.m-inne .vs-track{top:31.25%!important;bottom:20%!important}
+
+/* okno pytania */
+.ask-back{position:fixed;inset:0;z-index:400;background:rgba(2,6,12,.72);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px;animation:askIn .15s ease-out}
+.ask-card{width:min(100%,380px);background:#0f1a2b;border:1px solid color-mix(in srgb,var(--c1) 40%,#22304a);border-radius:20px;padding:20px;box-shadow:0 20px 60px #000c,0 0 30px color-mix(in srgb,var(--c1) 18%,transparent)}
+.ask-card p{margin:0 0 16px;font-size:17px;font-weight:800;line-height:1.4;color:#fff}
+.ask-row{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:10px}
+.ask-row button{padding:15px 8px;font-size:16px}
+body.ui-neo .ask-card{background:#e0e5ec;border:0}body.ui-neo .ask-card p{color:#1e293b}
+@keyframes askIn{from{opacity:0}to{opacity:1}}

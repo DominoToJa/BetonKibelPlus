@@ -405,14 +405,24 @@ document.querySelectorAll('[data-wm]').forEach(b => b.addEventListener('click', 
 $('portion').addEventListener('input', () => { const p = getProfile(chosenProfileId); if (p && Math.abs(number($('portion').value) - p.capacity) > .0001) chosenProfileId = ''; renderPresets() });
 $('site').addEventListener('change', restoreSiteBucket); $('site').addEventListener('blur', restoreSiteBucket);
 
-function start() {
+/* własne okno pytania (zamiast confirm — działa też w podglądzie przeglądarkowym) */
+function ask(msg, okText = 'Tak', danger = false, onlyOk = false) {
+  return new Promise(res => {
+    const box = el('div', { class: 'ask-back', role: 'dialog', 'aria-modal': 'true' }), card = el('div', { class: 'ask-card' });
+    const done = v => { box.remove(); res(v) };
+    const ok = el('button', { type: 'button', class: danger ? 'warn' : 'primary', text: okText, onclick: () => done(true) });
+    card.append(el('p', { text: msg }), el('div', { class: 'ask-row' }, ...(onlyOk ? [] : [el('button', { type: 'button', text: 'Anuluj', onclick: () => done(false) })]), ok));
+    box.append(card); box.addEventListener('click', e => { if (e.target === box) done(false) }); document.body.append(box); ok.focus();
+  });
+}
+async function start() {
   const p = method !== 'taczka' ? getProfile(chosenProfileId) : null;
   const load = number($('load').value), dose = p ? p.capacity : number($('portion').value), cycleMin = method === 'taczka' ? 2 : number($('cycleMin').value);
   $('error').textContent = '';
   if (!(load > 0 && load <= 30)) return $('error').textContent = 'Podaj ile załadowano, np. 7,5 m³.';
   if (!(dose > 0 && dose <= 5)) return $('error').textContent = 'Ustaw pojemność kosza.';
   if (!(cycleMin >= 0.05 && cycleMin <= 120)) return $('error').textContent = 'Ustaw czas kursu, np. 2,5 minuty.';
-  if (session && !confirm('Zakończyć poprzednie betonowanie i zacząć nowe?')) return;
+  if (session && !(await ask('Zakończyć poprzednie betonowanie i zacząć nowe?', 'Tak, nowe'))) return;
   if (session) finishCurrent(false);
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
@@ -426,8 +436,8 @@ function finishCurrent(showNotice = true) {
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
   NATIVE.cancel?.(); syncNative(); if (showNotice) { const w = playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), 1500); else sayBot('finish') }
 }
-$('finish').addEventListener('click', () => { if (!session) return; if (!confirm('Zakończyć betonowanie i zapisać w historii?')) return; finishCurrent(); tab('history') });
-$('new').addEventListener('click', () => { if (session && !confirm('Zakończyć aktualne betonowanie i zacząć nowe?')) return; finishCurrent(false); tab('setup') });
+$('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return; finishCurrent(); tab('history') });
+$('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
 
 // ───────────────────────── kurs kosza ─────────────────────────
 function depart({ at = Date.now(), silent = false } = {}) {
@@ -901,7 +911,7 @@ function bucketListRender() {
     const acts = el('div', { class: 'bucket-acts' });
     if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
     acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
-    acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: () => { if (!confirm('Usunąć kosz „' + p.name + '”?')) return; profiles = profiles.filter(x => x.id !== p.id); for (const [k, v] of Object.entries(siteAssignments)) if (v === p.id) delete siteAssignments[k]; storeSiteAssignments(); saveProfiles(); if (chosenProfileId === p.id) chosenProfileId = ''; bucketListRender() } }));
+    acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: async () => { if (!(await ask('Usunąć kosz „' + p.name + '”?', 'Usuń', true))) return; profiles = profiles.filter(x => x.id !== p.id); for (const [k, v] of Object.entries(siteAssignments)) if (v === p.id) delete siteAssignments[k]; storeSiteAssignments(); saveProfiles(); if (chosenProfileId === p.id) chosenProfileId = ''; bucketListRender() } }));
     box.append(el('div', { class: 'bucket-row' }, img, info, acts));
   }
 }
@@ -1074,9 +1084,9 @@ async function pcAddFiles(files, measureFirstNew) {
   else pcUI();
   if ([...files].length > 6 - start) announce('Maksymalnie 6 zdjęć');
 }
-function pcSelect(i) {
+async function pcSelect(i) {
   const ph = pc.photos[i]; if (!ph) return;
-  if (pc.img && pc.img !== ph.img && pc.pts.length && !confirm('Mierzyć na innym zdjęciu? Zaznaczone punkty znikną.')) return;
+  if (pc.img && pc.img !== ph.img && pc.pts.length && !(await ask('Mierzyć na innym zdjęciu? Zaznaczone punkty znikną.', 'Tak'))) return;
   if (pc.img !== ph.img) { pc.pts = []; pc.ref = [] }
   pc.cur = i; pc.img = ph.img; pc.file = ph.file; pcUI();
 }
@@ -1177,7 +1187,7 @@ $('elDownload').addEventListener('click', async () => {
   for (const t of all) { $('elState').textContent = 'Pobieram ' + (++done) + ' z ' + all.length + '…'; try { await elStore(t, await elFetch(t)) } catch (e) { err = e.message; break } }
   elBusy = false; elUI(); if (err) $('elState').textContent = '❌ ' + err + ' (pobrano ' + (done - 1) + '). Kliknij jeszcze raz, żeby dokończyć.'; else announce('Głos pobrany ✓');
 });
-$('elClear').addEventListener('click', async () => { if (!confirm('Usunąć pobrany głos z telefonu?')) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
+$('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć pobrany głos z telefonu?', 'Usuń', true))) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
 elLoadNames().then(elUI);
 for (const [id, k] of [['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
@@ -1186,7 +1196,7 @@ $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('m
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
-$('textsReset').addEventListener('click', () => { if (!confirm('Przywrócić domyślne teksty lektora?')) return; TEXTS = { ...DEFAULT_TEXTS }; saveTexts(); settingsRender() });
+$('textsReset').addEventListener('click', async () => { if (!(await ask('Przywrócić domyślne teksty lektora?', 'Przywróć'))) return; TEXTS = { ...DEFAULT_TEXTS }; saveTexts(); settingsRender() });
 async function loadVoices() {
   if (nativeVoice) { const r = await NV.voices().catch(() => ({ voices: [] })); voiceList = (r.voices || []).map(v => ({ id: v.id, name: v.name, quality: v.quality })) }
   else voiceList = polishVoices().map(v => ({ id: v.voiceURI, name: v.name, quality: /google|natural|online/i.test(v.name) ? 'enhanced' : 'default' }));
@@ -1237,10 +1247,10 @@ $('export').addEventListener('click', () => { const rows = ['Data;Budowa;Metoda;
 const savedKeys = [KEY, HKEY, PROFILE_KEY, SITE_BUCKET_KEY, SETTINGS_KEY, TEXT_KEY];
 $('appRestart').addEventListener('click', () => location.reload());
 if (window.BKP_TEST) { $('testBar').classList.remove('hide'); document.body.classList.add('test-on'); $('testMode').textContent = '✖ Wyjdź z trybu testowego'; }
-const toggleTest = () => { try { if (window.BKP_TEST) localStorage.removeItem('bkp_testmode'); else { if (!confirm('Włączyć tryb testowy? Aplikacja wystartuje czysta, a Twoje dane poczekają.')) return; localStorage.setItem('bkp_testmode', '1') } } catch (e) { } NATIVE.cancel?.(); location.reload() };
+const toggleTest = async () => { try { if (window.BKP_TEST) localStorage.removeItem('bkp_testmode'); else { if (!(await ask('Włączyć tryb testowy? Aplikacja wystartuje czysta, a Twoje dane poczekają.', '🧪 Włącz'))) return; localStorage.setItem('bkp_testmode', '1') } } catch (e) { } NATIVE.cancel?.(); location.reload() };
 $('testMode').addEventListener('click', toggleTest); $('testExit').addEventListener('click', toggleTest);
-$('appWipe').addEventListener('click', () => {
-  if (!confirm('Na pewno wyczyścić całą aplikację? Historia, kosze, teksty i ustawienia zostaną usunięte.') || !confirm('Ostatnie pytanie: usunąć wszystko?')) return;
+$('appWipe').addEventListener('click', async () => {
+  if (!(await ask('Na pewno wyczyścić całą aplikację? Historia, kosze, teksty i ustawienia zostaną usunięte.', 'Dalej', true)) || !(await ask('Ostatnie pytanie: usunąć wszystko?', '🗑 Usuń wszystko', true))) return;
   const keep = { elKey: settings.elKey, elVoice: settings.elVoice, elModel: settings.elModel, el: settings.el };
   try { NATIVE.cancel?.(); for (const k of Object.keys(localStorage)) if (k.startsWith('beton') || savedKeys.includes(k)) localStorage.removeItem(k); localStorage.setItem(SETTINGS_KEY, JSON.stringify(keep)) } catch (e) { }
   location.reload();
@@ -1255,9 +1265,9 @@ $('backupImport').addEventListener('change', async () => {
     const legacy = ['beton_tts_enabled', 'beton_tts_voice', 'beton_tts_profile'];
     const entries = Object.entries(data.values).filter(([k]) => !legacy.includes(k));
     if (entries.some(([k, v]) => !savedKeys.includes(k) || typeof v !== 'string')) throw Error('Kopia zawiera nieznane dane');
-    if (!confirm('Przywrócić kopię? Zastąpi historię, betonowanie i kosze.')) return;
+    if (!(await ask('Przywrócić kopię? Zastąpi historię, betonowanie i kosze.', 'Przywróć'))) return;
     const keepKey = settings.elKey; for (const k of savedKeys) localStorage.removeItem(k); for (const [k, v] of entries) localStorage.setItem(k, v); if (keepKey) { try { const o = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); o.elKey = keepKey; localStorage.setItem(SETTINGS_KEY, JSON.stringify(o)) } catch (e) { } } location.reload();
-  } catch (e) { alert('Nie udało się przywrócić: ' + (e.message || e)) } finally { $('backupImport').value = '' }
+  } catch (e) { ask('Nie udało się przywrócić: ' + (e.message || e), 'OK', false, true) } finally { $('backupImport').value = '' }
 });
 
 // ───────────────────────── start aplikacji ─────────────────────────
