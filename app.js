@@ -1055,10 +1055,13 @@ function pcAssign(v) {
   if (prev && prev.cur >= 0 && prev.cur !== mine.cur) announce('Poprzednie zdjęcie tego widoku odpięte');
   pcUI();
 }
+/** widok główny do liczenia: przód, a gdy go brak — bok (kosz z boku liczy się tak samo) */
+function pcMainView() { if (levelsFor(viewData('front').pts || [])) return 'front'; if (pc.useSide && levelsFor(viewData('side').pts || [])) return 'side'; return null }
 function pcCompute() {
-  const F = viewData('front'), lv = levelsFor(F.pts); if (!lv) return null;
+  const mv = pcMainView(); if (!mv) return null;
+  const F = viewData(mv), lv = levelsFor(F.pts); if (!lv) return null;
   const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
-  const S = viewData('side'), lvS = pc.useSide ? levelsFor(S.pts) : null, lvT = !lvS && pc.useTop ? levelsFor(viewData('top').pts) : null;
+  const S = viewData('side'), lvS = pc.useSide && mv === 'front' ? levelsFor(S.pts) : null, lvT = !lvS && pc.useTop ? levelsFor(viewData('top').pts) : null;
   const topRatio = lvT ? (lvT[0].y - lvT.at(-1).y) / Math.max(1, ...lvT.map(l => l.w)) : 0;
   const rect = pc.shape === 'rect';
   const mk = c => {
@@ -1072,7 +1075,7 @@ function pcCompute() {
   if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
   const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
-  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: lvS ? 'przód + bok' : lvT ? 'przód + góra' : 'tylko przód' };
+  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: lvS ? 'przód + bok' : lvT ? (mv === 'side' ? 'bok + góra' : 'przód + góra') : mv === 'side' ? 'tylko bok' : 'tylko przód' };
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
@@ -1080,7 +1083,7 @@ function pcUI() {
   clearTimeout(pc.moreT); if (has && !pc.moreAsked[pc.view] && levelsFor(pc.pts) && n >= 4) pc.moreT = setTimeout(() => { if (pc.moreAsked[pc.view] || $('pc').classList.contains('hide') || document.querySelector('.ask-back') || !levelsFor(pc.pts)) return; const free = ['front', 'side', 'top'].filter(v => v !== pc.view && !levelsFor(viewData(v).pts || [])); pc.moreAsked[pc.view] = true; if (free.length && pc.photos.length < 6) pcAskMore() }, 3500);
   pcStripRender();
   $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
-  $('pcSettings').classList.toggle('hide', !levelsFor(viewData('front').pts));
+  $('pcSettings').classList.toggle('hide', !pcMainView());
   const vt = $('pcViews'); vt.classList.toggle('hide', !has); vt.replaceChildren(
     el('button', { type: 'button', class: 'pill' + (pc.view === 'front' ? ' on' : ''), text: '⬜ Przód' + (levelsFor(viewData('front').pts) ? ' ✓' : ''), onclick: () => pcSwitch('front') }),
     el('button', { type: 'button', class: 'pill' + (pc.view === 'side' ? ' on' : ''), text: (pc.useSide ? '◧ Bok 90°' + (levelsFor(viewData('side').pts) ? ' ✓' : '') : '＋ Bok 90° (kosz L)'), onclick: () => { pc.useSide = true; pcSwitch('side') } }),
@@ -1093,7 +1096,7 @@ function pcUI() {
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
   else if (pc.view === 'front' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
   else if (pc.view === 'top' && !pcLevels()) t = 'Z GÓRY · zdjęcie kosza od góry (do środka wlewu), lewo-prawo tak jak na zdjęciu z przodu. Obrysuj krawędź wlewu dookoła.';
-  else if (pc.view === 'top') t = 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
+  else if (pc.view === 'top') t = !pcMainView() ? 'Z góry gotowe ✓ — teraz dodaj zdjęcie z PRZODU (cały kosz w kadrze), bez niego nie policzę wysokości.' : 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
   else if (pc.view === 'side' && !pcLevels()) t = 'BOK 90° · obrysuj kosz widziany z boku (przy koszu L — całe „L”), od krawędzi wlewu do dołu.';
   else if (!pcLevels()) t = 'Obrysuj kosz: klikaj po kolei DOOKOŁA krawędzi (np. lewy górny róg → w dół → wylew → w górę prawą stroną) albo osobno lewa i prawa strona.';
   else t = 'Dokładaj punkty tam, gdzie kształt się zmienia (początek lejka, załamania). Punkty możesz przeciągać.';
@@ -1119,6 +1122,11 @@ function pcUI() {
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
   $('pcSave').disabled = !r;
+  const miss = $('pcMissing'); const anyDone = ['front', 'side', 'top'].some(v => levelsFor(viewData(v).pts || []));
+  miss.classList.toggle('hide', !!pcMainView() || !anyDone || !has);
+  miss.replaceChildren(el('b', { text: '⚠ Brakuje zdjęcia z PRZODU albo z BOKU' }), el('span', { text: 'Z samej góry nie policzę wysokości kosza. Dodaj zdjęcie kosza od przodu (cały kosz w kadrze) i obrysuj go — wtedy „Zapisz” się odblokuje.' }),
+    el('div', { class: 'row' }, el('button', { type: 'button', class: 'primary', text: '📷 Dodaj zdjęcie przodu', onclick: () => askChoice('Skąd wziąć zdjęcie przodu?', [['📸 Zrób zdjęcie aparatem', 'cam', 'primary'], ['🖼 Wybierz z galerii', 'gal', '']], v => { pc.wantView = 'front'; $(v === 'cam' ? 'pcAddCam' : 'pcAddGal').click() }) }),
+      el('button', { type: 'button', text: '⬜ Przejdź do przodu', onclick: () => pcSwitch('front') })));
   pcDraw();
 }
 function pcLabel(g, k, x, y, txt, bg, fg, side = 'left') { const fs = 12 / k; g.font = `900 ${fs}px sans-serif`; const tw = g.measureText(txt).width + 12 / k, W = pc.img.width; if (side === 'left') x = x - tw - 8 / k; if (x < 2 / k) x = 2 / k; if (x + tw > W - 2 / k) x = W - tw - 2 / k; y = y + fs * 1.3; g.fillStyle = bg; g.fillRect(x, y - fs * 2.1, tw, fs * 1.6); g.fillStyle = fg; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(txt, x + 6 / k, y - fs * 1.3) }
@@ -1188,7 +1196,7 @@ async function pcAddFiles(files, measureFirstNew) {
   let last = null;
   for (let i = start; i < pc.photos.length; i++) {
     const n = pc.photos.length - start > 1 ? ' (' + (i - start + 1) + ' z ' + (pc.photos.length - start) + ')' : '';
-    const v = await askChoice('Co widać na tym zdjęciu?' + n, [['⬜ Przód', 'front', 'primary', 'kosz od przodu, cały w kadrze'], ['◧ Bok', 'side', '', 'z boku, 90° od przodu (kosz L)'], ['◯ Góra', 'top', '', 'od góry, widać wlew'], ['🖼 Coś innego', 'other', '', 'tylko zachowaj zdjęcie']]);
+    const v = pc.wantView && i === start ? (() => { const w = pc.wantView; pc.wantView = null; return w })() : await askChoice('Co widać na tym zdjęciu?' + n, [['⬜ Przód', 'front', 'primary', 'kosz od przodu, cały w kadrze'], ['◧ Bok', 'side', '', 'z boku, 90° od przodu (kosz L)'], ['◯ Góra', 'top', '', 'od góry, widać wlew'], ['🖼 Coś innego', 'other', '', 'tylko zachowaj zdjęcie']]);
     if (v && v !== 'other') last = [i, v]; else if (!v && !last && !pc.img) last = [i, 'front'];
   }
   if (last) pcPutPhoto(last[0], last[1]); else if (!pc.img && pc.photos.length) pcPutPhoto(0, 'front'); else pcUI();

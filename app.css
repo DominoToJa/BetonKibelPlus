@@ -646,3 +646,6 @@ details.set-cat[open]>summary{border-bottom:1px solid color-mix(in srgb,var(--c1
 .ask-col{display:grid;gap:9px}
 .ask-col button{display:grid;gap:3px;text-align:left;padding:14px 16px;font-size:16px}
 .ask-col button small{font-size:12px;font-weight:700;opacity:.8}
+.pc-missing{display:grid;gap:6px;margin:8px 0;padding:12px 14px;border-radius:14px;background:#3a2a0a;border:1px solid #ffb703;color:#ffe3a3}
+.pc-missing b{color:#ffd166;font-size:14.5px}.pc-missing span{font-size:13px;line-height:1.45}
+.pc-missing .row{gap:8px;margin-top:4px}.pc-missing button{padding:11px 8px;font-size:13.5px}
