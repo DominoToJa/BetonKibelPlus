@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import AVFoundation
 import Speech
+import MediaPlayer
 import Capacitor
 
 /// BetonKibelPlus DOMINO — moduł natywny:
@@ -30,7 +31,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "deleteClip", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listVoice", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -62,6 +64,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var pitch: Float = 1.0
     private var useClips = true
     private var elOn = false
+    private var headsetButtons = false
+    private var keepAwake = true
+    private var remoteReady = false
     private var elTag = ""
     private var voiceOn = true
 
@@ -87,6 +92,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         nc.addObserver(self, selector: #selector(onInterruption(_:)), name: AVAudioSession.interruptionNotification, object: nil)
         nc.addObserver(self, selector: #selector(onMediaReset(_:)), name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
         nc.addObserver(self, selector: #selector(onEngineConfig(_:)), name: .AVAudioEngineConfigurationChange, object: engine)
+        nc.addObserver(self, selector: #selector(onRouteChange(_:)), name: AVAudioSession.routeChangeNotification, object: nil)
     }
 
     // MARK: - Uprawnienia
@@ -100,9 +106,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     private func configureSession() throws {
         let s = AVAudioSession.sharedInstance()
-        try s.setCategory(.playAndRecord, mode: .default,
-                          options: [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP, .mixWithOthers])
+        var opts: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
+        if !headsetButtons { opts.insert(.mixWithOthers) }   // przyciski słuchawki działają tylko bez miksowania
+        try s.setCategory(.playAndRecord, mode: .default, options: opts)
         try s.setActive(true, options: [])
+        // mikrofon w słuchawce BT, jeśli jest podłączona
+        if let bt = s.availableInputs?.first(where: { $0.portType == .bluetoothHFP }) { try? s.setPreferredInput(bt) }
     }
 
     // MARK: - Słuchanie
@@ -236,6 +245,45 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     @objc private func onMediaReset(_ n: Notification) {
         DispatchQueue.main.async { self.resumeAfterBreak() }
     }
+    /// Podłączenie / odłączenie słuchawki BT → przestaw mikrofon i wznów słuchanie
+    @objc private func onRouteChange(_ n: Notification) {
+        guard let raw = n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
+              reason == .newDeviceAvailable || reason == .oldDeviceUnavailable else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.resumeAfterBreak() }
+    }
+    // MARK: - Przyciski słuchawki (play/pauza = dodaj kibel, następny = dodaj, poprzedni = cofnij)
+    private func setupRemote() {
+        let rc = MPRemoteCommandCenter.shared()
+        let cmds = [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand, rc.previousTrackCommand]
+        if !remoteReady && headsetButtons {
+            for c in [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand] {
+                c.addTarget { [weak self] _ in self?.heard("dodaj kibel"); return .success }
+            }
+            rc.previousTrackCommand.addTarget { [weak self] _ in self?.heard("cofnij"); return .success }
+            remoteReady = true
+        }
+        for c in cmds { c.isEnabled = headsetButtons }
+        if !headsetButtons { cmds.forEach { $0.removeTarget(nil) }; remoteReady = false; MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
+        updateNowPlaying()
+    }
+    private func updateNowPlaying() {
+        guard headsetButtons else { return }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: active ? "Zostało \(fmt(leftM3)) m³" : "BetonKibelPlus",
+            MPMediaItemPropertyArtist: "BetonKibelPlus · przycisk = dodaj kibel",
+            MPNowPlayingInfoPropertyPlaybackRate: 1.0
+        ]
+    }
+    @objc func haptic(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let kind = call.getString("kind") ?? "success"
+            if kind == "light" { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
+            else { UINotificationFeedbackGenerator().notificationOccurred(kind == "warning" ? .warning : .success) }
+            call.resolve()
+        }
+    }
+
     @objc private func onEngineConfig(_ n: Notification) {
         DispatchQueue.main.async { self.resumeAfterBreak() }
     }
@@ -264,6 +312,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
+            if let hb = call.getBool("headsetButtons"), hb != self.headsetButtons { self.headsetButtons = hb; self.setupRemote(); if self.listening { try? self.configureSession() } }
             if let v = call.getBool("voiceOn") { self.voiceOn = v }
             call.resolve()
         }
@@ -516,6 +566,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     @objc func setState(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             self.active = call.getBool("active") ?? false
+            UIApplication.shared.isIdleTimerDisabled = self.keepAwake && self.active
             self.method = call.getString("method") ?? "kibel"
             self.phase = call.getString("phase") ?? "ready"
             self.deadline = call.getDouble("deadline") ?? 0
@@ -527,6 +578,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.loadM3 = call.getDouble("load") ?? 0
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
+            self.updateNowPlaying()
             call.resolve()
         }
     }
@@ -629,6 +681,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
             poured += amount
             pending.append(["type": "add", "at": now, "amount": amount])
+            updateNowPlaying()
             say(key: "added", text: nil)
             var note: String? = nil
             for (thr, key) in [(loadM3 * 0.75, "left75"), (loadM3 * 0.5, "left50"), (3.0, "left3"), (1.5, "left15"), (0.5, "left05")].sorted(by: { $0.0 > $1.0 }) {

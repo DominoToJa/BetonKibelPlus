@@ -41,6 +41,7 @@ const voice = {
   saveVoice: safe((name, data) => Domino.saveVoice({ name, data }), null),
   listVoice: safe(async () => (await Domino.listVoice()).names || [], []),
   clearVoice: safe(() => Domino.clearVoice(), null),
+  haptic: safe(kind => Domino.haptic({ kind: kind || 'success' }), null),
   onHeard(cb) { if (isNative) Domino.addListener('heard', e => cb(e.text || '')) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
