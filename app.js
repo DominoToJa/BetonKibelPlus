@@ -258,8 +258,8 @@ function bgmFade(to, done) {
 function bgmUpdate() {
   try {
     if (bgmWanted()) {
-      if (!bgm) { bgm = new Audio('sounds/bgm.mp3'); bgm.volume = 0; bgmWatch() }
-      if (bgm.paused) bgm.play().then(() => bgmFade(bgmTarget()), () => { introJinglePending = true });
+      if (!bgm) { if (!bgmPool.length) bgmPool = [new Audio('sounds/bgm.mp3'), new Audio('sounds/bgm.mp3')]; bgm = bgmPool[0]; bgm.volume = 0; bgmWatch() }
+      bgm.muted = false; if (bgm.paused) bgm.play().then(() => bgmFade(bgmTarget()), () => { introJinglePending = true; announce('🔈 Dotknij ekranu, żeby włączyć muzykę') });
       else bgmFade(bgmTarget());
     } else if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause());
   } catch (e) { }
@@ -269,13 +269,21 @@ const BGM_XF = 2.5; let bgmXfading = false;
 function bgmWatch() {
   setInterval(() => {
     if (!bgm || bgm.paused || bgmXfading || !(bgm.duration > BGM_XF * 3) || bgm.currentTime < bgm.duration - BGM_XF) return;
-    bgmXfading = true; const old = bgm, nxt = new Audio('sounds/bgm.mp3'); nxt.volume = 0; const to = bgmWanted() ? bgmTarget() : 0, t0 = performance.now(), v0 = old.volume;
+    bgmXfading = true; const old = bgm, nxt = bgmPool.find(a => a !== old) || new Audio('sounds/bgm.mp3'); nxt.currentTime = 0; nxt.muted = false; nxt.volume = 0; const to = bgmWanted() ? bgmTarget() : 0, t0 = performance.now(), v0 = old.volume;
     nxt.play().catch(() => { }); bgm = nxt; clearInterval(bgmTimer);
     const iv = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / (BGM_XF * 1000)); nxt.volume = to * Math.sin(k * Math.PI / 2); old.volume = v0 * Math.cos(k * Math.PI / 2); if (k >= 1) { clearInterval(iv); old.pause(); bgmXfading = false; bgmUpdate() } }, 40);
   }, 200);
 }
 document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => (bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none') + ' | glos: ' + (voiceBusy() ? 'gra' : 'cisza'); window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
-document.addEventListener('pointerdown', () => { getAC(); if (voicePending) { voicePending = false; soundUnlockedAt = Date.now(); if (TAB_OF[currentTab] !== 'work') playIntroVoice() } if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
+/* odblokowanie dźwięku: każde dotknięcie (aż się uda) „budzi” oba odtwarzacze muzyki — iPhone/Safari wymaga gestu */
+let bgmPrimed = false, bgmPool = [];
+function bgmPrime() {
+  if (bgmPrimed) return; try {
+    if (!bgmPool.length) bgmPool = [new Audio('sounds/bgm.mp3'), new Audio('sounds/bgm.mp3')];
+    for (const a of bgmPool) { if (a === bgm && !a.paused) continue; a.volume = 0; a.muted = true; const pr = a.play(); if (pr) pr.then(() => { if (a !== bgm || !bgmWanted()) a.pause(); a.muted = false; bgmPrimed = true }, () => { a.muted = false }) }
+  } catch (e) { }
+}
+document.addEventListener('pointerdown', () => { getAC(); bgmPrime(); if (voicePending) { voicePending = false; soundUnlockedAt = Date.now(); if (TAB_OF[currentTab] !== 'work') playIntroVoice() } if (introJinglePending) { introJinglePending = false; setTimeout(bgmUpdate, 50) } }, { capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -1466,7 +1474,7 @@ drainNative();
 
 (function intro() {
   const box = $('intro'); if (!box) return;
-  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
+  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 24000);
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
