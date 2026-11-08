@@ -179,6 +179,12 @@ function playJingle(kind = 'start') {
   [0, 4, 8, 10].forEach(k => kick(t0 + k * b));
   return 2000;
 }
+function playBoom() {
+  if (!settings.music) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return; const t = ctx.currentTime + .02, vol = .5 * Number(settings.musicVol ?? .6);
+  const len = Math.floor(ctx.sampleRate * .7), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2.5;
+  const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); n.buffer = buf; f.type = 'lowpass'; f.frequency.setValueAtTime(2400, t); f.frequency.exponentialRampToValueAtTime(180, t + .6); g.gain.value = vol * .8; n.connect(f); f.connect(g); g.connect(ctx.destination); n.start(t);
+  const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .45); e.gain.setValueAtTime(vol, t); e.gain.exponentialRampToValueAtTime(.001, t + .5); o.connect(e); e.connect(ctx.destination); o.start(t); o.stop(t + .55);
+}
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false;
 document.addEventListener('pointerdown', () => { const ctx = getAC(); if (introJinglePending && ctx) { introJinglePending = false; setTimeout(() => playJingle('start'), 30) } }, { once: true, capture: true });
@@ -1156,7 +1162,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', close); setTimeout(close, 2100);
-  if (settings.music) { if (!playJingle('start')) introJinglePending = true; setTimeout(() => { introJinglePending = false }, 8000) }
+  box.addEventListener('click', close); setTimeout(close, 4700);
+  if (settings.music) { setTimeout(() => { if (done) return; playBoom(); if (!playJingle('start')) introJinglePending = true }, 1950); setTimeout(() => { introJinglePending = false }, 9000) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();

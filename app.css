@@ -520,3 +520,41 @@ body.ui-neo :is(.help,.hint,.sub,.metric small,th){color:#475569!important;font-
 body.ui-neo .label{color:#1e293b}
 body.ui-hud .hud-status b{font-size:19px;font-weight:900}body.ui-hud .hud-reg-head{font-size:15px;font-weight:900;color:#fff}
 body.ui-hud .metric small{letter-spacing:.03em!important;font-size:12px!important}#bucketSvgWrap text{font-weight:900}
+
+/* ── Intro: przejazd na krzyż (gruszka, taśma, pompa, naczepa) → wybuch → logo ── */
+#intro{overflow:hidden}
+.intro-scene{position:absolute;inset:0;z-index:0;pointer-events:none;animation:sceneOut .45s 2.05s ease-in forwards}
+.lane{position:absolute;left:-30%;right:-30%;top:50%;height:0}
+.lane.l1{transform:rotate(-16deg)}.lane.l2{transform:rotate(16deg)}
+.road{position:absolute;left:0;right:0;top:-8px;height:40px;background:rgba(255,255,255,.035);border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07)}
+.road::after{content:"";position:absolute;left:0;right:0;top:19px;height:2px;background:repeating-linear-gradient(90deg,color-mix(in srgb,var(--c1) 55%,transparent) 0 22px,transparent 22px 44px);opacity:.5}
+.veh{position:absolute;left:50%;bottom:-4px;width:min(62vw,320px);height:auto;margin-left:calc(min(62vw,320px) / -2);filter:drop-shadow(0 8px 6px rgba(0,0,0,.55));will-change:transform;opacity:0}
+.go-r{animation:driveR 3.4s linear forwards}
+.go-l{animation:driveL 3.4s linear forwards}
+.go-l{transform:scaleX(-1)}
+.v1{animation-delay:.25s}.v2{animation-delay:1.45s}.v3{animation-delay:.25s}.v4{animation-delay:1.45s}
+@keyframes driveR{0%{opacity:1;transform:translateX(-95vw)}100%{opacity:1;transform:translateX(95vw)}}
+@keyframes driveL{0%{opacity:1;transform:translateX(95vw) scaleX(-1)}100%{opacity:1;transform:translateX(-95vw) scaleX(-1)}}
+.v-spin{animation:spin .5s linear infinite}.v-belt{animation:spin .35s linear infinite}
+@keyframes spin{to{stroke-dashoffset:-32}}
+.intro-boom{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none}
+.intro-boom b{position:absolute;left:-60px;top:-60px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#fff 0,color-mix(in srgb,var(--c1) 80%,#fff) 30%,transparent 70%);opacity:0;animation:flash .7s 1.9s ease-out forwards}
+.intro-boom span{position:absolute;left:-40px;top:-40px;width:80px;height:80px;border-radius:50%;border:3px solid var(--c1);opacity:0;animation:wave .9s 1.95s ease-out forwards}
+.intro-boom i{position:absolute;left:-5px;top:-5px;width:10px;height:10px;border-radius:50%;background:var(--c1);opacity:0;transform:rotate(var(--a));animation:spark .8s calc(1.95s + var(--d) * .3) ease-out forwards}
+.intro-boom i:nth-child(odd){background:#cfd8e0;width:8px;height:8px}
+@keyframes flash{0%{opacity:0;transform:scale(.3)}25%{opacity:.95;transform:scale(1.4)}100%{opacity:0;transform:scale(2.6)}}
+@keyframes wave{0%{opacity:.9;transform:scale(.4)}100%{opacity:0;transform:scale(4.2)}}
+@keyframes spark{0%{opacity:1;transform:rotate(var(--a)) translateX(0) scale(1)}100%{opacity:0;transform:rotate(var(--a)) translateX(min(34vw,150px)) scale(.4)}}
+@keyframes sceneOut{to{opacity:0}}
+#intro .intro-logo{animation:shake .35s 1.95s ease-out}
+@keyframes shake{25%{transform:translate(3px,-2px)}50%{transform:translate(-3px,2px)}75%{transform:translate(2px,1px)}}
+.intro-ring{animation-delay:2.15s!important}
+.intro-bk{animation-delay:2.45s!important}
+.intro-domino{animation-delay:2.75s!important}
+.intro-title{animation-delay:2.9s!important}
+#intro .intro-logo,#intro .intro-title{position:relative;z-index:3}.intro-boom{z-index:2}
+@media (prefers-reduced-motion:reduce){.intro-scene,.intro-boom{display:none}}
+
+/* czytelny podpis na kafelku „Kontynuuj betonowanie” */
+.big-btn.primary small{color:inherit!important;opacity:.95;font-weight:750;font-size:14px}
+body.ui-hud .big-btn small{color:#d6e1ec!important;opacity:1}
