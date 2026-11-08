@@ -70,6 +70,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var askOnly = true
     private var micGateDb: Float = -30      // próg głośności: ciche dźwięki z otoczenia są pomijane
     private var utterPeakDb: Float = -120
+    private var voiceProcOn = false
     private var keepAwake = true
     private var lockStatus = true
     private var site = ""
@@ -172,6 +173,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if engine.isRunning { engine.stop() }
         let input = engine.inputNode
         if tapInstalled { input.removeTap(onBus: 0); tapInstalled = false }
+        // tłumienie szumu i echa (wbudowane w iOS): mniej łapie otoczenie i nie słyszy własnego lektora
+        if !voiceProcOn { try? input.setVoiceProcessingEnabled(true); voiceProcOn = true }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 && format.channelCount > 0 else {
             throw NSError(domain: "DominoNative", code: 1, userInfo: [NSLocalizedDescriptionKey: "Brak wejścia mikrofonu"])

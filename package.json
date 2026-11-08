@@ -1,6 +1,6 @@
 {
   "name": "betonkibelplus-domino",
-  "version": "3.4.9",
+  "version": "3.5.0",
   "private": true,
   "type": "module",
   "scripts": {
