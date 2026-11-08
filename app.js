@@ -177,10 +177,17 @@ function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenP
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
   const useProfiles = method !== 'taczka';
-  $('presetsLabel').textContent = method === 'taczka' ? 'Taczka' : (method === 'inne' ? 'Osprzęt' : 'Kosz');
-  $('setupBucketsLink').classList.toggle('hide', !useProfiles);
-  if (useProfiles) for (const p of profiles) r.append(el('button', { type: 'button', class: 'pill profile' + (p.id === chosenProfileId ? ' on' : ''), text: '📐 ' + p.name + ' · ' + fmt(p.capacity), onclick: () => chooseProfile(p.id) }));
-  for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'pill' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() } }));
+  $('presetsLabel').textContent = method === 'taczka' ? 'Taczka' : (method === 'inne' ? 'Osprzęt' : 'Wybierz kosz');
+  $('setupBucketsLink').classList.add('hide');
+  r.className = useProfiles ? 'tiles' : 'chips';
+  if (!useProfiles) { for (const v of opts.taczka) r.append(el('button', { type: 'button', class: 'pill' + (Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { $('portion').value = fmt(v); renderPresets() } })); return }
+  for (const p of profiles) {
+    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : el('span', { class: 'tile-ico', text: '🪣' });
+    r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: () => chooseProfile(p.id) },
+      el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
+  }
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: () => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() } }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
 }
 function restoreSiteBucket() {
   if (method === 'taczka') return;

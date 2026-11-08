@@ -161,3 +161,18 @@ details.fine{margin-top:14px}
 .ab-change{flex:none;padding:9px 12px;font-size:13px}
 .quick-caps{justify-content:center}.quick-caps .pill{min-width:72px}
 .custom-row{width:100%;margin-top:4px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:10px 6px;min-height:86px;border-radius:16px;background:#1a1738;text-align:center;line-height:1.15}
+.tile.saved{grid-column:span 2;flex-direction:row;justify-content:flex-start;text-align:left;gap:10px;display:grid;grid-template-columns:62px 1fr;grid-template-rows:auto auto auto;align-items:center}
+.tile.saved .tile-pic{grid-row:1/4;width:62px;height:62px;border-radius:12px;overflow:hidden;background:#201c45;display:grid;place-items:center}
+.tile.saved .tile-pic img{width:100%;height:100%;object-fit:cover}.tile-ico{font-size:28px}
+.tile.saved strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile b{font-size:22px;font-weight:950}.tile.saved b{font-size:17px;color:#8BD1E0}
+.tile small{font-size:11px;color:var(--muted);font-weight:700}
+.tile.on{background:linear-gradient(120deg,#8BD1E0,#9B4CD3);border-color:#c3e9f1;color:#0e1030}
+.tile.on small,.tile.on b{color:#0e1030}
+.tile.add{border-style:dashed;border-color:#8BD1E0;background:transparent}.tile.add b{color:#8BD1E0}
+.tiles{grid-template-columns:repeat(3,1fr)}
+.tile.saved{grid-column:1/-1}
+.tile.add{grid-column:1/-1;min-height:64px;flex-direction:column;background:linear-gradient(120deg,#8BD1E022,#9B4CD333);border:2px dashed #8BD1E0}
+.tile.add b{font-size:18px;color:#fff}.tile.add small{color:#c6c4ea}
