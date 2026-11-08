@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -237,7 +237,26 @@ function playBoom() {
 }
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false;
-document.addEventListener('pointerdown', () => { const ctx = getAC(); if (introJinglePending) { introJinglePending = false; playSong('intro').then(ok => { if (!ok && ctx) playJingle('start') }) } }, { once: true, capture: true });
+/* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
+const BGM_TABS = new Set(['home', 'history', 'drum']);
+let bgm = null, bgmTimer = 0, introPlaying = false;
+const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * .5;
+const bgmWanted = () => settings.music && settings.bgm !== false && !document.hidden && (introPlaying || (BGM_TABS.has(TAB_OF[currentTab] ?? currentTab) && !(typeof micWanted !== 'undefined' && micWanted)));
+function bgmFade(to, done) {
+  clearInterval(bgmTimer); if (!bgm) return done?.();
+  bgmTimer = setInterval(() => { const v = bgm.volume, d = to - v, st = Math.sign(d) * Math.min(Math.abs(d), .04); bgm.volume = Math.min(1, Math.max(0, v + st)); if (Math.abs(to - bgm.volume) < .005) { clearInterval(bgmTimer); bgm.volume = to; done?.() } }, 40);
+}
+function bgmUpdate() {
+  try {
+    if (bgmWanted()) {
+      if (!bgm) { bgm = new Audio('sounds/bgm.mp3'); bgm.loop = true; bgm.volume = 0 }
+      if (bgm.paused) bgm.play().then(() => bgmFade(bgmTarget()), () => { introJinglePending = true });
+      else bgmFade(bgmTarget());
+    } else if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause());
+  } catch (e) { }
+}
+document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2)) : 'none';
+document.addEventListener('pointerdown', () => { getAC(); if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -303,6 +322,7 @@ function tab(name) {
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB_OF[name]));
   if (name === 'work') { if (!session) { tab('setup'); announce('Najpierw rozpocznij betonowanie'); return } render(); tick() }
   if (name === 'history') historyRender();
+  bgmUpdate();
   if (name === 'home') homeRender();
   if (name === 'buckets') bucketListRender();
   if (name === 'settings') settingsRender();
@@ -764,12 +784,14 @@ function render() {
 }
 function tick() {
   if (!session) return; const s = session, now = Date.now(), avg = meanTrip();
+  if (currentTab === 'work' && !document.hidden) {
   $('elapsed').textContent = dur((now - s.startedAt) / 1000);
   $('avg').textContent = s.method === 'taczka' ? '—' : s.trips?.length ? shortDur(avg) : '—';
   $('timer').textContent = s.method === 'taczka' ? '—' : (phase === 'away' || phase === 'late') ? shortDur((deadline - now) / 1000) : '—';
   const rem = left(), count = rem > 0 ? Math.ceil(rem / Math.max(.01, s.dose || s.capacity || .5)) : 0;
   const secs = count === 0 ? 0 : (phase === 'away' && deadline > now ? (deadline - now) / 1000 : avg) + (count - 1) * avg;
   $('eta').textContent = rem === 0 ? 'Zrobione' : new Date(now + secs * 1000).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
   else if (s.method !== 'taczka' && phase === 'late' && alarmVisible && now >= nextReminder) { nextReminder = now + 30000; deadline = nextReminder; remember(); if (settings.alarm) beep(); sayBot('remind') }
@@ -807,7 +829,7 @@ function command(utterance) {
   if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
   return false;
 }
-function micDisplay(t) { $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
+function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 async function stopMic() { micWanted = false; micLive = false; clearTimeout(voiceRetry); if (nativeVoice) await NV.stop().catch(() => { }); else try { recognition?.abort() } catch (e) { } micDisplay('Mikrofon wyłączony.') }
 function bootWebRecognition() {
@@ -1248,8 +1270,9 @@ elLoadNames().then(elUI);
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
-$('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playSong('start') });
-$('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playSong('start') });
+$('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
+$('bgmOn').checked = settings.bgm !== false; $('bgmOn').addEventListener('change', () => { settings.bgm = $('bgmOn').checked; saveSettings(); bgmUpdate() });
+$('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); if (bgm && !bgm.paused) bgmFade(bgmTarget()); else playSong('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
@@ -1360,8 +1383,8 @@ drainNative();
 
 (function intro() {
   const box = $('intro'); if (!box) return;
-  let done = false; const close = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => box.remove(), 450) };
+  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
   box.addEventListener('click', close); setTimeout(close, 7400);
-  if (settings.music) { playSong('intro').then(ok => { if (!ok) introJinglePending = true }); setTimeout(() => { if (!done) playBoom() }, 3000); setTimeout(() => { introJinglePending = false }, 12000) }
+  if (settings.music) { introPlaying = true; bgmUpdate(); setTimeout(() => { if (!done) playBoom() }, 3000) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
