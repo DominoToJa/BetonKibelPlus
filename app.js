@@ -40,7 +40,7 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green' };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -68,7 +68,46 @@ try {
   if (s) Object.assign(settings, s);
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
-const applyTheme = () => { document.body.classList.toggle('theme-green', settings.theme !== 'violet'); document.querySelector('meta[name=theme-color]')?.setAttribute('content', settings.theme !== 'violet' ? '#06141a' : '#0c0a20') };
+const THEMES = [['green', 'Zieleń', '#2FD271', '#056C7F'], ['violet', 'Błękit i fiolet', '#8BD1E0', '#9B4CD3'], ['orange', 'Pomarańcz budowlany', '#FFB627', '#E4572E'], ['yellow', 'Kask i niebo', '#FFE45E', '#2E86AB'], ['red', 'Czerwień', '#FF6B6B', '#7A1F5C'], ['ice', 'Lód', '#A8E6FF', '#3D5AFE'], ['steel', 'Stal', '#C9D6DF', '#52616B'], ['lime', 'Limonka', '#C6F432', '#1B998B']];
+const themeColors = () => { if (settings.theme === 'custom') return [settings.c1 || '#2FD271', settings.c2 || '#056C7F']; const t = THEMES.find(x => x[0] === settings.theme) || THEMES[0]; return [t[2], t[3]] };
+const hexRgb = h => { h = String(h).replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255) };
+const relLum = c => { const l = hexRgb(c).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * l[0] + .7152 * l[1] + .0722 * l[2] };
+function rgb2hsl(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; if (mx === mn) return [0, 0, l]; const d = mx - mn, s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn); let h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [h * 60, s, l] }
+function hsl2rgb(h, s, l) { h = ((h % 360) + 360) % 360 / 360; if (!s) return [l, l, l]; const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q; const f = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p }; return [f(h + 1 / 3), f(h), f(h - 1 / 3)] }
+const hueLerp = (a, b, t) => { let d = ((b - a + 540) % 360) - 180; return a + d * t };
+let diagramCache = {};
+function recolorDiagram() {
+  const img = document.querySelector('.drum-diagram-img'); if (!img) return;
+  if (!img.dataset.orig) img.dataset.orig = img.getAttribute('src');
+  if (settings.theme === 'violet') { img.src = img.dataset.orig; return }
+  const [c1, c2] = themeColors(), key = c1 + c2; if (diagramCache[key]) { img.src = diagramCache[key]; return }
+  const src = new Image();
+  src.onload = () => {
+    try {
+      const cv = document.createElement('canvas'); cv.width = src.naturalWidth; cv.height = src.naturalHeight; const g = cv.getContext('2d'); g.drawImage(src, 0, 0);
+      const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
+      const O1 = rgb2hsl(...hexRgb('#8BD1E0')), O2 = rgb2hsl(...hexRgb('#9B4CD3')), N1 = rgb2hsl(...hexRgb(c1)), N2 = rgb2hsl(...hexRgb(c2));
+      for (let i = 0; i < d.length; i += 4) {
+        if (!d[i + 3]) continue;
+        const [h, sa, l] = rgb2hsl(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255); if (sa < .04) continue;
+        const t = Math.min(1, Math.max(0, (((h - O1[0] + 540) % 360) - 180) / (O2[0] - O1[0])));
+        const so = O1[1] + (O2[1] - O1[1]) * t, sn = N1[1] + (N2[1] - N1[1]) * t, lo = O1[2] + (O2[2] - O1[2]) * t, ln = N1[2] + (N2[2] - N1[2]) * t;
+        const [r, gg, b] = hsl2rgb(hueLerp(N1[0], N2[0], t), Math.min(1, sa * sn / Math.max(.05, so)), Math.min(1, Math.max(0, l + (ln - lo) * .5 * Math.min(1, sa * 2))));
+        d[i] = r * 255; d[i + 1] = gg * 255; d[i + 2] = b * 255;
+      }
+      g.putImageData(im, 0, 0); diagramCache[key] = cv.toDataURL('image/png');
+      if (themeColors().join('') === key && settings.theme !== 'violet') img.src = diagramCache[key];
+    } catch (e) { console.warn('diagram', e) }
+  };
+  src.src = img.dataset.orig;
+}
+function applyTheme() {
+  const [c1, c2] = themeColors(), st = document.body.style;
+  st.setProperty('--c1', c1); st.setProperty('--c2', c2); st.setProperty('--ink', (relLum(c1) + relLum(c2)) / 2 > .18 ? '#06121a' : '#ffffff');
+  document.body.classList.toggle('themed', settings.theme !== 'violet');
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#05090c');
+  recolorDiagram();
+}
 const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } configureNative() };
 const saveTexts = () => { try { localStorage.setItem(TEXT_KEY, JSON.stringify(TEXTS)) } catch (e) { } configureNative() };
 let clipKeys = new Set(), recordingKey = '';
@@ -148,7 +187,7 @@ function currentModel() {
 }
 
 // ───────────────────────── nawigacja ─────────────────────────
-const TAB_OF = { home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
+const TAB_OF = { theme: '', home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
 let currentTab = 'home', bucketReturn = '';
 function tab(name) {
   currentTab = name;
@@ -161,6 +200,7 @@ function tab(name) {
   if (name === 'settings') settingsRender();
   if (name === 'setup') { renderPresets(); refreshKnownSites() }
   if (name === 'pickBucket') sheetRender();
+  if (name === 'theme') themeRender();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
@@ -760,8 +800,25 @@ $('pcNext').addEventListener('click', async () => {
 $('pcClose').addEventListener('click', pcClose);
 $('bPhotoCalc').addEventListener('click', () => { pcOpen(); pcCameraNow() });
 
+// ───────────────────────── kolory aplikacji ─────────────────────────
+let themeReturn = 'home';
+function themeRender() {
+  const g = $('themeGrid'); g.replaceChildren();
+  for (const [id, name, a, b] of THEMES) {
+    const sw = el('div', { class: 'theme-sw' }); sw.style.background = `linear-gradient(120deg,${a},${b})`;
+    const ico = kibelIcon(); sw.append(ico);
+    const tile = el('button', { type: 'button', class: 'theme-tile' + (settings.theme === id ? ' on' : ''), onclick: () => { settings.theme = id; applyTheme(); saveSettings(); themeRender() } }, sw, el('strong', { text: name }));
+    tile.style.setProperty('--c1', a); tile.style.setProperty('--c2', b); g.append(tile);
+  }
+  const [c1, c2] = themeColors(); $('cc1').value = settings.c1 || c1; $('cc2').value = settings.c2 || c2;
+}
+let ccT; const ccChange = () => { settings.theme = 'custom'; settings.c1 = $('cc1').value; settings.c2 = $('cc2').value; applyTheme(); clearTimeout(ccT); ccT = setTimeout(() => { saveSettings(); themeRender() }, 250) };
+$('cc1').addEventListener('input', ccChange); $('cc2').addEventListener('input', ccChange);
+$('themeDone').addEventListener('click', () => { settings.themeChosen = true; saveSettings(); tab(themeReturn || 'home') });
+$('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('theme') });
+
 // ───────────────────────── ustawienia ─────────────────────────
-applyTheme(); $('themeSel').value = settings.theme || 'green'; $('themeSel').addEventListener('change', () => { settings.theme = $('themeSel').value; applyTheme(); saveSettings() });
+applyTheme();
 $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
@@ -866,4 +923,5 @@ drainNative();
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => box.remove(), 450) };
   box.addEventListener('click', close); setTimeout(close, 2100);
+  if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();

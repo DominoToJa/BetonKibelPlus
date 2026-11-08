@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BetonKibelPlus">
 <link rel="stylesheet" href="/app.css"></head><body>
-<script>try{var t=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}").theme;if(t!=="violet")document.body.classList.add("theme-green")}catch(e){document.body.classList.add("theme-green")}</script>
+<script>/* motyw kolorów przed pierwszym rysowaniem */try{var st=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}"),T={violet:["#8BD1E0","#9B4CD3"],green:["#2FD271","#056C7F"],orange:["#FFB627","#E4572E"],yellow:["#FFE45E","#2E86AB"],red:["#FF6B6B","#7A1F5C"],ice:["#A8E6FF","#3D5AFE"],steel:["#C9D6DF","#52616B"],lime:["#C6F432","#1B998B"]},id=st.theme||"green",c=id==="custom"?[st.c1||"#2FD271",st.c2||"#056C7F"]:(T[id]||T.green);document.body.style.setProperty("--c1",c[0]);document.body.style.setProperty("--c2",c[1]);if(id!=="violet")document.body.classList.add("themed")}catch(e){}</script>
 
 <div id="intro" aria-hidden="true">
   <svg class="intro-logo" viewBox="0 0 1024 1024" role="img" aria-label="BK+ DOMINO">
@@ -24,7 +24,7 @@
 
 <section id="home">
   <div class="home-hero">
-    <img src="/icons/icon-192.png" alt="" class="home-logo">
+    <svg class="home-logo" viewBox="0 0 1024 1024" width="96" height="96" role="img" aria-label="BK+ DOMINO" style="border-radius:24px"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:var(--c2)"/></linearGradient></defs><circle cx="512" cy="512" r="330" fill="none" stroke="url(#hg)" stroke-width="56"/><text x="512" y="575" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="900" font-size="230" fill="url(#hg)">BK+</text><text x="512" y="690" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="800" font-size="62" letter-spacing="14" fill="#e6f2f5">DOMINO</text></svg>
     <p class="home-hello" id="homeHello">Gotowy do lania?</p>
   </div>
   <button id="homeContinue" type="button" class="big-btn primary hide">▶ Kontynuuj betonowanie<small id="homeContinueInfo"></small></button>
@@ -122,9 +122,18 @@
   </div>
 </section>
 
+<section id="theme" class="hide"><div class="panel">
+<h2>🎨 Wybierz kolory</h2>
+<p class="hint">Dotknij zestawu — aplikacja od razu się przemaluje. Możesz to zmienić później w ⚙️ Ustawieniach.</p>
+<div id="themeGrid" class="theme-grid"></div>
+<div class="label">Albo własne kolory</div>
+<div class="custom-colors"><label>Kolor 1<input type="color" id="cc1" value="#2FD271"></label><label>Kolor 2<input type="color" id="cc2" value="#056C7F"></label></div>
+<button type="button" id="themeDone" class="primary full big" style="margin-top:16px">✓ Gotowe</button>
+</div></section>
+
 <section id="settings" class="hide">
 <div class="panel"><h2>⚙️ Ustawienia</h2>
-<label class="label" for="themeSel">Kolory aplikacji</label><select id="themeSel"><option value="green">Zielony (#2FD271 + #056C7F) — test</option><option value="violet">Błękit + fiolet (#8BD1E0 + #9B4CD3)</option></select>
+<button type="button" id="openTheme" class="full theme-open">🎨 Kolory aplikacji</button>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <div class="label">Lektor</div><div id="lektorList" class="lektor-list"></div>
 <p class="hint" id="voiceHint"></p>

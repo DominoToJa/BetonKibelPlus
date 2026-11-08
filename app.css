@@ -192,26 +192,36 @@ details.fine{margin-top:14px}
 
 /* ── motywy kolorów ── */
 :root{--c1:#8BD1E0;--c2:#9B4CD3;--ink:#0e1030;--blue:var(--c1);--violet:var(--c2);--grad:linear-gradient(120deg,var(--c1),var(--c2))}
-body.theme-green{--c1:#2FD271;--c2:#056C7F;--ink:#04221a;--bg:#06141a;--card:#0d2129;--card2:#122c35;--stroke:#1f4a52;--muted:#a9cfc9;
-  background:radial-gradient(ellipse at 10% -10%,#0b4a4f 0,transparent 48%),radial-gradient(ellipse at 100% 0,#14563a 0,transparent 40%),linear-gradient(#08191f,#051015)}
-body.theme-green .panel,body.theme-green .metric,body.theme-green .tile,body.theme-green .bucket-pick,body.theme-green .lektor,body.theme-green .active-bucket,body.theme-green .pc-sheet,body.theme-green .pc-tophint,body.theme-green .big-btn{background-color:#0f262e}
-body.theme-green button{background-color:#12313a;border-color:#2a5d63}
-body.theme-green .tabs{background:#0a1d23}
-body.theme-green .tile.on,body.theme-green .tabs button.on,body.theme-green .primary,body.theme-green .bp-change,body.theme-green .mic-btn.live,body.theme-green .pc-pick-row .big-btn.primary{background:var(--grad)}
-body.theme-green #intro{background:radial-gradient(ellipse at 50% 40%,#0b4a4f 0,#051015 70%)}
-body.theme-green .vs-track,body.theme-green .bar{background:#163a40;border-color:#2a5d63}
-body.theme-green input,body.theme-green select,body.theme-green textarea{background:#071a20;border-color:#2a5d63}
-body.theme-green .calc-box{background:#0e2b2c}
 body{--grad:linear-gradient(120deg,var(--c1),var(--c2));--blue:var(--c1);--violet:var(--c2)}
-body.theme-green .pill.on,body.theme-green .method.on{background:#0f4a45;border-color:var(--c1)}
-body.theme-green .lektor.on{background:#0f4a45}
-body.theme-green .tile.size.on,body.theme-green .tile.saved.on{background:var(--grad)}
 .tile.custom{grid-column:1/-1;flex-direction:row;gap:8px;padding:10px}
 .tile.custom input{margin:0;flex:1;min-width:0;font-size:18px;font-weight:800;text-align:center}
 .tile.custom span{font-weight:900;white-space:nowrap}
-body.theme-green .bot-quote{background:#0c3236;border-color:#1f6b66}
-body.theme-green .bot-quote span{color:var(--c1)}
-body.theme-green .done{color:#7fe8ad}
-body.theme-green .smalltag{border-color:var(--c1);color:#c9f5dc}
-body.theme-green .notice{background:#0c3236;border-color:var(--c1)}
-body.theme-green .toast,body.theme-green #toast{background:#dff7ea;color:#04221a}
+
+/* ── motyw ogólny: wszystko z --c1 / --c2 ── */
+body.themed{--bg:color-mix(in srgb,var(--c2) 18%,#03070a);--card:color-mix(in srgb,var(--c2) 22%,#070b10);--card2:color-mix(in srgb,var(--c2) 28%,#081016);--stroke:color-mix(in srgb,var(--c2) 50%,#1a2228);--muted:color-mix(in srgb,var(--c1) 35%,#c8d2d8);
+  background:radial-gradient(ellipse at 10% -10%,color-mix(in srgb,var(--c2) 55%,#000) 0,transparent 48%),radial-gradient(ellipse at 100% 0,color-mix(in srgb,var(--c1) 30%,#000) 0,transparent 40%),linear-gradient(color-mix(in srgb,var(--c2) 14%,#05090c),color-mix(in srgb,var(--c2) 8%,#030507))}
+body.themed .panel,body.themed .metric,body.themed .tile,body.themed .bucket-pick,body.themed .lektor,body.themed .active-bucket,body.themed .pc-sheet,body.themed .pc-tophint,body.themed .big-btn{background-color:color-mix(in srgb,var(--c2) 20%,#070b10)}
+body.themed button{background-color:color-mix(in srgb,var(--c2) 26%,#081016);border-color:color-mix(in srgb,var(--c2) 55%,#1a2228)}
+body.themed .tabs{background:color-mix(in srgb,var(--c2) 12%,#05080b)}
+body.themed .tile.on,body.themed .tabs button.on,body.themed .primary,body.themed .bp-change,body.themed .mic-btn.live,body.themed .pc-pick-row .big-btn.primary,body.themed .tile.size.on,body.themed .tile.saved.on{background:var(--grad);color:var(--ink)}
+body.themed #intro{background:radial-gradient(ellipse at 50% 40%,color-mix(in srgb,var(--c2) 50%,#000) 0,color-mix(in srgb,var(--c2) 8%,#030507) 70%)}
+body.themed .vs-track,body.themed .bar{background:color-mix(in srgb,var(--c2) 35%,#0a1216);border-color:color-mix(in srgb,var(--c2) 55%,#1a2228)}
+body.themed input,body.themed select,body.themed textarea{background:color-mix(in srgb,var(--c2) 10%,#04080b);border-color:color-mix(in srgb,var(--c2) 55%,#1a2228)}
+body.themed .calc-box{background:color-mix(in srgb,var(--c2) 30%,#071013)}
+body.themed .pill.on,body.themed .method.on,body.themed .lektor.on{background:color-mix(in srgb,var(--c2) 50%,#06100f);border-color:var(--c1)}
+body.themed .bot-quote,body.themed .notice{background:color-mix(in srgb,var(--c2) 30%,#05090b);border-color:color-mix(in srgb,var(--c2) 75%,#000)}
+body.themed .bot-quote span{color:var(--c1)}
+body.themed .done{color:color-mix(in srgb,var(--c1) 70%,#fff)}
+body.themed .smalltag{border-color:var(--c1);color:color-mix(in srgb,var(--c1) 30%,#fff)}
+body.themed #toast{background:color-mix(in srgb,var(--c1) 18%,#fff);color:#071014}
+.home-logo{display:block;margin:0 auto;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--c2) 40%,#0a0a1a),color-mix(in srgb,var(--c2) 12%,#05050c))}
+/* wybór kolorów */
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.theme-tile{display:grid;gap:8px;padding:12px;border-radius:18px;text-align:left}
+.theme-tile.on{outline:3px solid #fff;outline-offset:-3px}
+.theme-sw{height:54px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px}
+.theme-sw .kibel-ico{width:34px;height:34px}
+.theme-tile strong{font-size:14px}
+.custom-colors{display:flex;gap:10px;align-items:center;margin-top:12px}
+.custom-colors label{flex:1;display:grid;gap:4px;font-size:12px;font-weight:800;color:var(--muted)}
+.custom-colors input[type=color]{width:100%;height:48px;padding:2px;border-radius:12px;cursor:pointer}
