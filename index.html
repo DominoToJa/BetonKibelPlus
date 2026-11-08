@@ -170,10 +170,10 @@
 <label class="label check"><input type="checkbox" id="musicOn" checked> 🎵 Muzyka w aplikacji (główny wyłącznik)</label>
 <label class="label check"><input type="checkbox" id="clicksOn" checked> 🔘 Odgłos klikania przycisków</label>
 <label class="label check"><input type="checkbox" id="introVoiceOn" checked> 🎬 Muzyka intro „Beton Plus”</label>
-<label class="label check"><input type="checkbox" id="bgmOn" checked> 🎶 „Solid Ground” w tle — wszędzie poza Licznikiem</label>
-<p class="hint">Na Liczniku i przy włączonym mikrofonie muzyka sama cichnie, żeby nie przeszkadzać komendom.</p>
+<label class="label check hide"><input type="checkbox" id="bgmOn" checked> 🎶 „Solid Ground” w tle — wszędzie poza Licznikiem</label>
+<p class="hint">Muzyka gra tylko w intro. Reszta aplikacji jest cicha, żeby nie przeszkadzać komendom głosowym.</p>
 <label class="label" for="musicVol">Głośność muzyczki</label><input id="musicVol" type="range" min="0.15" max="1" step="0.05" value="0.6">
-<div class="grid two" style="margin-top:10px"><button type="button" id="musicTest">▶ Posłuchaj muzyki</button><button type="button" id="introReplay" class="primary">🎬 Odtwórz intro</button></div>
+<div class="grid two" style="margin-top:10px"><button type="button" id="musicTest">▶ Posłuchaj muzyki intro</button><button type="button" id="introReplay" class="primary">🎬 Odtwórz intro</button></div>
 <label class="label check"><input type="checkbox" id="alarmOn" checked> Krótki sygnał przy pytaniu o kosz</label>
 <label class="label check"><input type="checkbox" id="confirmOn" checked> Sygnał po naliczeniu</label>
 </div></details>
@@ -225,7 +225,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.4.2 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.4.3 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

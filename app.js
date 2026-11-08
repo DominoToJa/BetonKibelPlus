@@ -250,7 +250,8 @@ let bgm = null, bgmTimer = 0, introPlaying = !!document.getElementById('intro');
 let voiceEl = null; const voiceBusy = () => !!(voiceEl && !voiceEl.paused && !voiceEl.ended);
 const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * (voiceBusy() ? .22 : .5);
 const songBusy = () => !!(songEl && !songEl.paused && !songEl.ended);
-const bgmWanted = () => !songBusy() && !introPlaying && settings.music && settings.bgm !== false && !document.hidden && ((TAB_OF[currentTab] !== 'work' && currentTab !== 'work' && !(typeof micWanted !== 'undefined' && micWanted)));
+const BGM_ENABLED = false; // muzyka tylko w intro (decyzja Domiego)
+const bgmWanted = () => BGM_ENABLED && !songBusy() && !voiceBusy() && !introPlaying && settings.music && settings.bgm !== false && !document.hidden && ((TAB_OF[currentTab] !== 'work' && currentTab !== 'work' && !(typeof micWanted !== 'undefined' && micWanted)));
 function bgmFade(to, done) {
   clearInterval(bgmTimer); if (!bgm) return done?.();
   bgmTimer = setInterval(() => { const v = bgm.volume, d = to - v, st = Math.sign(d) * Math.min(Math.abs(d), .04); bgm.volume = Math.min(1, Math.max(0, v + st)); if (Math.abs(to - bgm.volume) < .005) { clearInterval(bgmTimer); bgm.volume = to; done?.() } }, 40);
@@ -259,6 +260,7 @@ function bgmUpdate() {
   try {
     if (bgmWanted()) {
       if (!bgm) { if (!bgmPool.length) bgmPool = [new Audio('sounds/bgm.mp3'), new Audio('sounds/bgm.mp3')]; bgm = bgmPool[0]; bgm.volume = 0; bgmWatch() }
+      if (!bgmXfading) for (const o of bgmPool) if (o !== bgm && !o.paused) o.pause();
       bgm.muted = false; if (bgm.paused) bgm.play().then(() => bgmFade(bgmTarget()), () => { introJinglePending = true; announce('🔈 Dotknij ekranu, żeby włączyć muzykę') });
       else bgmFade(bgmTarget());
     } else if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause());
@@ -289,7 +291,7 @@ let bgmPrimed = false, bgmPool = [];
 function bgmPrime() {
   if (bgmPrimed) return; try {
     if (!bgmPool.length) bgmPool = [new Audio('sounds/bgm.mp3'), new Audio('sounds/bgm.mp3')];
-    for (const a of bgmPool) { if (a === bgm && !a.paused) continue; a.volume = 0; a.muted = true; const pr = a.play(); if (pr) pr.then(() => { if (a !== bgm || !bgmWanted()) a.pause(); a.muted = false; bgmPrimed = true }, () => { a.muted = false }) }
+    for (const a of bgmPool) { if (a === bgm && !a.paused) continue; a.volume = 0; a.muted = true; const pr = a.play(); if (pr) pr.then(() => { if (a !== bgm || !bgmWanted() || a.volume === 0) { if (a !== bgm || !bgmWanted()) a.pause() } a.muted = false; bgmPrimed = true; if (a === bgm && bgmWanted()) bgmFade(bgmTarget()) }, () => { a.muted = false }) }
   } catch (e) { }
 }
 document.addEventListener('pointerdown', () => { getAC(); bgmPrime(); if (voicePending) { voicePending = false; soundUnlockedAt = Date.now(); if (TAB_OF[currentTab] !== 'work') playIntroVoice() } if (introJinglePending) { introJinglePending = false; setTimeout(bgmUpdate, 50) } }, { capture: true });
@@ -1392,7 +1394,7 @@ $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').ch
 document.querySelectorAll('#setNav [data-go]').forEach(b => b.addEventListener('click', () => { const d = $(b.dataset.go); if (!d) return; d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
 $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $('testMode')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) });
 $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem('bkp_after_intro', currentTab) } catch (e) { } location.reload() });
-$('musicTest').addEventListener('click', () => { if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
+$('musicTest').addEventListener('click', () => { if (!BGM_ENABLED) { playIntroVoice(); return } if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
 $('clicksOn').checked = settings.clicks !== false; $('clicksOn').addEventListener('change', () => { settings.clicks = $('clicksOn').checked; saveSettings() });
 $('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });
