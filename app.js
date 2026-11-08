@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -148,13 +148,15 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), headsetButtons: !!settings.headsetBtn, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), headsetButtons: !!settings.headsetBtn, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
 const polishVoices = () => 'speechSynthesis' in window ? speechSynthesis.getVoices().filter(v => /^pl(?:-|$)/i.test(v.lang)) : [];
 // ── Lektor ElevenLabs: teksty pobrane raz z internetu, potem grane bez netu ──
-const elTag = () => [settings.elVoice, settings.elModel, settings.elStab, settings.elSim].join('|');
+const tempoK = () => Math.min(1.2, Math.max(.55, Number(settings.tempo) || .85));
+const elSpeed = () => Math.min(1.2, Math.max(.7, Math.round(tempoK() * 1.06 * 100) / 100));
+const elTag = () => [settings.elVoice, settings.elModel, settings.elStab, settings.elSim, elSpeed()].join('|');
 const elReady = () => !!(settings.el && settings.elVoice && settings.elKey);
 function elName(text) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(elTag() + '|' + String(text).trim())) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0 } return h.toString(16).padStart(8, '0') }
 let elNames = new Set(), elDbP = null, elAudio = null;
@@ -162,7 +164,7 @@ const elDb = () => elDbP ||= new Promise((ok, no) => { try { const r = indexedDB
 const idb = async (mode, fn) => { const db = await elDb(); return new Promise((ok, no) => { const tx = db.transaction('clips', mode), st = tx.objectStore('clips'), r = fn(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error) }) };
 async function elLoadNames() { try { elNames = new Set(nativeVoice ? await NV.listVoice() : await idb('readonly', st => st.getAllKeys())) } catch (e) { elNames = new Set() } }
 async function elFetch(text) {
-  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(settings.elVoice.trim()) + '?output_format=mp3_44100_128', { method: 'POST', headers: { 'xi-api-key': settings.elKey.trim(), 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, body: JSON.stringify({ text: String(text).trim(), model_id: settings.elModel || 'eleven_multilingual_v2', language_code: 'pl', voice_settings: { stability: Number(settings.elStab), similarity_boost: Number(settings.elSim) } }) });
+  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(settings.elVoice.trim()) + '?output_format=mp3_44100_128', { method: 'POST', headers: { 'xi-api-key': settings.elKey.trim(), 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, body: JSON.stringify({ text: String(text).trim(), model_id: settings.elModel || 'eleven_multilingual_v2', language_code: 'pl', voice_settings: { stability: Number(settings.elStab), similarity_boost: Number(settings.elSim), speed: elSpeed() } }) });
   if (!r.ok) { let msg = 'błąd ' + r.status; try { const j = await r.json(); msg = j.detail?.message || j.detail?.status || msg } catch (e) { } throw new Error(msg) }
   return await r.blob();
 }
@@ -173,7 +175,7 @@ function ttsSpeak(key, text) {
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
   try {
-    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2; u.pitch = Number(settings.pitch) || 1;
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2 * tempoK(); u.pitch = Number(settings.pitch) || 1;
     const pv = polishVoices(); const id = resolvedVoiceId(); const v = pv.find(v => v.voiceURI === id) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
 }
@@ -252,6 +254,10 @@ const saveProfiles = () => { try { localStorage.setItem(PROFILE_KEY, JSON.string
 const storeSiteAssignments = () => { try { localStorage.setItem(SITE_BUCKET_KEY, JSON.stringify(siteAssignments)) } catch (e) { } };
 function rememberSiteBucket(name, id) { const k = siteKey(name); if (!k) return; siteAssignments[k] = id || 'manual'; storeSiteAssignments() }
 const snapshot = p => p ? { id: p.id, name: p.name, shape: p.shape, dims: p.dims, capacity: p.capacity } : null;
+const KINDS = { kosz: ['🏗', 'Kosz (kibel)', 'kibel'], taczka: ['🛒', 'Taczka', 'taczka'], lyzka: ['🚜', 'Łyżka koparki', 'inne'] };
+const kindOf = p => p?.kind && KINDS[p.kind] ? p.kind : 'kosz';
+const methodKind = m => m === 'taczka' ? 'taczka' : m === 'inne' ? 'lyzka' : 'kosz';
+const profilesFor = m => profiles.filter(p => kindOf(p) === methodKind(m) || (m === 'inne' && kindOf(p) === 'kosz'));
 const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1], inne: [0.5, 1, 1.5, 2, 2.5, 3] };
 
 // ───────────────────────── stan ─────────────────────────
@@ -354,24 +360,26 @@ function refreshKnownSites() { const list = $('knownSites'); list.replaceChildre
 function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
-  const useTiles = method !== 'taczka';
+  const useTiles = true;
   $('presetsLabel').textContent = method === 'taczka' ? 'Taczka' : (method === 'inne' ? 'Osprzęt' : 'Kosz');
   $('setupBucketsLink').classList.add('hide');
   $('bucketPick').classList.toggle('hide', !useTiles); r.classList.toggle('hide', useTiles);
   if (!useTiles) { r.className = 'chips'; for (const v of opts.taczka) r.append(el('button', { type: 'button', class: 'pill' + (Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { $('portion').value = fmt(v); renderPresets() } })); return }
   const p = getProfile(chosenProfileId), cap = number($('portion').value);
   const pic = p?.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : kibelIcon();
-  $('bucketPick').replaceChildren(el('div', { class: 'tile-pic' }, pic), el('div', { class: 'bp-txt' }, el('strong', { text: p ? p.name : 'Kosz ' + (cap > 0 ? fmt(cap) + ' m³' : '') }), el('small', { text: p ? fmt(p.capacity) + ' m³ · ' + (p.dims ? '📐 dokładna podziałka' : 'zapisany') : 'standardowy · dotknij, żeby wybrać zapisany' })), el('span', { class: 'bp-change', text: 'Zmień ›' }));
+  $('bucketPick').replaceChildren(el('div', { class: 'tile-pic' }, pic), el('div', { class: 'bp-txt' }, el('strong', { text: p ? p.name : ({ taczka: 'Taczka ', inne: 'Łyżka ' }[method] || 'Kosz ') + (cap > 0 ? fmt(cap) + ' m³' : '') }), el('small', { text: p ? fmt(p.capacity) + ' m³ · ' + (p.dims ? '📐 dokładna podziałka' : 'zapisany') : 'standardowy · dotknij, żeby wybrać zapisany' })), el('span', { class: 'bp-change', text: 'Zmień ›' }));
 }
 function sheetRender() {
   const r = $('pickTiles'); r.replaceChildren();
+  $('pickTitle').textContent = { taczka: 'Wybierz taczkę', inne: 'Wybierz łyżkę / osprzęt' }[method] || 'Wybierz kosz';
+  const sw = $('pickMethods'); sw.replaceChildren(...[['kibel', '🏗 Kibel'], ['taczka', '🛒 Taczka'], ['inne', '🚜 Koparka / inne']].map(([m, t]) => el('button', { type: 'button', class: method === m ? 'on' : '', text: t, onclick: () => { if (method !== m) selectMethod(m); sheetRender() } })));
   const pick = fn => () => { fn(); tab('setup') };
-  for (const p of profiles) {
+  for (const p of profilesFor(method)) {
     const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : kibelIcon();
     r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(p.id)) },
       el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
-  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Zmierz nowy kosz') }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
   const ci = el('input', { inputmode: 'decimal', placeholder: 'np. 0,8', 'aria-label': 'Niestandardowa pojemność' }); if (!chosenProfileId && !isStd && cur > 0) ci.value = fmt(cur);
@@ -866,9 +874,10 @@ const addFormPhotos = async e => {
 };
 $('bPhotos').addEventListener('change', addFormPhotos); $('bPhotosCam').addEventListener('change', addFormPhotos);
 function thumbsRender() { const t = $('bPhotoThumbs'); t.replaceChildren(...formPhotos.map((src, i) => el('button', { type: 'button', class: 'thumb', title: 'Usuń', onclick: () => { formPhotos.splice(i, 1); thumbsRender() } }, el('img', { src, alt: '' })))) }
-function openBucketForm(p = null) {
+function openBucketForm(p = null, kind = null) {
   editingId = p?.id || ''; formEstimated = !!p?.estimated; formPhotos = (p?.photos || []).map(x => x.data || x).filter(Boolean);
   $('bucketFormTitle').textContent = p ? 'Edytuj kosz' : 'Nowy kosz';
+  $('bKind').value = p ? kindOf(p) : (kind || 'kosz'); $('bucketFormTitle').textContent = (p ? 'Edytuj: ' : 'Nowy: ') + KINDS[$('bKind').value][1].toLowerCase();
   $('bName').value = p?.name || ''; $('bShape').value = p?.shape && SHAPES[p.shape] ? p.shape : 'cone';
   $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims && !p.real ? fmt(p.capacity) : '');
   $('bReal').value = p?.real ? fmt(p.real) : '';
@@ -882,7 +891,7 @@ $('bSave').addEventListener('click', () => {
   if (shape !== 'plate' && !dims && !(real > 0 || plate > 0)) return $('bError').textContent = 'Uzupełnij wymiary albo policz ze zdjęć.';
   const capacity = real > 0 ? real : plate > 0 ? plate : geo;
   if (!(capacity > 0 && capacity <= 5)) return $('bError').textContent = 'Pojemność musi być od 0 do 5 m³.';
-  const p = { id: editingId || 'bucket-' + Date.now(), name: $('bName').value.trim() || 'Mój kosz', shape: dims ? shape : 'plate', dims, estimated: formEstimated, plate: plate > 0 ? plate : null, real: real > 0 ? real : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  const kind = $('bKind').value || 'kosz'; const p = { id: editingId || 'bucket-' + Date.now(), kind, name: $('bName').value.trim() || ({ taczka: 'Moja taczka', lyzka: 'Moja łyżka' }[kind] || 'Mój kosz'), shape: dims ? shape : 'plate', dims, estimated: formEstimated, plate: plate > 0 ? plate : null, real: real > 0 ? real : null, capacity: Math.round(capacity * 1000) / 1000, photos: formPhotos.map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
   const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
   if (i >= 0) profiles[i] = p; else profiles.push(p);
   if (!saveProfiles()) { profiles = backup; return }
@@ -892,8 +901,9 @@ $('bSave').addEventListener('click', () => {
 /** Po zapisie: od razu do licznika (trwa betonowanie) albo wybrany w „Nowe betonowanie”. */
 function useSavedBucket(p) {
   announce('Zapisano: ' + p.name + ' · ' + fmt(p.capacity) + ' m³');
-  if (session && session.method !== 'taczka') { changeCapacity(p.capacity, p); tab('work') }
-  else { if (method === 'taczka') selectMethod('kibel'); chooseProfile(p.id, false); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
+  const want = KINDS[kindOf(p)][2];
+  if (session && (session.method === want || (want === 'kibel' && session.method === 'inne'))) { changeCapacity(p.capacity, p); tab('work') }
+  else { if (method !== want && !(want === 'kibel' && method === 'inne')) selectMethod(want); chooseProfile(p.id, false); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
 }
 function storeProfile(p) {
   const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
@@ -907,9 +917,9 @@ function bucketListRender() {
   if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
   for (const p of profiles) {
     const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kibelIcon()); return d })();
-    const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
+    const info = el('div', { class: 'bucket-info' }, el('strong', { text: KINDS[kindOf(p)][0] + ' ' + p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
     const acts = el('div', { class: 'bucket-acts' });
-    if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
+    if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { const w = KINDS[kindOf(p)][2]; if (method !== w && !(w === 'kibel' && method === 'inne')) selectMethod(w); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
     acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
     acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: async () => { if (!(await ask('Usunąć kosz „' + p.name + '”?', 'Usuń', true))) return; profiles = profiles.filter(x => x.id !== p.id); for (const [k, v] of Object.entries(siteAssignments)) if (v === p.id) delete siteAssignments[k]; storeSiteAssignments(); saveProfiles(); if (chosenProfileId === p.id) chosenProfileId = ''; bucketListRender() } }));
     box.append(el('div', { class: 'bucket-row' }, img, info, acts));
@@ -918,7 +928,7 @@ function bucketListRender() {
 
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
-const pc = { view: 'front', views: {}, useSide: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
+const pc = { view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
 const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
@@ -964,17 +974,19 @@ function pcSwitch(v) {
   if (pc.view === v) return;
   pc.views[pc.view] = Object.fromEntries(VIEW_KEYS.map(k => [k, pc[k]]));
   Object.assign(pc, { pts: [], ref: [], img: null, file: null, cur: -1 }, pc.views[v] || {}); pc.view = v;
-  if (!pc.img) { const used = pc.views.front?.cur; const idx = pc.photos.findIndex((_, i) => i !== used); if (idx >= 0) { pc.cur = idx; pc.img = pc.photos[idx].img; pc.file = pc.photos[idx].file } }
+  if (!pc.img) { const used = ['front', 'side', 'top'].filter(x => x !== v).map(x => pc.views[x]?.cur); const idx = pc.photos.findIndex((_, i) => !used.includes(i)); if (idx >= 0) { pc.cur = idx; pc.img = pc.photos[idx].img; pc.file = pc.photos[idx].file } }
   pcUI();
 }
 function pcCompute() {
   const F = viewData('front'), lv = levelsFor(F.pts); if (!lv) return null;
   const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
-  const S = viewData('side'), lvS = pc.useSide ? levelsFor(S.pts) : null;
+  const S = viewData('side'), lvS = pc.useSide ? levelsFor(S.pts) : null, lvT = !lvS && pc.useTop ? levelsFor(viewData('top').pts) : null;
+  const topRatio = lvT ? (lvT[0].y - lvT.at(-1).y) / Math.max(1, ...lvT.map(l => l.w)) : 0;
   const rect = pc.shape === 'rect';
   const mk = c => {
     const d = { h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * c), ...(rect ? { rect: true } : {}) };
     if (lvS) { const ybS = lvS[0].y, hS = ybS - lvS.at(-1).y, cS = hPx * c / hS; d.dd = lv.map(l => widthAtY(lvS, ybS - (yb - l.y) / hPx * hS) * cS); d.lshape = true }
+    else if (topRatio > .05) d.dd = lv.map(l => l.w * c * topRatio);
     return d;
   };
   const useRef = pc.other === 'ref';
@@ -982,7 +994,7 @@ function pcCompute() {
   if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
   const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
-  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!lvS };
+  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: lvS ? 'przód + bok' : lvT ? 'przód + góra' : 'tylko przód' };
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
@@ -992,11 +1004,15 @@ function pcUI() {
   const vt = $('pcViews'); vt.classList.toggle('hide', !has); vt.replaceChildren(
     el('button', { type: 'button', class: 'pill' + (pc.view === 'front' ? ' on' : ''), text: '⬜ Przód' + (levelsFor(viewData('front').pts) ? ' ✓' : ''), onclick: () => pcSwitch('front') }),
     el('button', { type: 'button', class: 'pill' + (pc.view === 'side' ? ' on' : ''), text: (pc.useSide ? '◧ Bok 90°' + (levelsFor(viewData('side').pts) ? ' ✓' : '') : '＋ Bok 90° (kosz L)'), onclick: () => { pc.useSide = true; pcSwitch('side') } }),
-    ...(pc.useSide ? [el('button', { type: 'button', class: 'pill', text: '✕ bez boku', onclick: () => { pc.useSide = false; pcSwitch('front') } })] : []));
+    ...(pc.useSide ? [el('button', { type: 'button', class: 'pill', text: '✕ bez boku', onclick: () => { pc.useSide = false; pcSwitch('front') } })] : []),
+    el('button', { type: 'button', class: 'pill' + (pc.view === 'top' ? ' on' : ''), text: (pc.useTop ? '◯ Góra' + (levelsFor(viewData('top').pts) ? ' ✓' : '') : '＋ Z góry'), onclick: () => { pc.useTop = true; pcSwitch('top') } }),
+    ...(pc.useTop ? [el('button', { type: 'button', class: 'pill', text: '✕ bez góry', onclick: () => { pc.useTop = false; pcSwitch('front') } })] : []));
   let t = ''; const sd = pcSides(), nl = sd ? sd.L.length : 0, nr = sd ? sd.R.length : 0;
   if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
   else if (pc.view === 'front' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
+  else if (pc.view === 'top' && !pcLevels()) t = 'Z GÓRY · zdjęcie kosza od góry (do środka wlewu), lewo-prawo tak jak na zdjęciu z przodu. Obrysuj krawędź wlewu dookoła.';
+  else if (pc.view === 'top') t = 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
   else if (pc.view === 'side' && !pcLevels()) t = 'BOK 90° · obrysuj kosz widziany z boku (przy koszu L — całe „L”), od krawędzi wlewu do dołu.';
   else if (!pcLevels()) t = 'Obrysuj kosz: klikaj po kolei DOOKOŁA krawędzi (np. lewy górny róg → w dół → wylew → w górę prawą stroną) albo osobno lewa i prawa strona.';
   else t = 'Dokładaj punkty tam, gdzie kształt się zmienia (początek lejka, załamania). Punkty możesz przeciągać.';
@@ -1017,7 +1033,7 @@ function pcUI() {
     box.append(el('div', { class: 'calc-main', text: 'Realnie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
     box.append(el('div', { class: 'calc-range', text: 'od ' + fmt(r.real * (1 - u)) + ' do ' + fmt(r.real * (1 + u)) + ' m³' }));
     box.append(el('div', { class: 'muted', text: (r.nominal ? 'Kosz ' + fmt(r.nominal) + ' m³ do krawędzi' : 'Do krawędzi ≈ ' + fmt(r.rim) + ' m³') + (r.fillCm ? ' · beton ' + r.fillCm + ' cm niżej = ' + Math.round(r.real / r.rim * 100) + '%' : '') }));
-    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + ' · ' + n + ' pkt obrysu' + (r.twoViews ? ' · przód + bok' : '') }));
+    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + ' · ' + n + ' pkt obrysu' + ' · ' + r.pair }));
     const m = bucketModel({ shape: 'profile', dims: r.dims, capacity: r.real }, r.real);
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
@@ -1035,15 +1051,18 @@ function pcDraw() {
   const lv = pcLevels(), sd = pcSides();
   if (lv && isOutline(pc.pts)) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
-    if (pc.fill || pc.fillTap) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]) } }
+    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]) } }
   } else if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
-    if (pc.fill || pc.fillTap) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
+    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
   } else if (sd) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271';
     for (const E of [sd.L, sd.R]) if (E.length > 1) { g.beginPath(); E.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke() }
   }
+  if (lv) { const tY = lv.at(-1).y, bY = lv[0].y, cx = (lv.at(-1).l + lv.at(-1).r) / 2, cxb = (lv[0].l + lv[0].r) / 2, fs = 13 / k;
+    const tag = (txt, x, y, col) => { g.font = `900 ${fs}px sans-serif`; const tw = g.measureText(txt).width + 12 / k; g.fillStyle = col; g.fillRect(x - tw / 2, y - fs, tw, fs * 1.5); g.fillStyle = '#06121a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y - fs * .25) };
+    tag(pc.view === 'top' ? 'TYŁ' : '▲ GÓRA · WLEW', cx, tY - 10 / k, '#2FD271'); tag(pc.view === 'top' ? 'PRZÓD' : '▼ DÓŁ · WYLEW', cxb, bY + 22 / k, '#ffd17e') }
   pc.pts.forEach((p, i) => {
     const left = isOutline(pc.pts) ? true : sd && p.x < sd.cx;
     g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = left ? '#8BD1E0' : '#ffd17e'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
@@ -1070,7 +1089,7 @@ function pcDraw() {
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 function pcOpen() {
-  Object.assign(pc, { view: 'front', views: {}, useSide: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
+  Object.assign(pc, { view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
@@ -1104,6 +1123,15 @@ $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventList
 $('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddCam').addEventListener('change', pcFilePicked);
 $('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 $('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
+/* obrót zdjęcia o 90° — żeby góra kosza (wlew) była na górze zdjęcia; punkty obracają się razem ze zdjęciem */
+$('pcRotate').addEventListener('click', async () => {
+  const i = pc.cur, ph = pc.photos[i]; if (!ph) return; const W = ph.img.width, H = ph.img.height;
+  const cv = document.createElement('canvas'); cv.width = H; cv.height = W; const g = cv.getContext('2d'); g.translate(H, 0); g.rotate(Math.PI / 2); g.drawImage(ph.img, 0, 0);
+  const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .9)); const { img, url } = await loadImg(blob);
+  const rot = arr => (arr || []).map(p => ({ ...p, x: H - p.y, y: p.x }));
+  for (const v of Object.values(pc.views)) if (v && v.cur === i) { v.pts = rot(v.pts); v.ref = rot(v.ref); v.img = img; v.file = blob }
+  pc.pts = rot(pc.pts); pc.ref = rot(pc.ref); Object.assign(ph, { img, url, file: blob }); pc.img = img; pc.file = blob; pcUI();
+});
 $('pcFill').addEventListener('input', () => { pc.fill = Number($('pcFill').value); pcUI() });
 /** stuknięcie na zdjęciu → ile cm pod krawędzią (wg profilu) */
 function pcFillFromY(y) {
@@ -1117,11 +1145,11 @@ document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('cli
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
 $('pcSave').addEventListener('click', async () => {
   const r = pcCompute(); if (!r) return;
-  let photos = []; const fi = viewData('front').cur, si = pc.useSide ? viewData('side').cur : -1; const order = [pc.photos[fi], pc.photos[si], ...pc.photos.filter((_, i) => i !== fi && i !== si)].filter(Boolean);
+  let photos = []; const fi = viewData('front').cur, si = pc.useSide ? viewData('side').cur : -1, ti = pc.useTop ? viewData('top').cur : -1; const order = [pc.photos[fi], pc.photos[si], pc.photos[ti], ...pc.photos.filter((_, i) => i !== fi && i !== si && i !== ti)].filter(Boolean);
   for (const ph of order) try { photos.push(await thumbFromFile(ph.file)) } catch (e) { }
   photos = photos.concat(formPhotos);
   const name = $('pcName').value.trim() || ('Kosz ' + fmt(r.nominal || r.real) + ' m³');
-  const p = { id: editingId || 'bucket-' + Date.now(), name, shape: 'profile', dims: r.dims, estimated: true, plate: r.nominal || null, real: Math.round(r.real * 1000) / 1000, capacity: Math.round(r.real * 1000) / 1000, fillCm: r.fillCm, photos: photos.slice(0, 6).map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  const p = { id: editingId || 'bucket-' + Date.now(), kind: $('bKind')?.value || 'kosz', name, shape: 'profile', dims: r.dims, estimated: true, plate: r.nominal || null, real: Math.round(r.real * 1000) / 1000, capacity: Math.round(r.real * 1000) / 1000, fillCm: r.fillCm, photos: photos.slice(0, 6).map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
   if (!storeProfile(p)) return;
   pcClose(); closeBucketForm(); useSavedBucket(p);
 });
@@ -1160,6 +1188,9 @@ $('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
 $('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
+$('tempo').value = String(settings.tempo ?? .85); const tempoLbl = () => { $('tempoVal').textContent = Math.round(tempoK() * 100) + '%' }; tempoLbl();
+$('tempo').addEventListener('input', () => { settings.tempo = Number($('tempo').value); tempoLbl() });
+$('tempo').addEventListener('change', () => { settings.tempo = Number($('tempo').value); saveSettings(); configureNative(); elUI?.(); ttsSpeak('', 'Tak będę mówić. Zostało jeszcze dwa i pół metra sześciennego.') });
 $('ttsPitch').value = String(settings.pitch ?? 1);
 $('ttsPitch').addEventListener('change', () => { settings.pitch = Number($('ttsPitch').value); saveSettings() });
 function lektorRender() {
@@ -1239,8 +1270,21 @@ async function settingsRender() {
 
 // ───────────────────────── historia + kopia ─────────────────────────
 function historyRender() {
-  const r = $('historyRows'); if (!archive.length) { r.innerHTML = '<p class="help">Jeszcze nie masz zakończonych betonowań.</p>'; return }
-  r.innerHTML = '<table><thead><tr><th>Data i budowa</th><th>Wylano</th><th>Czas</th></tr></thead><tbody>' + archive.map(s => '<tr><td><strong>' + escapeHTML(s.site || 'Budowa') + '</strong><br><span class="help">' + new Date(s.startedAt).toLocaleDateString('pl-PL') + ' · ' + escapeHTML(s.method || 'kibel') + '</span></td><td>' + fmt(s.total ?? (s.entries || []).reduce((a, b) => a + Number(b.amount || 0), 0)) + ' m³</td><td>' + dur(((s.endedAt || Date.now()) - s.startedAt) / 1000) + '</td></tr>').join('') + '</tbody></table>';
+  const r = $('historyRows'); r.replaceChildren();
+  if (!archive.length && !Object.keys(siteAssignments).length) { r.append(el('p', { class: 'help', text: 'Jeszcze nie masz zakończonych betonowań.' })); return }
+  const groups = new Map(); archive.forEach((s, i) => { const k = (s.site || 'Budowa').trim(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push([s, i]) });
+  for (const k of Object.keys(siteAssignments)) { const name = [...groups.keys()].find(g => siteKey(g) === k); if (!name && !groups.has(k)) groups.set(k, []) }
+  for (const [site, items] of groups) {
+    const total = items.reduce((a, [s]) => a + Number(s.total ?? (s.entries || []).reduce((x, e) => x + Number(e.amount || 0), 0)), 0);
+    const head = el('div', { class: 'site-head' }, el('div', {}, el('strong', { text: '🏗 ' + site }), el('small', { class: 'help', text: items.length + ' betonowań · razem ' + fmt(Math.round(total * 100) / 100) + ' m³' })),
+      el('button', { type: 'button', class: 'warn', text: '🗑 Usuń budowę', onclick: async () => { if (!(await ask('Usunąć budowę „' + site + '” razem z ' + items.length + ' betonowaniami z historii?', 'Usuń', true))) return; archive = archive.filter(s => (s.site || 'Budowa').trim() !== site); delete siteAssignments[siteKey(site)]; storeSiteAssignments(); storeHistory(); refreshKnownSites(); historyRender(); announce('Budowa usunięta') } }));
+    const rows = el('div', { class: 'site-rows' });
+    for (const [s] of items) rows.append(el('div', { class: 'history-entry' },
+      el('div', {}, el('span', { text: new Date(s.startedAt).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }), el('small', { class: 'help', text: ' · ' + (s.method || 'kibel') + ' · ' + dur(((s.endedAt || Date.now()) - s.startedAt) / 1000) })),
+      el('div', { class: 'he-r' }, el('b', { text: fmt(s.total ?? (s.entries || []).reduce((a, e) => a + Number(e.amount || 0), 0)) + ' m³' }),
+        el('button', { type: 'button', class: 'mini warn', text: '🗑', 'aria-label': 'Usuń wpis', onclick: async () => { if (!(await ask('Usunąć to betonowanie z historii?', 'Usuń', true))) return; archive = archive.filter(x => x !== s); storeHistory(); refreshKnownSites(); historyRender() } }))));
+    r.append(el('div', { class: 'site-card' }, head, rows));
+  }
 }
 function download(name, blob) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000) }
 $('export').addEventListener('click', () => { const rows = ['Data;Budowa;Metoda;Załadowano_m3;Wylano_m3;Czas_s', ...archive.map(s => [new Date(s.startedAt).toLocaleString('pl-PL'), s.site, s.method, s.load, s.total, Math.round((s.endedAt - s.startedAt) / 1000)].map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';'))]; download('BetonKibelPlus_historia.csv', new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })) });

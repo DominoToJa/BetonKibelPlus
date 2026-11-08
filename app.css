@@ -577,3 +577,11 @@ body.test-on main{padding-top:calc(58px + env(safe-area-inset-top))!important}
 .ask-row button{padding:15px 8px;font-size:16px}
 body.ui-neo .ask-card{background:#e0e5ec;border:0}body.ui-neo .ask-card p{color:#1e293b}
 @keyframes askIn{from{opacity:0}to{opacity:1}}
+.pick-methods{margin:0 0 12px}
+.site-card{border:1px solid var(--stroke,#22304a);border-radius:16px;padding:12px;margin-bottom:10px;background:#ffffff06}
+.site-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.site-head small{display:block;margin-top:3px}.site-head button{padding:9px 10px;font-size:13px;flex:none}
+.history-entry{align-items:center;gap:8px}.he-r{display:flex;align-items:center;gap:8px}
+button.mini{padding:6px 9px;font-size:13px}
+body.ui-hud .tile.on :is(b,small,strong,span){color:var(--c1)!important}
+.he-r b{white-space:nowrap}
