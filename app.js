@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -275,6 +275,15 @@ function bgmWatch() {
   }, 200);
 }
 document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => (bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none') + ' | glos: ' + (voiceBusy() ? 'gra' : 'cisza'); window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
+/* odgłos klikania przycisków (krótki, miękki „tik”) */
+function clickSound(kind = 'tap') {
+  if (settings.clicks === false) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return;
+  const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+  o.type = 'triangle'; o.frequency.setValueAtTime(kind === 'on' ? 1250 : 820, t); o.frequency.exponentialRampToValueAtTime(kind === 'on' ? 1700 : 520, t + .05);
+  f.type = 'highpass'; f.frequency.value = 300; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.09 * Math.max(.3, Number(settings.musicVol ?? .6)) / .6, t + .004); g.gain.exponentialRampToValueAtTime(.0001, t + .07);
+  o.connect(f); f.connect(g); g.connect(ctx.destination); o.start(t); o.stop(t + .08);
+}
+document.addEventListener('click', e => { const b = e.target.closest('button, .tile, label.pc-add, label.pc-acts-add, .big-btn, summary, select, input[type=checkbox]'); if (!b || b.id === 'bucket' || b.closest('#intro')) return; clickSound(b.classList.contains('on') || b.classList.contains('primary') ? 'on' : 'tap') }, true);
 /* odblokowanie dźwięku: każde dotknięcie (aż się uda) „budzi” oba odtwarzacze muzyki — iPhone/Safari wymaga gestu */
 let bgmPrimed = false, bgmPool = [];
 function bgmPrime() {
@@ -1361,6 +1370,7 @@ $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $
 $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem('bkp_after_intro', currentTab) } catch (e) { } location.reload() });
 $('musicTest').addEventListener('click', () => { if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
+$('clicksOn').checked = settings.clicks !== false; $('clicksOn').addEventListener('change', () => { settings.clicks = $('clicksOn').checked; saveSettings() });
 $('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });
 $('bgmOn').checked = settings.bgm !== false; $('bgmOn').addEventListener('change', () => { settings.bgm = $('bgmOn').checked; saveSettings(); bgmUpdate() });
 $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); if (bgm && !bgm.paused) bgmFade(bgmTarget()); else playSong('start') });

@@ -91,6 +91,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     override public func load() {
         synth.delegate = self
+        // muzyka i dźwięki aplikacji grają też przy wyciszniku (dopóki mikrofon nie przełączy sesji na nagrywanie)
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
+        try? AVAudioSession.sharedInstance().setActive(true, options: [])
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(onInterruption(_:)), name: AVAudioSession.interruptionNotification, object: nil)
         nc.addObserver(self, selector: #selector(onMediaReset(_:)), name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
