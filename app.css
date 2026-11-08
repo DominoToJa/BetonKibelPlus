@@ -611,3 +611,35 @@ body.one-hand .bucket{width:100%!important;max-width:420px;margin:0 auto}
 @keyframes crashR{0%{opacity:1;transform:translateX(-100vw);animation-timing-function:cubic-bezier(.35,0,.9,.6)}88%{opacity:1;transform:translateX(calc(var(--w) / -2 + 6px))}93%{opacity:1;transform:translateX(calc(var(--w) / -2 - 14px)) translateY(-6px) rotate(-6deg)}100%{opacity:0;transform:translateX(calc(var(--w) / -2 - 46px)) translateY(-26px) rotate(-14deg)}}
 @keyframes crashL{0%{opacity:1;transform:translateX(100vw) scaleX(-1);animation-timing-function:cubic-bezier(.35,0,.9,.6)}88%{opacity:1;transform:translateX(calc(var(--w) / 2 - 6px)) scaleX(-1)}93%{opacity:1;transform:translateX(calc(var(--w) / 2 + 14px)) translateY(-6px) rotate(6deg) scaleX(-1)}100%{opacity:0;transform:translateX(calc(var(--w) / 2 + 46px)) translateY(-26px) rotate(14deg) scaleX(-1)}}
 .setup-links{margin-top:14px}
+
+/* ustawienia w kategoriach */
+.set-top{padding-bottom:12px}
+.set-nav{display:flex;flex-wrap:wrap;gap:7px}
+.set-nav button{padding:9px 11px;font-size:13px;border-radius:999px}
+details.set-cat{padding:0;overflow:hidden;scroll-margin-top:12px}
+details.set-cat>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:17px 18px;font-size:17px;font-weight:900;cursor:pointer}
+details.set-cat>summary::-webkit-details-marker{display:none}
+details.set-cat>summary::after{content:"›";font-size:24px;line-height:1;color:var(--c1);transition:transform .2s}
+details.set-cat[open]>summary::after{transform:rotate(90deg)}
+details.set-cat[open]>summary{border-bottom:1px solid color-mix(in srgb,var(--c1) 18%,transparent)}
+.set-body{padding:4px 18px 18px}
+.set-body>.label:first-child,.set-body>label.check:first-child{margin-top:12px}
+
+/* intro dłuższe (~10 s): wolniejszy dojazd, zderzenie ~4,5 s, dłużej logo */
+.go-r,.go-l{animation-duration:5.1s!important}
+.intro-scene{animation:sceneIn .8s ease-out both,sceneOut .7s 4.65s ease-in forwards!important}
+@keyframes sceneIn{from{opacity:0}to{opacity:1}}
+.intro-boom b{animation-delay:4.45s!important}
+.intro-boom span{animation-delay:4.5s!important}
+.intro-boom i{animation-delay:calc(4.5s + var(--d) * .3)!important}
+#intro .intro-logo{animation-delay:4.5s!important}
+.intro-ring{animation-delay:4.7s!important;animation-duration:1.6s!important}
+.intro-bk{animation-delay:5.3s!important;animation-duration:.8s!important}
+.intro-domino{animation-delay:5.85s!important;animation-duration:.8s!important}
+.intro-title{animation-delay:6.25s!important;animation-duration:.8s!important}
+#pc .pc-acts .pc-acts-add{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:13px 8px;border-radius:12px;font-weight:850;font-size:14px;cursor:pointer;background:color-mix(in srgb,var(--c1) 12%,#0b1426);border:1px solid color-mix(in srgb,var(--c1) 45%,transparent);color:var(--c1)}
+.pc-assign{align-items:center;margin:2px 0 8px}.pc-assign span{font-size:12px;font-weight:850;color:#c9d5e2;margin-right:2px}
+.pc-assign .pill{padding:7px 10px;font-size:12.5px}
+.pc-vbadge{position:absolute;left:3px;bottom:3px;font-style:normal;font-size:9px;font-weight:900;letter-spacing:.04em;background:var(--c1);color:#06121a;border-radius:5px;padding:1px 4px}
+.pc-th{position:relative}
+#pcTools .pc-add{display:none!important}

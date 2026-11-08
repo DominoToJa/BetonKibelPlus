@@ -227,7 +227,7 @@ const SONG_LEN = { intro: 8000, start: 3600, finish: 2600 };
 let songEl = null;
 function playSong(kind) {
   if (!settings.music) return Promise.resolve(false);
-  try { songEl?.pause(); songEl = new Audio('sounds/' + kind + '.mp3'); songEl.volume = Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))); return songEl.play().then(() => true, () => false) } catch (e) { return Promise.resolve(false) }
+  try { songEl?.pause(); songEl = new Audio('sounds/' + kind + '.mp3'); songEl.onended = () => setTimeout(bgmUpdate, 300); if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause()); songEl.volume = Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))); return songEl.play().then(() => { bgmUpdate(); return true }, () => false) } catch (e) { return Promise.resolve(false) }
 }
 function playBoom() {
   if (!settings.music) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return; const t = ctx.currentTime + .02, vol = .5 * Number(settings.musicVol ?? .6);
@@ -238,10 +238,11 @@ function playBoom() {
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false;
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
-const BGM_TABS = new Set(['home', 'history', 'drum']);
+const BGM_TABS = new Set(['home', 'history', 'drum', 'settings', 'theme']);
 let bgm = null, bgmTimer = 0, introPlaying = false;
 const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * .5;
-const bgmWanted = () => settings.music && settings.bgm !== false && !document.hidden && (introPlaying || (BGM_TABS.has(TAB_OF[currentTab] ?? currentTab) && !(typeof micWanted !== 'undefined' && micWanted)));
+const songBusy = () => !!(songEl && !songEl.paused && !songEl.ended);
+const bgmWanted = () => !songBusy() && settings.music && settings.bgm !== false && !document.hidden && (introPlaying || ((BGM_TABS.has(TAB_OF[currentTab]) || BGM_TABS.has(currentTab)) && !(typeof micWanted !== 'undefined' && micWanted)));
 function bgmFade(to, done) {
   clearInterval(bgmTimer); if (!bgm) return done?.();
   bgmTimer = setInterval(() => { const v = bgm.volume, d = to - v, st = Math.sign(d) * Math.min(Math.abs(d), .04); bgm.volume = Math.min(1, Math.max(0, v + st)); if (Math.abs(to - bgm.volume) < .005) { clearInterval(bgmTimer); bgm.volume = to; done?.() } }, 40);
@@ -249,13 +250,23 @@ function bgmFade(to, done) {
 function bgmUpdate() {
   try {
     if (bgmWanted()) {
-      if (!bgm) { bgm = new Audio('sounds/bgm.mp3'); bgm.loop = true; bgm.volume = 0 }
+      if (!bgm) { bgm = new Audio('sounds/bgm.mp3'); bgm.volume = 0; bgmWatch() }
       if (bgm.paused) bgm.play().then(() => bgmFade(bgmTarget()), () => { introJinglePending = true });
       else bgmFade(bgmTarget());
     } else if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause());
   } catch (e) { }
 }
-document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2)) : 'none';
+/* płynne przejście koniec → początek: 2,5 s przenikania dwóch kopii utworu */
+const BGM_XF = 2.5; let bgmXfading = false;
+function bgmWatch() {
+  setInterval(() => {
+    if (!bgm || bgm.paused || bgmXfading || !(bgm.duration > BGM_XF * 3) || bgm.currentTime < bgm.duration - BGM_XF) return;
+    bgmXfading = true; const old = bgm, nxt = new Audio('sounds/bgm.mp3'); nxt.volume = 0; const to = bgmWanted() ? bgmTarget() : 0, t0 = performance.now(), v0 = old.volume;
+    nxt.play().catch(() => { }); bgm = nxt; clearInterval(bgmTimer);
+    const iv = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / (BGM_XF * 1000)); nxt.volume = to * Math.sin(k * Math.PI / 2); old.volume = v0 * Math.cos(k * Math.PI / 2); if (k >= 1) { clearInterval(iv); old.pause(); bgmXfading = false; bgmUpdate() } }, 40);
+  }, 200);
+}
+document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none'; window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
 document.addEventListener('pointerdown', () => { getAC(); if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
@@ -1024,6 +1035,17 @@ function pcSwitch(v) {
   if (!pc.img) { const used = ['front', 'side', 'top'].filter(x => x !== v).map(x => pc.views[x]?.cur); const idx = pc.photos.findIndex((_, i) => !used.includes(i)); if (idx >= 0) { pc.cur = idx; pc.img = pc.photos[idx].img; pc.file = pc.photos[idx].file } }
   pcUI();
 }
+/** przypisz bieżące zdjęcie (z punktami) do widoku: przód / bok / góra */
+function pcAssign(v) {
+  if (pc.view === v || !pc.img) { if (v === 'side') pc.useSide = true; if (v === 'top') pc.useTop = true; return pcUI() }
+  const mine = Object.fromEntries(VIEW_KEYS.map(k => [k, pc[k]]));
+  pc.views[pc.view] = { pts: [], ref: [], img: null, file: null, cur: -1 };
+  if (pc.view === 'side') pc.useSide = false; if (pc.view === 'top') pc.useTop = false;
+  if (v === 'side') pc.useSide = true; if (v === 'top') pc.useTop = true;
+  const prev = pc.views[v]; pc.view = v; Object.assign(pc, mine); delete pc.views[v];
+  if (prev && prev.cur >= 0 && prev.cur !== mine.cur) announce('Poprzednie zdjęcie tego widoku odpięte');
+  pcUI();
+}
 function pcCompute() {
   const F = viewData('front'), lv = levelsFor(F.pts); if (!lv) return null;
   const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
@@ -1054,6 +1076,7 @@ function pcUI() {
     ...(pc.useSide ? [el('button', { type: 'button', class: 'pill', text: '✕ bez boku', onclick: () => { pc.useSide = false; pcSwitch('front') } })] : []),
     el('button', { type: 'button', class: 'pill' + (pc.view === 'top' ? ' on' : ''), text: (pc.useTop ? '◯ Góra' + (levelsFor(viewData('top').pts) ? ' ✓' : '') : '＋ Z góry'), onclick: () => { pc.useTop = true; pcSwitch('top') } }),
     ...(pc.useTop ? [el('button', { type: 'button', class: 'pill', text: '✕ bez góry', onclick: () => { pc.useTop = false; pcSwitch('front') } })] : []));
+  const as = $('pcAssign'); as.classList.toggle('hide', !has); as.replaceChildren(el('span', { text: 'To zdjęcie to:' }), ...[['front', '⬜ Przód'], ['side', '◧ Bok'], ['top', '◯ Góra']].map(([v, tx]) => el('button', { type: 'button', class: 'pill' + (pc.view === v ? ' on' : ''), text: tx, onclick: () => pcAssign(v) })));
   let t = ''; const sd = pcSides(), nl = sd ? sd.L.length : 0, nr = sd ? sd.R.length : 0;
   if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
@@ -1087,6 +1110,7 @@ function pcUI() {
   $('pcSave').disabled = !r;
   pcDraw();
 }
+function pcLabel(g, k, x, y, txt, bg, fg, side = 'left') { const fs = 12 / k; g.font = `900 ${fs}px sans-serif`; const tw = g.measureText(txt).width + 12 / k, W = pc.img.width; if (side === 'left') x = x - tw - 8 / k; if (x < 2 / k) x = 2 / k; if (x + tw > W - 2 / k) x = W - tw - 2 / k; y = y + fs * 1.3; g.fillStyle = bg; g.fillRect(x, y - fs * 2.1, tw, fs * 1.6); g.fillStyle = fg; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(txt, x + 6 / k, y - fs * 1.3) }
 function pcDraw() {
   if (!pc.img) return;
   const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(240, window.innerHeight * .5);
@@ -1098,11 +1122,11 @@ function pcDraw() {
   const lv = pcLevels(), sd = pcSides();
   if (lv && isOutline(pc.pts)) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]) } }
+    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, w.l, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
+    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, L, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (sd) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271';
     for (const E of [sd.L, sd.R]) if (E.length > 1) { g.beginPath(); E.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke() }
@@ -1115,6 +1139,9 @@ function pcDraw() {
     g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = left ? '#8BD1E0' : '#ffd17e'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
     g.fillStyle = '#0b1118'; g.font = `900 ${12 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y);
   });
+  if (pc.ref.length === 2) { const m = { x: (pc.ref[0].x + pc.ref[1].x) / 2, y: (pc.ref[0].y + pc.ref[1].y) / 2 }, cm = pcRefCm(), sel = $('pcRefType'), nm = sel?.selectedOptions?.[0]?.textContent?.split('(')[0].trim() || 'wzorzec';
+    const txt = '📏 ' + nm + (cm > 0 ? ' = ' + fmt(cm) + ' cm' : ''); pcLabel(g, k, m.x + 12 / k, m.y, txt, '#ff3b4e', '#fff', m.x > pc.img.width * .6 ? 'left' : 'right') }
+  else if (pc.ref.length === 1) { const fs = 12 / k; g.font = `900 ${fs}px sans-serif`; g.fillStyle = '#ff3b4e'; g.textAlign = 'center'; g.fillText('📏 dotknij drugiego końca', pc.ref[0].x, pc.ref[0].y - 16 / k) }
   if (pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ff3b4e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, rad * .8, 0, Math.PI * 2); g.fillStyle = '#ff3b4e'; g.fill() }) }
 }
 (function pcInput() {
@@ -1161,13 +1188,15 @@ function pcStripRender() {
   pc.photos.forEach((ph, i) => {
     const b = el('button', { type: 'button', class: 'pc-th' + (i === pc.cur ? ' on' : ''), 'aria-label': 'Zdjęcie ' + (i + 1), onclick: () => pcSelect(i) }, el('img', { src: ph.url, alt: '' }));
     if (i === pc.cur) b.append(el('span', { text: '📐' }));
+    const vw = ['front', 'side', 'top'].find(v => (v === pc.view ? pc.cur : pc.views[v]?.cur) === i && (v === 'front' || (v === 'side' ? pc.useSide : pc.useTop)));
+    if (vw) b.append(el('em', { class: 'pc-vbadge', text: { front: 'PRZÓD', side: 'BOK', top: 'GÓRA' }[vw] }));
     const x = el('button', { type: 'button', class: 'pc-th-x', 'aria-label': 'Usuń zdjęcie', text: '✕', onclick: e => { e.stopPropagation(); const was = i === pc.cur; pc.photos.splice(i, 1); if (was) { pc.img = null; pc.pts = []; pc.ref = []; if (pc.photos.length) pcSelect(0); else pcUI() } else { if (i < pc.cur) pc.cur--; pcUI() } } });
     st.append(el('div', { class: 'pc-th-wrap' }, b, x));
   });
 }
 function pcFilePicked(e) { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) pcAddFiles(fs, false) }
 $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
-$('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddCam').addEventListener('change', pcFilePicked);
+$('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddAny').addEventListener('change', pcFilePicked); $('pcAddCam').addEventListener('change', pcFilePicked);
 $('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 $('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
 /* obrót zdjęcia o 90° — żeby góra kosza (wlew) była na górze zdjęcia; punkty obracają się razem ze zdjęciem */
@@ -1271,6 +1300,10 @@ $('startForm').checked = settings.startForm !== false; $('startForm').addEventLi
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
+document.querySelectorAll('#setNav [data-go]').forEach(b => b.addEventListener('click', () => { const d = $(b.dataset.go); if (!d) return; d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
+$('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $('testMode')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) });
+$('musicTest').addEventListener('click', () => { if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
+$('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
 $('bgmOn').checked = settings.bgm !== false; $('bgmOn').addEventListener('change', () => { settings.bgm = $('bgmOn').checked; saveSettings(); bgmUpdate() });
 $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); if (bgm && !bgm.paused) bgmFade(bgmTarget()); else playSong('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
@@ -1384,7 +1417,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', close); setTimeout(close, 7400);
-  if (settings.music) { introPlaying = true; bgmUpdate(); setTimeout(() => { if (!done) playBoom() }, 3000) }
+  box.addEventListener('click', close); setTimeout(close, 10000);
+  if (settings.music) { introPlaying = true; bgmUpdate(); setTimeout(() => { if (!done) playBoom() }, 4500) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
