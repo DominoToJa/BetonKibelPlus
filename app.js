@@ -607,9 +607,9 @@ function tick() {
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
-const COMMANDS = [['„Dodaj kibel” · „Zalane” · „Kolejny”', 'nalicza kosz'], ['„Cofnij” · „Pomyłka”', 'cofa ostatni'], ['„Kosz wyjechał” · „Jazda”', 'start kursu'], ['„Tak” · „Jest” · „Mamy”', 'kosz wrócił'], ['„Nie ma” · „Jeszcze jedzie”', 'pytanie za 30 s'], ['„Ile zostało?” · „Ile jeszcze?”', 'pozostałe m³'], ['„Ile wylano?” · „Licznik”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Lej 0,35”', 'ile wlać do kosza'], ['„Pełny kosz” / „Pół kosza”', 'szybka ilość']];
+const COMMANDS = [['„Dodaj kibel” · „Zalane” · „Kolejny”', 'nalicza kosz'], ['„Wlano 0,7” · „Dodaj 0,3”', 'nalicza podaną ilość'], ['„Cofnij” · „Pomyłka”', 'cofa ostatni'], ['„Kosz wyjechał” · „Jazda”', 'start kursu'], ['„Tak” · „Jest” · „Mamy”', 'kosz wrócił'], ['„Nie ma” · „Jeszcze jedzie”', 'pytanie za 30 s'], ['„Ile zostało?” · „Ile jeszcze?”', 'pozostałe m³'], ['„Ile wylano?” · „Licznik”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Lej 0,35”', 'ile wlać do kosza'], ['„Pełny kosz” / „Pół kosza”', 'szybka ilość']];
 $('cmdList').append(...COMMANDS.flatMap(([a, b]) => [el('span', { text: a }), el('small', { text: b })]));
-function normalise(t) { return t.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d)[,.](\d)/g, '$1.$2').replace(/[^a-z0-9.\s]/g, ' ').replace(/\s+/g, ' ').trim() }
+function normalise(t) { return t.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d)\s*[,./\\]\s*(\d)/g, '$1.$2').replace(/\b0 (\d{1,2})\b/g, '0.$1').replace(/[^a-z0-9.\s]/g, ' ').replace(/\s+/g, ' ').trim() }
 function spokenNumber(t) {
   const m = t.match(/\b(\d+(?:\.\d{1,2})?)\b/); if (m) return Number(m[1]);
   if (/\b(jeden i pol|poltora)\b/.test(t)) return 1.5; if (/\b(trzy czwarte)\b/.test(t)) return .75; if (/\b(pol|polowa|poloweczka)\b/.test(t)) return .5; if (/\b(cwierc)\b/.test(t)) return .25;
@@ -633,7 +633,8 @@ function command(utterance) {
   if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowka|polowe|polowa|pol')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
   if (has('kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|start|jazda|leci|polecial')) { depart(); return true }
-  if (has('dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|wlane|poszlo|kolejny')) { add(session?.dose); return true }
+  if (has('wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
+    const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : session?.dose); return true }
   if (has('tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
   return false;
 }

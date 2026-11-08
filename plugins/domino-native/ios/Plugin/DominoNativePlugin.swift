@@ -533,6 +533,24 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return f.string(from: NSNumber(value: (v * 100).rounded() / 100)) ?? String(v)
     }
 
+    /// „wlano 0,7”, „0/3”, „0 3”, „zero trzy”, „zero przecinek siedem” → liczba
+    private func spokenAmount(_ raw: String) -> Double? {
+        let low = raw.lowercased()
+        if let r = low.range(of: "\\d+\\s*[,./\\\\ ]\\s*\\d{1,2}", options: .regularExpression) {
+            let digits = low[r].components(separatedBy: CharacterSet.decimalDigits.inverted).filter { !$0.isEmpty }
+            if digits.count == 2, let v = Double(digits[0] + "." + digits[1]) { return v }
+        }
+        if let r = low.range(of: "\\d+", options: .regularExpression), let v = Double(low[r]), v > 0, v <= 5 { return v }
+        let t = norm(raw)
+        let dict = ["zero": "0", "jeden": "1", "dwa": "2", "trzy": "3", "cztery": "4", "piec": "5", "szesc": "6", "siedem": "7", "osiem": "8", "dziewiec": "9"]
+        let words = t.split(separator: " ").map(String.init).filter { dict[$0] != nil || $0 == "przecinek" }
+        if words.first == "zero", words.count >= 2 {
+            let tail = words.dropFirst().filter { $0 != "przecinek" }.compactMap { dict[$0] }.joined()
+            if !tail.isEmpty { return Double("0." + tail) }
+        }
+        return nil
+    }
+
     private func handleInBackground(_ raw: String) {
         let t = norm(raw)
         let now = nowMs()
@@ -556,10 +574,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             pending.append(["type": "depart", "at": now])
             say(key: "depart", text: nil)
             scheduleAsk()
-        } else if has(t, ["dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
+        } else if has(t, ["wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
             guard leftM3 > 0.0001 else { return }
             let before = leftM3
-            let amount = min(dose, leftM3)
+            let spoken = spokenAmount(raw)
+            let amount = min((spoken ?? 0) > 0 && (spoken ?? 0) <= 5 ? spoken! : dose, leftM3)
             leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
             poured += amount
             pending.append(["type": "add", "at": now, "amount": amount])
