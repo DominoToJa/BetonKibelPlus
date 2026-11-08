@@ -68,6 +68,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var elOn = false
     private var headsetButtons = false
     private var askOnly = true
+    private var micGateDb: Float = -30      // próg głośności: ciche dźwięki z otoczenia są pomijane
+    private var utterPeakDb: Float = -120
     private var keepAwake = true
     private var lockStatus = true
     private var site = ""
@@ -175,7 +177,14 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             throw NSError(domain: "DominoNative", code: 1, userInfo: [NSLocalizedDescriptionKey: "Brak wejścia mikrofonu"])
         }
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
-            self?.request?.append(buffer)
+            guard let self = self else { return }
+            self.request?.append(buffer)
+            if let ch = buffer.floatChannelData?[0], buffer.frameLength > 0 {
+                var sum: Float = 0; let n = Int(buffer.frameLength)
+                for i in 0..<n { sum += ch[i] * ch[i] }
+                let db = 20 * log10(max(1e-7, sqrt(sum / Float(n))))
+                if db > self.utterPeakDb { self.utterPeakDb = db }
+            }
         }
         tapInstalled = true
         engine.prepare()
@@ -195,6 +204,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                                  "kosz wyjechał", "ile zostało", "ile wylano", "pełny kosz", "pół kosza"]
         request = req
         lastPartial = ""
+        utterPeakDb = -120
         task = rec.recognitionTask(with: req) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self, gen == self.generation else { return }
@@ -228,7 +238,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         generation += 1
         request?.endAudio(); task?.cancel(); task = nil; request = nil
         lastPartial = ""
-        if text.count >= 2 && !isSpeaking && Date() > speakingUntil {
+        let loudEnough = utterPeakDb >= micGateDb
+        utterPeakDb = -120
+        if text.count >= 2 && loudEnough && !isSpeaking && Date() > speakingUntil {
             heard(text)
         }
         if listening {
@@ -350,6 +362,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
             if let ao = call.getBool("askOnly") { self.askOnly = ao }
+            if let g = call.getDouble("micGate") { self.micGateDb = Float(g) }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
             if let hb = call.getBool("headsetButtons"), hb != self.headsetButtons { self.headsetButtons = hb; self.setupRemote(); if self.listening { try? self.configureSession() } }
