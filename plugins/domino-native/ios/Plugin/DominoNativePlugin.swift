@@ -212,7 +212,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     private func armSilence(_ gen: Int) {
         silenceTimer?.invalidate()
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
             self?.finish(gen)
         }
     }
@@ -226,7 +226,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         generation += 1
         request?.endAudio(); task?.cancel(); task = nil; request = nil
         lastPartial = ""
-        if !text.isEmpty && !isSpeaking && Date() > speakingUntil {
+        if text.count >= 2 && !isSpeaking && Date() > speakingUntil {
             heard(text)
         }
         if listening {
@@ -431,7 +431,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func nextSay() {
         guard !sayQueue.isEmpty else {
             isSpeaking = false
-            speakingUntil = Date().addingTimeInterval(0.8)
+            speakingUntil = Date().addingTimeInterval(1.3)
             notifyListeners("spoken", data: [:])
             return
         }
@@ -695,7 +695,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let t = norm(raw)
         let now = nowMs()
         guard active else { return }
-        if has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
+        let waiting = phase == "away" || phase == "late"
+        if waiting && !t.contains(" ile ") && has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
             phase = "late"; deadline = now + 30000
             pending.append(["type": "delay", "at": now]); postStatus()
@@ -708,7 +709,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             report("reportLeft", fmt(leftM3), "Zostało X metra sześciennego.")
         } else if has(t, ["ile wylano", "ile juz wylano", "ile nalano", "ile poszlo", "ile wylalismy", "ile zalalismy", "ile zalane", "ile kubikow poszlo", "ile metrow wylano", "ile mamy wylane", "ile zrobione", "licznik"]) {
             report("reportPoured", fmt(poured), "Wylano X metra sześciennego.")
-        } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal", "start", "jazda", "leci", "polecial"]) {
+        } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
             pending.append(["type": "depart", "at": now]); postStatus()
@@ -737,14 +738,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                 departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
                 scheduleAsk()
             }
-        } else if has(t, ["koparka jest", "koparka wrocila", "lyzka jest", "lyzka wrocila", "tak", "jest", "juz jest", "kosz jest", "kibel jest", "wrocil", "juz wrocil", "przyjechal", "przybyl", "dojechal", "no", "no jest", "ja", "jo", "mamy", "dobra", "okej", "ok", "gotowe"]) {
+        } else if waiting && has(t, ["koparka jest", "koparka wrocila", "lyzka jest", "lyzka wrocila", "tak", "jest", "juz jest", "kosz jest", "kibel jest", "wrocil", "juz wrocil", "przyjechal", "przybyl", "dojechal", "no jest", "gotowe"]) {
             guard method != "taczka" else { return }
             phase = "returned"; deadline = 0; departed = 0; reminders = 0
             askTimer?.invalidate()
             pending.append(["type": "returned", "at": now]); postStatus()
             say(key: "arrived", text: nil)
-        } else {
-            say(key: "error", text: nil)
-        }
+        }  // nierozpoznane: cisza (szum z budowy nie ma wywoływać „nie zrozumiałem”)
     }
 }

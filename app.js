@@ -573,12 +573,18 @@ function add(value, { at = Date.now(), silent = false } = {}) {
 }
 /* dodawanie: zwykłe dotknięcie albo przytrzymanie (ochrona przed przypadkowym naliczeniem w rękawicach) */
 (function bucketPress() {
-  const b = $('bucket'); let t = 0, fired = false;
+  const b = $('bucket'); let t = 0, fired = false, sx = 0, sy = 0, down = false, moved = false;
   const cancel = () => { clearTimeout(t); t = 0; b.classList.remove('holding') };
-  b.addEventListener('pointerdown', e => { if (!settings.holdAdd || !session) return; fired = false; b.classList.add('holding'); t = setTimeout(() => { fired = true; b.classList.remove('holding'); add(session?.dose) }, 480) });
-  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, cancel);
+  const levelAt = clientY => { if (!session) return; const r = b.querySelector('svg')?.getBoundingClientRect(); if (!r) return; const yv = (clientY - r.top) / r.height * SVG_H;
+    const [top, bot] = session.method === 'taczka' ? [150, 254] : session.method === 'inne' ? [100, 256] : [SVG_TOP, SVG_BOTTOM];
+    const f = Math.max(0, Math.min(1, (bot - yv) / (bot - top))), v = Math.min(session.capacity, Math.round(currentModel().volumeAtFraction(f) * 100) / 100);
+    changeDose(v, true); announce('Beton do ' + fmt(v) + ' m³ · przytrzymaj, żeby dodać') };
+  b.addEventListener('pointerdown', e => { if (!session) return; down = true; moved = false; fired = false; sx = e.clientX; sy = e.clientY; if (!settings.holdAdd) return; b.classList.add('holding'); t = setTimeout(() => { t = 0; fired = true; b.classList.remove('holding'); add(session?.dose) }, 480) });
+  b.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) { moved = true; cancel() } });
+  b.addEventListener('pointerup', e => { if (!down) return; down = false; const short = !!t; cancel(); if (settings.holdAdd && short && !moved && !fired) levelAt(e.clientY) });
+  for (const ev of ['pointerleave', 'pointercancel']) b.addEventListener(ev, () => { down = false; cancel() });
   b.addEventListener('contextmenu', e => e.preventDefault());
-  b.addEventListener('click', e => { if (!settings.holdAdd || e.detail === 0) { add(session?.dose); return } if (!fired) announce('Przytrzymaj kosz, żeby dodać'); fired = false });
+  b.addEventListener('click', e => { if (!settings.holdAdd || e.detail === 0) { if (!moved) add(session?.dose); return } });
 })();
 $('ohUndo').addEventListener('click', () => undo());
 $('ohTrip').addEventListener('click', () => { if (phase === 'away' || phase === 'late') returned(); else depart() });
@@ -808,7 +814,7 @@ function render() {
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
   $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
-  $('touchText').textContent = (settings.holdAdd ? 'PRZYTRZYMAJ, ŻEBY DODAĆ · ' + ({ taczka: 'TACZKA', inne: 'ŁYŻKA' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
+  $('touchText').textContent = (settings.holdAdd ? 'DOTKNIJ = POZIOM BETONU · PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
   $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
   $('ohTrip').classList.toggle('hide', s.method === 'taczka'); $('ohTrip').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał'; $('ohTrip').classList.toggle('good', phase === 'away' || phase === 'late');
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
@@ -857,22 +863,32 @@ function spokenNumber(t) {
   if (tokens.length === 1) return dict[tokens[0]]; return NaN;
 }
 function report(key, value) { const text = (pickVariant(key) || 'X').replace(/X/g, String(value)); announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak(key + '_n', text) }
+/* rozpoznany tekst → komenda; szum i pojedyncze słowa ignorujemy po cichu, „nie zrozumiałem” najwyżej co 20 s */
+let lastErrAt = 0;
+function heardText(t) {
+  const n = normalise(t); if (n.length < 2) return;
+  const r = command(t);
+  if (r === true) { micDisplay('✓ „' + t + '”'); return }
+  micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
+  if (!r && n.split(' ').length >= 2 && Date.now() - lastErrAt > 20000) { lastErrAt = Date.now(); sayBot('error') }
+}
 function command(utterance) {
   const t = normalise(utterance); if (!t) return false;
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
-  if (has('nie|nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|jedzie|w drodze|czekaj|zaraz|moment|chwila|nie widac')) { delay(); return true }
+  const waiting = phase === 'away' || phase === 'late';
+  if (has('nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|w drodze|nie widac|nie') && !/\bile\b/.test(t)) { if (waiting) { delay(); return true } return 'ignore' }
   if (has('ile zostalo|ile betonu zostalo|stan betonu|ile jeszcze|ile do konca|ile brakuje|ile pozostalo|ile mamy jeszcze|ile kubikow zostalo|ile metrow zostalo|jaki stan|ile w gruszce')) { report('reportLeft', fmt(left())); return true }
   if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik')) { report('reportPoured', fmt(entriesSum())); return true }
-  if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta|czas')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
+  if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
   if (!has('dodaj|zalany|zalane') && has('ustaw kosz|zmien kosz|kosz|kibel|pojemnosc kosza|pojemnosc|kosz ma|nowy kosz|kosz na|ustaw kibel|zmien kibel')) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } }
   if (has('lej|leje|wlewam|wlej|zmien ilosc|ustaw ilosc|ilosc|lejemy|zalewam|do kosza|wlewamy|ustaw porcje|porcja')) { const n = spokenNumber(t); if (n >= 0 && n <= 5 && !isNaN(n)) { changeDose(n, true); sayBot('doseSet'); return true } }
   if (has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
-  if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowka|polowe|polowa|pol')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
+  if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowe kosza|lej pol|pol lyzki')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
-  if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|start|jazda|leci|polecial')) { depart(); return true }
+  if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|jazda z koszem')) { depart(); return true }
   if (has('dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
     const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : session?.dose); return true }
-  if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
+  if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe')) { if (waiting) { returned(); return true } return 'ignore' }
   return false;
 }
 function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
@@ -883,7 +899,7 @@ function bootWebRecognition() {
   try {
     recognition = new SpeechRec(); recognition.lang = 'pl-PL'; recognition.continuous = false; recognition.interimResults = false;
     recognition.onstart = () => { micLive = true; micDisplay('🟢 Słucham…') };
-    recognition.onresult = e => { const t = e.results[e.resultIndex][0].transcript; micDisplay('Usłyszano: „' + t + '”'); if (!command(t)) sayBot('error') };
+    recognition.onresult = e => { const r = e.results[e.resultIndex]; if (!r.isFinal) return; heardText(r[0].transcript) };
     recognition.onerror = e => { micLive = false; if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { stopMic(); micDisplay('❌ Brak zgody na mikrofon.') } };
     recognition.onend = () => { micLive = false; if (micWanted && !document.hidden) { clearTimeout(voiceRetry); voiceRetry = setTimeout(bootWebRecognition, 900) } };
     recognition.start();
@@ -902,7 +918,7 @@ $('mic').addEventListener('click', async () => {
   if (!SpeechRec) return micDisplay('❌ Ta przeglądarka nie rozpoznaje mowy. Użyj przycisków.');
   micWanted = true; micDisplay('Prośba o dostęp do mikrofonu…'); bootWebRecognition();
 });
-NV.onHeard?.(t => { micDisplay('Usłyszano: „' + t + '”'); if (!command(t)) sayBot('error') });
+NV.onHeard?.(t => heardText(t));
 NV.onStatus?.(t => micDisplay(t));
 
 async function drainNative() {
@@ -1214,10 +1230,17 @@ function pcOpen() {
 }
 function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
 const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
-const loadImg = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res({ img, url: rd.result }); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
+const loadImgRaw = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res({ img, url: rd.result }); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
+/* duże zdjęcia z iPhone'a (12 Mpx) zmniejszamy do 1600 px — płynne zaznaczanie i mniej pamięci */
+async function loadImg(f) {
+  const r = await loadImgRaw(f), W = r.img.naturalWidth || r.img.width, H = r.img.naturalHeight || r.img.height, M = 1600;
+  if (Math.max(W, H) <= M) return r;
+  const k = M / Math.max(W, H), cv = document.createElement('canvas'); cv.width = Math.round(W * k); cv.height = Math.round(H * k); cv.getContext('2d').drawImage(r.img, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(ok => cv.toBlob(ok, 'image/jpeg', .88)); const small = await loadImgRaw(blob); small.blob = blob; return small;
+}
 async function pcAddFiles(files, measureFirstNew) {
   const start = pc.photos.length;
-  for (const f of [...files].slice(0, 6 - pc.photos.length)) { try { const { img, url } = await loadImg(f); pc.photos.push({ img, url, file: f }) } catch (e) { announce('Nie mogę otworzyć zdjęcia') } }
+  for (const f of [...files].slice(0, 6 - pc.photos.length)) { try { const { img, url, blob } = await loadImg(f); pc.photos.push({ img, url, file: blob || f }) } catch (e) { announce('Nie mogę otworzyć zdjęcia') } }
   if ([...files].length > 6 - start) announce('Maksymalnie 6 zdjęć');
   let last = null;
   for (let i = start; i < pc.photos.length; i++) {
@@ -1261,6 +1284,7 @@ function pcStripRender() {
 }
 function pcFilePicked(e) { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) pcAddFiles(fs, false) }
 $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
+$('pcAddBtn').addEventListener('click', () => askChoice('Skąd wziąć zdjęcie?', [['📸 Zrób zdjęcie aparatem', 'cam', 'primary'], ['🖼 Wybierz z galerii (możesz kilka)', 'gal', '']], v => $(v === 'cam' ? 'pcAddCam' : 'pcAddGal').click()));
 $('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddAny').addEventListener('change', pcFilePicked); $('pcAddCam').addEventListener('change', pcFilePicked);
 $('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 $('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
