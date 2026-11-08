@@ -159,6 +159,16 @@
 <label class="label check"><input type="checkbox" id="alarmOn" checked> Krótki sygnał przy pytaniu o kosz</label>
 <label class="label check"><input type="checkbox" id="confirmOn" checked> Sygnał po naliczeniu</label>
 </div>
+<div class="panel" id="elPanel"><h2>🎙 Lektor Dasia (ElevenLabs)</h2>
+<p class="hint">Głos z ElevenLabs. Teksty pobierają się raz (potrzebny internet), potem lektor mówi bez netu. Liczby („zostało 2,35”) dogrywa, gdy jest internet — bez netu mówi je głos iPhone'a.</p>
+<label class="label check"><input type="checkbox" id="elOn"> Używaj lektora ElevenLabs</label>
+<label class="label" for="elKey">Klucz API ElevenLabs</label><input id="elKey" type="password" autocomplete="off" placeholder="sk_…">
+<label class="label" for="elVoice">ID głosu</label><input id="elVoice" type="text" autocomplete="off" placeholder="np. qVCMNCiCMS3amhcNBMwc">
+<label class="label" for="elModel">Model</label><select id="elModel"><option value="eleven_multilingual_v2">Multilingual v2 (najlepsza jakość)</option><option value="eleven_v3">Eleven v3 (najbardziej ekspresyjny)</option><option value="eleven_turbo_v2_5">Turbo v2.5 (szybszy, taniej)</option><option value="eleven_flash_v2_5">Flash v2.5 (najszybszy)</option></select>
+<p class="hint" id="elState"></p>
+<div class="grid two" style="margin-top:8px"><button type="button" id="elTest">🔊 Sprawdź głos</button><button type="button" id="elDownload" class="primary">⬇ Pobierz głos</button></div>
+<button type="button" id="elClear" class="full warn" style="margin-top:8px">🗑 Usuń pobrany głos</button>
+</div>
 <div class="panel"><h2>🗣 Teksty lektora</h2>
 <p class="hint" id="clipsHint">Każda linia to osobny wariant — bot losuje jeden, żeby się nie powtarzał. X = liczba. 🎙 nagrywa Twój głos — nagranie ma pierwszeństwo przed lektorem.</p>
 <div id="botDictionary"></div>

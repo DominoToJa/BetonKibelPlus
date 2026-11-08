@@ -27,7 +27,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "stopRecording", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "playClip", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listClips", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deleteClip", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "deleteClip", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveVoice", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "listVoice", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -58,6 +61,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var rate: Float = 0.5
     private var pitch: Float = 1.0
     private var useClips = true
+    private var elOn = false
+    private var elTag = ""
     private var voiceOn = true
 
     // MARK: - Stan betonowania (kopia z JS)
@@ -257,6 +262,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let r = call.getDouble("rate") { self.rate = Float(max(0.3, min(0.65, r))) }
             if let p = call.getDouble("pitch") { self.pitch = Float(max(0.5, min(2.0, p))) }
             if let u = call.getBool("useClips") { self.useClips = u }
+            if let e = call.getBool("elOn") { self.elOn = e }
+            if let g = call.getString("elTag") { self.elTag = g }
             if let v = call.getBool("voiceOn") { self.voiceOn = v }
             call.resolve()
         }
@@ -351,6 +358,18 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             } catch { }
         }
         if item.text.isEmpty { nextSay(); return }
+        if elOn, !elTag.isEmpty {
+            let f = voiceURL(item.text)
+            if FileManager.default.fileExists(atPath: f.path) {
+                do {
+                    try configureSession()
+                    let p = try AVAudioPlayer(contentsOf: f)
+                    p.delegate = self
+                    player = p
+                    if p.play() { return }
+                } catch { }
+            }
+        }
         try? configureSession()
         let u = AVSpeechUtterance(string: item.text)
         u.voice = (voiceId.isEmpty ? nil : AVSpeechSynthesisVoice(identifier: voiceId)) ?? bestPolishVoice()
@@ -451,6 +470,34 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.useClips = keep
             call.resolve(["played": true])
         }
+    }
+
+    // MARK: - Lektor ElevenLabs (pobrane nagrania tekstów)
+    private func voiceDir() -> URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = docs.appendingPathComponent("elvoice", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+    /// FNV-1a 32 bit z „tag|tekst” — ta sama nazwa liczona w JS
+    private func voiceName(_ text: String) -> String {
+        var h: UInt32 = 0x811c9dc5
+        for b in (elTag + "|" + text.trimmingCharacters(in: .whitespacesAndNewlines)).utf8 { h ^= UInt32(b); h = h &* 0x01000193 }
+        return String(format: "%08x", h)
+    }
+    private func voiceURL(_ text: String) -> URL { return voiceDir().appendingPathComponent(voiceName(text) + ".mp3") }
+    @objc func saveVoice(_ call: CAPPluginCall) {
+        guard let name = call.getString("name"), let b64 = call.getString("data"), let data = Data(base64Encoded: b64) else { call.reject("Brak danych"); return }
+        let safe = safeKey(name)
+        do { try data.write(to: voiceDir().appendingPathComponent(safe + ".mp3")); call.resolve() } catch { call.reject("Nie zapisano") }
+    }
+    @objc func listVoice(_ call: CAPPluginCall) {
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: voiceDir().path)) ?? []
+        call.resolve(["names": files.filter { $0.hasSuffix(".mp3") }.map { String($0.dropLast(4)) }])
+    }
+    @objc func clearVoice(_ call: CAPPluginCall) {
+        try? FileManager.default.removeItem(at: voiceDir())
+        call.resolve()
     }
 
     @objc func listClips(_ call: CAPPluginCall) {

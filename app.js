@@ -49,7 +49,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6 };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -133,18 +133,42 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full' }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: Number(settings.rate) || 0.5, pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag() }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
 const polishVoices = () => 'speechSynthesis' in window ? speechSynthesis.getVoices().filter(v => /^pl(?:-|$)/i.test(v.lang)) : [];
-function speak(key, text) {
+// ── Lektor ElevenLabs: teksty pobrane raz z internetu, potem grane bez netu ──
+const elTag = () => [settings.elVoice, settings.elModel, settings.elStab, settings.elSim].join('|');
+const elReady = () => !!(settings.el && settings.elVoice && settings.elKey);
+function elName(text) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(elTag() + '|' + String(text).trim())) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0 } return h.toString(16).padStart(8, '0') }
+let elNames = new Set(), elDbP = null, elAudio = null;
+const elDb = () => elDbP ||= new Promise((ok, no) => { try { const r = indexedDB.open('bkp_voice', 1); r.onupgradeneeded = () => r.result.createObjectStore('clips'); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error) } catch (e) { no(e) } });
+const idb = async (mode, fn) => { const db = await elDb(); return new Promise((ok, no) => { const tx = db.transaction('clips', mode), st = tx.objectStore('clips'), r = fn(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error) }) };
+async function elLoadNames() { try { elNames = new Set(nativeVoice ? await NV.listVoice() : await idb('readonly', st => st.getAllKeys())) } catch (e) { elNames = new Set() } }
+async function elFetch(text) {
+  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(settings.elVoice.trim()) + '?output_format=mp3_44100_128', { method: 'POST', headers: { 'xi-api-key': settings.elKey.trim(), 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, body: JSON.stringify({ text: String(text).trim(), model_id: settings.elModel || 'eleven_multilingual_v2', language_code: 'pl', voice_settings: { stability: Number(settings.elStab), similarity_boost: Number(settings.elSim) } }) });
+  if (!r.ok) { let msg = 'błąd ' + r.status; try { const j = await r.json(); msg = j.detail?.message || j.detail?.status || msg } catch (e) { } throw new Error(msg) }
+  return await r.blob();
+}
+const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b) });
+async function elStore(text, blob) { const n = elName(text); if (nativeVoice) await NV.saveVoice(n, await blobB64(blob)); else await idb('readwrite', st => st.put(blob, n)); elNames.add(n) }
+async function elGet(text) { const n = elName(text); if (!elNames.has(n)) { if (!navigator.onLine) return null; const b = await elFetch(text); await elStore(text, b); return nativeVoice ? true : b } return nativeVoice ? true : await idb('readonly', st => st.get(n)) }
+function ttsSpeak(key, text) {
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
   try {
     speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2; u.pitch = Number(settings.pitch) || 1;
     const pv = polishVoices(); const id = resolvedVoiceId(); const v = pv.find(v => v.voiceURI === id) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
+}
+function speak(key, text) {
+  if (!elReady() || !text || (key && clipKeys.has(key))) return ttsSpeak(key, text);
+  elGet(text).then(res => {
+    if (!res) return ttsSpeak(key, text);
+    if (nativeVoice) return ttsSpeak(key, text); // iPhone sam zagra zapisany plik
+    try { elAudio?.pause(); elAudio = new Audio(URL.createObjectURL(res)); elAudio.play().catch(() => ttsSpeak(key, text)) } catch (e) { ttsSpeak(key, text) }
+  }).catch(() => ttsSpeak(key, text));
 }
 function sayBot(key, text) {
   const full = pickVariant(key, text), short = SHORT[key] || full;
@@ -1072,6 +1096,24 @@ function lektorRender() {
       el('strong', { text: (on ? '✓ ' : '') + name }), el('small', { text: desc }), el('em', { text: used })));
   }
 }
+function elUI() {
+  $('elOn').checked = !!settings.el; $('elKey').value = settings.elKey || ''; $('elVoice').value = settings.elVoice || ''; $('elModel').value = settings.elModel || 'eleven_multilingual_v2';
+  const all = elAllLines(), have = all.filter(t => elNames.has(elName(t))).length;
+  $('elState').textContent = settings.elVoice ? 'Pobrane teksty: ' + have + ' z ' + all.length + (have < all.length ? ' — kliknij „Pobierz głos”, żeby działało bez internetu.' : ' ✓ gotowe, działa bez internetu.') : 'Wklej klucz API i ID głosu z ElevenLabs.';
+}
+const elAllLines = () => [...new Set(Object.keys(TEXTS).flatMap(k => String(TEXTS[k] || '').split('\n').map(x => x.trim()).filter(x => x && !/\bX\b/.test(x))))];
+const elSave = () => { settings.el = $('elOn').checked; settings.elKey = $('elKey').value.trim(); settings.elVoice = $('elVoice').value.trim(); settings.elModel = $('elModel').value; saveSettings(); configureNative(); elUI() };
+for (const id of ['elOn', 'elKey', 'elVoice', 'elModel']) $(id).addEventListener('change', elSave);
+$('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu Dasia. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });
+let elBusy = false;
+$('elDownload').addEventListener('click', async () => {
+  elSave(); if (!elReady() || elBusy) return elReady() || announce('Włącz lektora i wpisz klucz oraz ID głosu');
+  elBusy = true; const all = elAllLines().filter(t => !elNames.has(elName(t))); let done = 0, err = '';
+  for (const t of all) { $('elState').textContent = 'Pobieram ' + (++done) + ' z ' + all.length + '…'; try { await elStore(t, await elFetch(t)) } catch (e) { err = e.message; break } }
+  elBusy = false; elUI(); if (err) $('elState').textContent = '❌ ' + err + ' (pobrano ' + (done - 1) + '). Kliknij jeszcze raz, żeby dokończyć.'; else announce('Głos pobrany ✓');
+});
+$('elClear').addEventListener('click', async () => { if (!confirm('Usunąć pobrany głos z telefonu?')) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
+elLoadNames().then(elUI);
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playJingle('start') });
 $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playJingle('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
@@ -1126,7 +1168,7 @@ function historyRender() {
 function download(name, blob) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000) }
 $('export').addEventListener('click', () => { const rows = ['Data;Budowa;Metoda;Załadowano_m3;Wylano_m3;Czas_s', ...archive.map(s => [new Date(s.startedAt).toLocaleString('pl-PL'), s.site, s.method, s.load, s.total, Math.round((s.endedAt - s.startedAt) / 1000)].map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';'))]; download('BetonKibelPlus_historia.csv', new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })) });
 const savedKeys = [KEY, HKEY, PROFILE_KEY, SITE_BUCKET_KEY, SETTINGS_KEY, TEXT_KEY];
-$('backupExport').addEventListener('click', () => { const payload = { app: 'BetonKibelPlus', formatVersion: 1, exportedAt: new Date().toISOString(), values: {} }; for (const k of savedKeys) { const v = localStorage.getItem(k); if (v !== null) payload.values[k] = v } download('BetonKibelPlus_kopia_' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })) });
+$('backupExport').addEventListener('click', () => { const payload = { app: 'BetonKibelPlus', formatVersion: 1, exportedAt: new Date().toISOString(), values: {} }; for (const k of savedKeys) { let v = localStorage.getItem(k); if (v !== null && k === SETTINGS_KEY) { try { const o = JSON.parse(v); delete o.elKey; v = JSON.stringify(o) } catch (e) { } } if (v !== null) payload.values[k] = v } download('BetonKibelPlus_kopia_' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })) });
 $('backupImport').addEventListener('change', async () => {
   const f = $('backupImport').files?.[0]; if (!f) return;
   try {
@@ -1137,7 +1179,7 @@ $('backupImport').addEventListener('change', async () => {
     const entries = Object.entries(data.values).filter(([k]) => !legacy.includes(k));
     if (entries.some(([k, v]) => !savedKeys.includes(k) || typeof v !== 'string')) throw Error('Kopia zawiera nieznane dane');
     if (!confirm('Przywrócić kopię? Zastąpi historię, betonowanie i kosze.')) return;
-    for (const k of savedKeys) localStorage.removeItem(k); for (const [k, v] of entries) localStorage.setItem(k, v); location.reload();
+    const keepKey = settings.elKey; for (const k of savedKeys) localStorage.removeItem(k); for (const [k, v] of entries) localStorage.setItem(k, v); if (keepKey) { try { const o = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); o.elKey = keepKey; localStorage.setItem(SETTINGS_KEY, JSON.stringify(o)) } catch (e) { } } location.reload();
   } catch (e) { alert('Nie udało się przywrócić: ' + (e.message || e)) } finally { $('backupImport').value = '' }
 });
 

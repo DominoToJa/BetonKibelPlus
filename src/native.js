@@ -38,6 +38,9 @@ const voice = {
   playClip: safe(key => Domino.playClip({ key }), { played: false }),
   listClips: safe(async () => (await Domino.listClips()).keys || [], []),
   deleteClip: safe(key => Domino.deleteClip({ key }), null),
+  saveVoice: safe((name, data) => Domino.saveVoice({ name, data }), null),
+  listVoice: safe(async () => (await Domino.listVoice()).names || [], []),
+  clearVoice: safe(() => Domino.clearVoice(), null),
   onHeard(cb) { if (isNative) Domino.addListener('heard', e => cb(e.text || '')) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
