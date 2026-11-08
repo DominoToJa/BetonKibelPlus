@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -297,10 +297,11 @@ function currentModel() {
 const TAB_OF = { theme: '', home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
 let currentTab = 'home', bucketReturn = '';
 function tab(name) {
+  if (name === 'home' && settings.startForm !== false) name = 'setup';
   currentTab = name;
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hide', s.id !== name));
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB_OF[name]));
-  if (name === 'work') { if (!session) { tab('home'); announce('Najpierw rozpocznij betonowanie'); return } render(); tick() }
+  if (name === 'work') { if (!session) { tab('setup'); announce('Najpierw rozpocznij betonowanie'); return } render(); tick() }
   if (name === 'history') historyRender();
   if (name === 'home') homeRender();
   if (name === 'buckets') bucketListRender();
@@ -445,6 +446,7 @@ async function start() {
   remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (settings.music) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
 }
 $('start').addEventListener('click', start);
+$('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
 function finishCurrent(showNotice = true) {
   if (!session) return;
   archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
@@ -1243,6 +1245,7 @@ $('elDownload').addEventListener('click', async () => {
 });
 $('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć pobrany głos z telefonu?', 'Usuń', true))) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
 elLoadNames().then(elUI);
+$('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playSong('start') });
@@ -1352,7 +1355,7 @@ selectMethod('kibel'); configureNative(); syncNative();
 if (nativeVoice) NV.listClips().then(k => clipKeys = new Set(k)).catch(() => { });
 loadVoices();
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if (currentTab === 'settings') loadVoices() };
-tab('home'); setInterval(tick, 500);
+tab(session && settings.startForm !== false ? 'work' : 'home'); setInterval(tick, 500);
 drainNative();
 
 (function intro() {

@@ -43,6 +43,7 @@
 <label class="label" for="portion">Albo wpisz własną pojemność (m³)</label><input id="portion" inputmode="decimal" value="0,5">
 <div id="cycleFields"><label class="label" for="cycleMin">Czas kursu kosza (minuty)</label><input id="cycleMin" inputmode="decimal" value="2" placeholder="np. 2,5"></div>
 <p id="error" class="error" aria-live="polite"></p><button class="primary full big" id="start" type="button">▶ ROZPOCZNIJ</button>
+<div class="grid three setup-links"><button class="method" type="button" id="slBuckets">🪣<br>Moje kosze</button><button class="method" type="button" id="slHistory">▤<br>Budowy</button><button class="method" type="button" id="slSettings">⚙️<br>Ustawienia</button></div>
 </div></section>
 
 <section id="pickBucket" class="hide"><div class="panel">
@@ -150,6 +151,7 @@
 <div class="label">Układ ekranu</div>
 <div id="layGrid" class="lay-grid"></div>
 <label class="check-row"><input type="checkbox" id="tabsBottom"> Zakładki na dole ekranu (łatwiej kciukiem)</label>
+<label class="check-row"><input type="checkbox" id="startForm" checked> Na start od razu „Nowe betonowanie” (bez kafelków)</label>
 <div class="label">Ekran startowy — edycja</div>
 <p class="hint">Zaznacz, co ma być widać, wybierz duży / mały przycisk i ustaw kolejność strzałkami.</p>
 <div id="homeEditor" class="home-editor"></div>

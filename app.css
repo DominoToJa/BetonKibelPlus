@@ -610,3 +610,4 @@ body.one-hand .bucket{width:100%!important;max-width:420px;margin:0 auto}
 .go-r{animation-name:crashR!important}.go-l{animation-name:crashL!important}
 @keyframes crashR{0%{opacity:1;transform:translateX(-100vw);animation-timing-function:cubic-bezier(.35,0,.9,.6)}88%{opacity:1;transform:translateX(calc(var(--w) / -2 + 6px))}93%{opacity:1;transform:translateX(calc(var(--w) / -2 - 14px)) translateY(-6px) rotate(-6deg)}100%{opacity:0;transform:translateX(calc(var(--w) / -2 - 46px)) translateY(-26px) rotate(-14deg)}}
 @keyframes crashL{0%{opacity:1;transform:translateX(100vw) scaleX(-1);animation-timing-function:cubic-bezier(.35,0,.9,.6)}88%{opacity:1;transform:translateX(calc(var(--w) / 2 - 6px)) scaleX(-1)}93%{opacity:1;transform:translateX(calc(var(--w) / 2 + 14px)) translateY(-6px) rotate(6deg) scaleX(-1)}100%{opacity:0;transform:translateX(calc(var(--w) / 2 + 46px)) translateY(-26px) rotate(14deg) scaleX(-1)}}
+.setup-links{margin-top:14px}
