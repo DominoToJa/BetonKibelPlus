@@ -695,3 +695,17 @@ main{padding-top:calc(14px + env(safe-area-inset-top))!important;padding-bottom:
 .tabs{grid-template-columns:repeat(5,minmax(0,1fr))!important}
 .tabs button{padding-left:2px!important;padding-right:2px!important;font-size:12.5px!important;white-space:nowrap}
 #bucket{touch-action:pan-y}
+
+/* powiększone zaznaczanie punktów */
+.pc-canvas-wrap{position:relative}
+.pc-canvas-wrap canvas{touch-action:pan-y!important}
+.pc-tapzoom{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:#000a;color:#fff;font-size:12.5px;font-weight:850;padding:6px 10px;border-radius:999px;pointer-events:none;white-space:nowrap}
+#pcWrap.editing{position:fixed;inset:0;z-index:180;margin:0;border-radius:0;padding:calc(96px + env(safe-area-inset-top)) 6px calc(20px + env(safe-area-inset-bottom));background:#05080d;overflow:auto;display:block;text-align:center}
+#pcWrap.editing canvas{touch-action:none!important;display:inline-block;margin:auto}
+#pcWrap.editing .pc-tapzoom{display:none}
+.pc-editbar{position:fixed;left:0;right:0;top:0;z-index:190;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:calc(8px + env(safe-area-inset-top)) 8px 8px;background:#0b1426f2;border-bottom:1px solid #22304a}
+.pc-editbar button{padding:10px 13px;font-size:16px;min-width:44px}
+.pc-editbar #pcEditX{font-size:18px}
+.pc-editbar #pcEditOk{margin-left:auto;font-size:15px}
+.pc-editbar b{min-width:34px;text-align:center;color:var(--c1)}
+.pc-editbar small{flex-basis:100%;text-align:center;color:#c9d5e2;font-size:12px;font-weight:700}

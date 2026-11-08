@@ -1106,12 +1106,19 @@ function pcAssign(v) {
   pcUI();
 }
 /** widok główny do liczenia: przód, a gdy go brak — bok (kosz z boku liczy się tak samo) */
-function pcMainView() { if (levelsFor(viewData('front').pts || [])) return 'front'; if (pc.useSide && levelsFor(viewData('side').pts || [])) return 'side'; return null }
+function pcMainView() { if (levelsFor(viewData('front').pts || [])) return 'front'; if (pc.useSide && levelsFor(viewData('side').pts || [])) return 'side'; if (pc.useTop && levelsFor(viewData('top').pts || [])) return 'top'; return null }
 function pcCompute() {
   const mv = pcMainView(); if (!mv) return null;
-  const F = viewData(mv), lv = levelsFor(F.pts); if (!lv) return null;
+  const F = viewData(mv);
+  let lv = mv === 'top' ? null : levelsFor(F.pts);
+  if (mv === 'top') { // tylko zdjęcie z góry: typowy kształt kosza (dół ≈ 45% wlewu, wysokość ≈ 0,9 szerokości) — pojemność i tak z tabliczki
+    const T = levelsFor(F.pts), W = Math.max(...T.map(l => l.w)), H = W * .9; lv = [];
+    for (let i = 0; i <= 12; i++) { const f = i / 12, w = W * (.45 + .55 * f); lv.push({ y: H * (1 - f), l: (W - w) / 2, r: (W + w) / 2, w }) }
+  }
+  if (!lv) return null;
   const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
   const S = viewData('side'), lvS = pc.useSide && mv === 'front' ? levelsFor(S.pts) : null, lvT = !lvS && pc.useTop ? levelsFor(viewData('top').pts) : null;
+  if (mv === 'top' && pc.other === 'ref') return null; // wzorzec długości działa na zdjęciu z przodu/boku
   const topRatio = lvT ? (lvT[0].y - lvT.at(-1).y) / Math.max(1, ...lvT.map(l => l.w)) : 0;
   const rect = pc.shape === 'rect';
   const mk = c => {
@@ -1125,7 +1132,7 @@ function pcCompute() {
   if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
   const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
-  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: lvS ? 'przód + bok' : lvT ? (mv === 'side' ? 'bok + góra' : 'przód + góra') : mv === 'side' ? 'tylko bok' : 'tylko przód' };
+  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: mv === 'top' ? 'tylko góra — kształt przybliżony' : lvS ? 'przód + bok' : lvT ? (mv === 'side' ? 'bok + góra' : 'przód + góra') : mv === 'side' ? 'tylko bok' : 'tylko przód' };
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
@@ -1146,6 +1153,7 @@ function pcUI() {
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
   else if (pc.view === 'front' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
   else if (pc.view === 'top' && !pcLevels()) t = 'Z GÓRY · zdjęcie kosza od góry (do środka wlewu), lewo-prawo tak jak na zdjęciu z przodu. Obrysuj krawędź wlewu dookoła.';
+  else if (pc.view === 'top' && pcMainView() === 'top') t = 'Z góry gotowe ✓ — liczę z przybliżonego kształtu. Dodaj przód albo bok, żeby było dokładniej (nie trzeba).';
   else if (pc.view === 'top') t = !pcMainView() ? 'Z góry gotowe ✓ — teraz dodaj zdjęcie z PRZODU (cały kosz w kadrze), bez niego nie policzę wysokości.' : 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
   else if (pc.view === 'side' && !pcLevels()) t = 'BOK 90° · obrysuj kosz widziany z boku (przy koszu L — całe „L”), od krawędzi wlewu do dołu.';
   else if (!pcLevels()) t = 'Obrysuj kosz: klikaj po kolei DOOKOŁA krawędzi (np. lewy górny róg → w dół → wylew → w górę prawą stroną) albo osobno lewa i prawa strona.';
@@ -1172,6 +1180,7 @@ function pcUI() {
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
   $('pcSave').disabled = !r;
+  if (pc.edit) $('pcEditHint').textContent = (pc.fillTap ? '👆 Stuknij, gdzie kończy się beton' : pc.other === 'ref' && pcLevels() && pc.ref.length < 2 ? '📏 Stuknij oba końce wzorca' : 'Punkty: ' + pc.pts.length + ' / ' + PT_MAX + ' · stuknij = punkt · przeciągnij punkt = popraw · przesuń palcem = przewiń');
   const miss = $('pcMissing'); const anyDone = ['front', 'side', 'top'].some(v => levelsFor(viewData(v).pts || []));
   miss.classList.toggle('hide', !!pcMainView() || !anyDone || !has);
   miss.replaceChildren(el('b', { text: '⚠ Brakuje zdjęcia z PRZODU albo z BOKU' }), el('span', { text: 'Z samej góry nie policzę wysokości kosza. Dodaj zdjęcie kosza od przodu (cały kosz w kadrze) i obrysuj go — wtedy „Zapisz” się odblokuje.' }),
@@ -1182,8 +1191,8 @@ function pcUI() {
 function pcLabel(g, k, x, y, txt, bg, fg, side = 'left') { const fs = 12 / k; g.font = `900 ${fs}px sans-serif`; const tw = g.measureText(txt).width + 12 / k, W = pc.img.width; if (side === 'left') x = x - tw - 8 / k; if (x < 2 / k) x = 2 / k; if (x + tw > W - 2 / k) x = W - tw - 2 / k; y = y + fs * 1.3; g.fillStyle = bg; g.fillRect(x, y - fs * 2.1, tw, fs * 1.6); g.fillStyle = fg; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(txt, x + 6 / k, y - fs * 1.3) }
 function pcDraw() {
   if (!pc.img) return;
-  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(240, window.innerHeight * .5);
-  const k = Math.min(maxW / pc.img.width, maxH / pc.img.height); pc.k = k;
+  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = Math.min(2, window.devicePixelRatio || 1), maxW = pc.edit ? window.innerWidth - 12 : (wrap.clientWidth || 340) - 8, maxH = pc.edit ? window.innerHeight - 150 : Math.max(240, window.innerHeight * .5);
+  const k = Math.min(maxW / pc.img.width, maxH / pc.img.height) * (pc.edit ? (pc.zoom || 1) : 1); pc.k = k;
   const w = Math.round(pc.img.width * k), h = Math.round(pc.img.height * k);
   cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = w * dpr; cv.height = h * dpr;
   const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
@@ -1214,29 +1223,58 @@ function pcDraw() {
   if (pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ff3b4e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, rad * .8, 0, Math.PI * 2); g.fillStyle = '#ff3b4e'; g.fill() }) }
 }
 (function pcInput() {
-  const cv = $('pcCanvas');
+  const cv = $('pcCanvas'), wrap = $('pcWrap');
   const pos = e => { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / pc.k, y: (e.clientY - b.top) / pc.k } };
+  let st = null; // { id, cx, cy, sl, stop, moved, p }
   cv.addEventListener('pointerdown', e => {
-    e.preventDefault(); cv.setPointerCapture(e.pointerId); const p = pos(e);
-    if (pc.fillTap) { pcFillFromY(p.y); pc.drag = ['f']; return }
+    if (st) return; // drugi palec ignorujemy
+    st = { id: e.pointerId, cx: e.clientX, cy: e.clientY, sl: wrap.scrollLeft, stp: wrap.scrollTop, moved: false, p: pos(e) };
+    if (!pc.edit) return; // podgląd: dotknięcie otwiera powiększone zdjęcie (na puszczeniu palca)
+    e.preventDefault(); cv.setPointerCapture(e.pointerId);
+    if (pc.fillTap) { pcFillFromY(st.p.y); pc.drag = ['f']; return }
     const all = [...pc.pts.map((q, i) => ['p', i, q]), ...pc.ref.map((q, i) => ['r', i, q])];
-    let best = null, bd = 18 / pc.k; for (const it of all) { const d = dist(p, it[2]); if (d < bd) { bd = d; best = it } }
-    if (best) pc.drag = best;
-    else if (pc.view === 'front' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); pc.drag = ['r', pc.ref.length - 1] }
-    else if (pc.pts.length < PT_MAX) { pc.pts.push(p); pc.drag = ['p', pc.pts.length - 1] }
-    else { pc.drag = null; announce('Maksymalnie ' + PT_MAX + ' punktów — przeciągnij istniejące') }
-    pcUI();
+    let best = null, bd = 22 / pc.k; for (const it of all) { const d = dist(st.p, it[2]); if (d < bd) { bd = d; best = it } }
+    pc.drag = best;
   });
-  cv.addEventListener('pointermove', e => { if (!pc.drag) return; const p = pos(e); if (pc.drag[0] === 'f') { pcFillFromY(p.y); return } (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw() });
-  const up = () => { if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')) } pc.drag = null; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointermove', e => {
+    if (!st || e.pointerId !== st.id) return;
+    const dx = e.clientX - st.cx, dy = e.clientY - st.cy; if (Math.hypot(dx, dy) > 8) st.moved = true;
+    if (!pc.edit) return;
+    if (pc.drag) { const p = pos(e); if (pc.drag[0] === 'f') { pcFillFromY(p.y); return } (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw(); return }
+    if (st.moved) { wrap.scrollLeft = st.sl - dx; wrap.scrollTop = st.stp - dy } // przesuwanie powiększonego zdjęcia
+  });
+  const up = e => {
+    if (!st || (e && e.pointerId !== st.id)) return; const s0 = st; st = null;
+    if (!pc.edit) { if (!s0.moved && pc.img) pcEditOpen(); return }
+    if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')) } pc.drag = null; pcUI(); return }
+    if (s0.moved) return;
+    const p = s0.p;
+    if (pc.view === 'front' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) pc.ref.push(p);
+    else if (pc.pts.length < PT_MAX) pc.pts.push(p);
+    else announce('Maksymalnie ' + PT_MAX + ' punktów — przeciągnij istniejące');
+    pcUI();
+  };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', () => { st = null; pc.drag = null });
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
+/* powiększone zdjęcie do zaznaczania: ✓ zachowaj · ✕ wyjdź bez zmian */
+function pcEditOpen() {
+  pc.edit = true; pc.zoom = 1; pc.backup = { pts: pc.pts.map(p => ({ ...p })), ref: pc.ref.map(p => ({ ...p })), fill: pc.fill };
+  $('pcWrap').classList.add('editing'); $('pcEditBar').classList.remove('hide'); pcUI(); $('pcWrap').scrollTo(0, 0);
+}
+function pcEditClose(keep) {
+  if (!keep && pc.backup) { pc.pts = pc.backup.pts; pc.ref = pc.backup.ref; pc.fill = pc.backup.fill }
+  pc.edit = false; pc.backup = null; pc.fillTap = false; $('pcWrap').classList.remove('editing'); $('pcEditBar').classList.add('hide'); pcUI();
+}
+function pcZoom(d) { pc.zoom = Math.max(1, Math.min(4, Math.round(((pc.zoom || 1) + d) * 2) / 2)); pcDraw(); $('pcZoomVal').textContent = pc.zoom + '×' }
 function pcOpen() {
   Object.assign(pc, { moreAsked: {}, view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
-function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
+$('pcEditOk').addEventListener('click', () => pcEditClose(true)); $('pcEditX').addEventListener('click', () => pcEditClose(false));
+$('pcZoomIn').addEventListener('click', () => pcZoom(.5)); $('pcZoomOut').addEventListener('click', () => pcZoom(-.5)); $('pcEditUndo').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
+function pcClose() { if (pc.edit) pcEditClose(true); $('pc').classList.add('hide'); document.body.style.overflow = '' }
 const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
 const loadImgRaw = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res({ img, url: rd.result }); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
 /* duże zdjęcia z iPhone'a (12 Mpx) zmniejszamy do 1600 px — płynne zaznaczanie i mniej pamięci */

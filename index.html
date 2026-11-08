@@ -225,7 +225,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.4.4 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.4.5 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
@@ -242,7 +242,8 @@
   <div id="pcAssign" class="chips pc-assign hide"></div>
   <div id="pcCount" class="pc-count hide" aria-live="polite"></div>
   <div id="pcStrip" class="pc-strip hide"></div>
-  <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas></div>
+  <div id="pcEditBar" class="pc-editbar hide"><button type="button" id="pcEditX" aria-label="Wyjdź bez zmian">✕</button><button type="button" id="pcZoomOut" aria-label="Pomniejsz">－</button><b id="pcZoomVal">1×</b><button type="button" id="pcZoomIn" aria-label="Powiększ">＋</button><button type="button" id="pcEditUndo">↶</button><button type="button" id="pcEditOk" class="primary">✓ Gotowe</button><small id="pcEditHint">Stuknij = punkt · przeciągnij punkt = popraw · przesuń palcem = przewiń</small></div>
+  <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas><span class="pc-tapzoom">🔍 Dotknij zdjęcia, żeby zaznaczać</span></div>
   <div id="pcTools" class="hide">
    <div class="row pc-mini"><button type="button" id="pcUndoPt">↶ Cofnij punkt</button><button type="button" id="pcClear">🗑 Od nowa</button><button type="button" id="pcRotate" title="Obróć zdjęcie, żeby wlew był na górze">⟳ Obróć</button><label class="pc-add">📸 Dodaj zdjęcie<input id="pcAddCam" type="file" accept="image/*" capture="environment" hidden></label><label class="pc-add">🖼 + Galeria<input id="pcAddGal" type="file" accept="image/*" multiple hidden></label></div>
    <div id="pcSettings" class="hide">
