@@ -167,12 +167,13 @@
    <p class="pc-pick-sub">Zdjęcie kosza z boku — cały kosz w kadrze, aparat mniej więcej na wysokości połowy kosza.</p>
    <div class="pc-pick-row">
     <label class="big-btn primary pc-pick">📸 Zrób zdjęcie<input id="pcCamera" type="file" accept="image/*" capture="environment" hidden></label>
-    <label class="big-btn pc-pick">🖼 Z galerii<input id="pcFile" type="file" accept="image/*" hidden></label>
+    <label class="big-btn pc-pick">🖼 Z galerii<small>możesz zaznaczyć kilka</small><input id="pcFile" type="file" accept="image/*" multiple hidden></label>
    </div>
   </div>
+  <div id="pcStrip" class="pc-strip hide"></div>
   <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas></div>
   <div id="pcTools" class="hide">
-   <div class="row pc-mini"><button type="button" id="pcUndoPt">↶ Cofnij punkt</button><button type="button" id="pcClear">🗑 Od nowa</button><button type="button" id="pcNewPhoto">📷 Inne zdjęcie</button></div>
+   <div class="row pc-mini"><button type="button" id="pcUndoPt">↶ Cofnij punkt</button><button type="button" id="pcClear">🗑 Od nowa</button><label class="pc-add">📸 Dodaj zdjęcie<input id="pcAddCam" type="file" accept="image/*" capture="environment" hidden></label><label class="pc-add">🖼 + Galeria<input id="pcAddGal" type="file" accept="image/*" multiple hidden></label></div>
    <div id="pcSettings" class="hide">
     <div class="label">Jaki to kosz? <span class="muted">(z tabliczki albo jak się na niego mówi)</span></div>
     <div class="chips" id="pcNominal"></div>

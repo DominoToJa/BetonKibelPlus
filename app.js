@@ -684,7 +684,7 @@ function bucketListRender() {
 
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
-const pc = { img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, shape: 'round', k: 1, drag: -1, editId: '' };
+const pc = { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, shape: 'round', k: 1, drag: -1, editId: '' };
 const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
@@ -710,14 +710,16 @@ function pcCompute() {
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
+  pcStripRender();
   $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
   $('pcSettings').classList.toggle('hide', n < 4);
   let t = '';
-  if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcie kosza z boku.';
-  else if (n < 4) t = 'Dotknij: ' + PT_HELP[n] + '.';
+  if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
+  else if (n < 4) t = (pc.photos.length > 1 ? 'Mierzysz na zdjęciu 📐 (zmień na pasku wyżej). ' : '') + 'Dotknij: ' + PT_HELP[n] + '.';
   else if (pc.other === 'ref' && pc.ref.length < 2) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
-  else if (n < 6) t = 'Gotowe. Jeśli kosz ma proste ścianki u góry — dotknij jeszcze 2 punkty tam, gdzie zaczyna się lejek (lewo i prawo).';
-  else t = 'Profil gotowy — punkty możesz przeciągać.';
+  else if (n < 6) t = 'Gotowe. Dokładniej: dotknij 2 punkty (L) tam, gdzie zaczyna się lejek — lewo i prawo.';
+  else if (n < 8) t = 'Jeszcze dokładniej: 2 punkty (P) w połowie wysokości lejka — lewo i prawo. Albo zapisz.';
+  else t = 'Profil gotowy (4 poziomy) — punkty możesz przeciągać.';
   $('pcStep').textContent = t;
   const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
     el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
@@ -728,11 +730,11 @@ function pcUI() {
   document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
   const box = $('pcResult'); box.replaceChildren();
   if (r) {
-    const u = r.useRef ? .15 : (r.levels >= 3 ? .05 : .08);
+    const u = r.useRef ? .15 : (r.levels >= 4 ? .04 : r.levels >= 3 ? .05 : .08);
     box.append(el('div', { class: 'calc-main', text: 'Realnie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
     box.append(el('div', { class: 'calc-range', text: 'od ' + fmt(r.real * (1 - u)) + ' do ' + fmt(r.real * (1 + u)) + ' m³' }));
     box.append(el('div', { class: 'muted', text: (r.nominal ? 'Kosz ' + fmt(r.nominal) + ' m³ do krawędzi' : 'Do krawędzi ≈ ' + fmt(r.rim) + ' m³') + (r.fillCm ? ' · beton ' + r.fillCm + ' cm niżej = ' + Math.round(r.real / r.rim * 100) + '%' : '') }));
-    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + (r.levels >= 3 ? ' · z lejkiem' : '') }));
+    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + (r.levels >= 4 ? ' · profil 4 poziomy' : r.levels >= 3 ? ' · z lejkiem' : '') }));
     const m = bucketModel({ shape: 'profile', dims: r.dims, capacity: r.real }, r.real);
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (n >= 4) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
@@ -754,8 +756,8 @@ function pcDraw() {
     if (pc.fill) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; let L = top.l, R = top.r; for (let i = 1; i < lv.length; i++) if (y >= lv[i].y) { const t = (y - lv[i - 1].y) / (lv[i].y - lv[i - 1].y); L = lv[i - 1].l + (lv[i].l - lv[i - 1].l) * t; R = lv[i - 1].r + (lv[i].r - lv[i - 1].r) * t; break } g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
   }
   pc.pts.forEach((p, i) => {
-    const label = i < 2 ? 'G' : i < 4 ? 'W' : 'L';
-    g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = label === 'L' ? '#ffd17e' : '#8BD1E0'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
+    const label = i < 2 ? 'G' : i < 4 ? 'W' : i < 6 ? 'L' : 'P';
+    g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = label === 'L' ? '#ffd17e' : label === 'P' ? '#c39bf0' : '#8BD1E0'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
     g.fillStyle = '#0b1118'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, p.x, p.y);
   });
   if (pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ff3b4e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, rad * .8, 0, Math.PI * 2); g.fillStyle = '#ff3b4e'; g.fill() }) }
@@ -769,7 +771,7 @@ function pcDraw() {
     let best = null, bd = 28 / pc.k; for (const it of all) { const d = dist(p, it[2]); if (d < bd) { bd = d; best = it } }
     if (best) pc.drag = best;
     else if (pc.pts.length >= 4 && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); pc.drag = ['r', pc.ref.length - 1] }
-    else if (pc.pts.length < 6) { pc.pts.push(p); pc.drag = ['p', pc.pts.length - 1] }
+    else if (pc.pts.length < 8) { pc.pts.push(p); pc.drag = ['p', pc.pts.length - 1] }
     else pc.drag = null;
     pcUI();
   });
@@ -778,29 +780,51 @@ function pcDraw() {
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 function pcOpen() {
-  Object.assign(pc, { img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
+  Object.assign(pc, { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
 function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
 const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
-function pcFilePicked(e) {
-  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
-  const rd = new FileReader(); rd.onload = () => { const img = new Image(); img.onload = () => { Object.assign(pc, { img, file: f, pts: [], ref: [] }); pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result }; rd.readAsDataURL(f);
+const loadImg = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res({ img, url: rd.result }); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
+async function pcAddFiles(files, measureFirstNew) {
+  const start = pc.photos.length;
+  for (const f of [...files].slice(0, 6 - pc.photos.length)) { try { const { img, url } = await loadImg(f); pc.photos.push({ img, url, file: f }) } catch (e) { announce('Nie mogę otworzyć zdjęcia') } }
+  if (pc.photos.length > start && (measureFirstNew || !pc.img)) pcSelect(pc.img ? start : 0);
+  else pcUI();
+  if ([...files].length > 6 - start) announce('Maksymalnie 6 zdjęć');
 }
+function pcSelect(i) {
+  const ph = pc.photos[i]; if (!ph) return;
+  if (pc.img && pc.img !== ph.img && pc.pts.length && !confirm('Mierzyć na innym zdjęciu? Zaznaczone punkty znikną.')) return;
+  if (pc.img !== ph.img) { pc.pts = []; pc.ref = [] }
+  pc.cur = i; pc.img = ph.img; pc.file = ph.file; pcUI();
+}
+function pcStripRender() {
+  const st = $('pcStrip'); st.classList.toggle('hide', pc.photos.length < 2); st.replaceChildren();
+  pc.photos.forEach((ph, i) => {
+    const b = el('button', { type: 'button', class: 'pc-th' + (i === pc.cur ? ' on' : ''), 'aria-label': 'Zdjęcie ' + (i + 1), onclick: () => pcSelect(i) }, el('img', { src: ph.url, alt: '' }));
+    if (i === pc.cur) b.append(el('span', { text: '📐' }));
+    const x = el('button', { type: 'button', class: 'pc-th-x', 'aria-label': 'Usuń zdjęcie', text: '✕', onclick: e => { e.stopPropagation(); const was = i === pc.cur; pc.photos.splice(i, 1); if (was) { pc.img = null; pc.pts = []; pc.ref = []; if (pc.photos.length) pcSelect(0); else pcUI() } else { if (i < pc.cur) pc.cur--; pcUI() } } });
+    st.append(el('div', { class: 'pc-th-wrap' }, b, x));
+  });
+}
+function pcFilePicked(e) { const fs = [...(e.target.files || [])]; e.target.value = ''; if (fs.length) pcAddFiles(fs, false) }
 $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
+$('pcAddGal').addEventListener('change', pcFilePicked); $('pcAddCam').addEventListener('change', pcFilePicked);
 $('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 $('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
-$('pcNewPhoto').addEventListener('click', () => { pc.img = null; pc.pts = []; pc.ref = []; pcUI() });
 $('pcFill').addEventListener('input', () => { pc.fill = Number($('pcFill').value); pcUI() });
 ['pcOther', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
 $('pcSave').addEventListener('click', async () => {
   const r = pcCompute(); if (!r) return;
-  let photos = formPhotos.slice(); if (pc.file) try { photos.unshift(await thumbFromFile(pc.file)) } catch (e) { }
+  let photos = []; const order = [pc.photos[pc.cur], ...pc.photos.filter((_, i) => i !== pc.cur)].filter(Boolean);
+  for (const ph of order) try { photos.push(await thumbFromFile(ph.file)) } catch (e) { }
+  photos = photos.concat(formPhotos);
   const name = $('pcName').value.trim() || ('Kosz ' + fmt(r.nominal || r.real) + ' m³');
-  const p = { id: editingId || 'bucket-' + Date.now(), name, shape: 'profile', dims: r.dims, estimated: true, plate: r.nominal || null, real: Math.round(r.real * 1000) / 1000, capacity: Math.round(r.real * 1000) / 1000, fillCm: r.fillCm, photos: photos.slice(0, 4).map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  const p = { id: editingId || 'bucket-' + Date.now(), name, shape: 'profile', dims: r.dims, estimated: true, plate: r.nominal || null, real: Math.round(r.real * 1000) / 1000, capacity: Math.round(r.real * 1000) / 1000, fillCm: r.fillCm, photos: photos.slice(0, 6).map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
   if (!storeProfile(p)) return;
   pcClose(); closeBucketForm(); useSavedBucket(p);
 });
