@@ -498,3 +498,25 @@ body.ui-hud .tabs{background:rgba(9,15,28,.92)}
 body.ui-hud .bot-quote{background:#08101e!important}
 body.ui-hud .bar{background:#0b1426!important}
 body.ui-hud .vs-track{background:linear-gradient(#ffffff08,#00000030),#0b1426!important;border-color:#22304a!important}
+
+/* ── Wyraźniejsze napisy ── */
+body{-webkit-font-smoothing:antialiased;--muted:#c3cfdc}
+body :is(.help,.hint,.sub,.muted){color:#c3cfdc;font-weight:600}
+body .label{color:#eef4f8;font-weight:800;font-size:15px}
+body h2{font-weight:900}
+body .metric strong{font-weight:900}
+body .metric small{color:#d2dce6;font-weight:800;font-size:12px}
+body button{font-weight:850}
+body.ui-hud{--muted:#c9d5e2}
+body.ui-hud :is(.label,.metric small,.dict-group,.hud-status small){color:#d6e1ec!important;font-size:12.5px!important;font-weight:850;letter-spacing:.07em}
+body.ui-hud .bucket-guide{color:#e2ebf3!important;font-size:12.5px!important;font-weight:900}
+body.ui-hud :is(.help,.hint,.sub){color:#c9d5e2!important}
+body.ui-hud button{color:#f2f7fa}
+body.ui-hud .top h1{font-weight:900;color:#fff}
+body.ui-hud .hud-online{font-weight:800}
+body.ui-hud .vs-tick.major{font-size:14px!important;text-shadow:0 1px 3px #000}
+body.ui-hud .vs-tick.minor::before{background:#ffffff88!important}
+body.ui-neo :is(.help,.hint,.sub,.metric small,th){color:#475569!important;font-weight:700}
+body.ui-neo .label{color:#1e293b}
+body.ui-hud .hud-status b{font-size:19px;font-weight:900}body.ui-hud .hud-reg-head{font-size:15px;font-weight:900;color:#fff}
+body.ui-hud .metric small{letter-spacing:.03em!important;font-size:12px!important}#bucketSvgWrap text{font-weight:900}
