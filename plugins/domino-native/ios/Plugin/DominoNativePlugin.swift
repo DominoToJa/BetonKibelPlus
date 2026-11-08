@@ -67,6 +67,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var useClips = true
     private var elOn = false
     private var headsetButtons = false
+    private var askOnly = true
     private var keepAwake = true
     private var lockStatus = true
     private var site = ""
@@ -348,6 +349,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let ao = call.getBool("askOnly") { self.askOnly = ao }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
             if let hb = call.getBool("headsetButtons"), hb != self.headsetButtons { self.headsetButtons = hb; self.setupRemote(); if self.listening { try? self.configureSession() } }
@@ -403,6 +405,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
     private func say(key: String?, text: String?, force: Bool = false) {
         if !voiceOn && !force { return }
+        if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k.hasPrefix("report")) { return }  // tylko pytanie o kosz + odpowiedzi na pytania
         let t = (text?.isEmpty == false ? text! : pick(key))
         let clip = key.map { hasClip($0) } ?? false
         if t.isEmpty && !clip { return }

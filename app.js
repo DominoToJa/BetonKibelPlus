@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -148,7 +148,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -194,8 +194,10 @@ function speak(key, text) {
   }).catch(() => ttsSpeak(key, text));
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
+const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka']);
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
+  if (settings.askOnly !== false && !ASK_KEYS.has(key) && key !== 'micOn') { const shown = pickVariant(key, text) || SHORT[key] || ''; if (shown) $('botText').textContent = shown; return } // mówi tylko „czy kosz jest?”
   const full = pickVariant(key, text), short = SHORT[key] || full;
   const shown = settings.mode === 'full' ? (full || short) : short;
   if (shown) $('botText').textContent = shown;
@@ -1440,6 +1442,7 @@ $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $
 $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem('bkp_after_intro', currentTab) } catch (e) { } location.reload() });
 $('musicTest').addEventListener('click', () => { if (!BGM_ENABLED) { playIntroVoice(); return } if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
+$('askOnly').checked = settings.askOnly !== false; $('askOnly').addEventListener('change', () => { settings.askOnly = $('askOnly').checked; saveSettings(); configureNative() });
 $('clicksOn').checked = settings.clicks !== false; $('clicksOn').addEventListener('change', () => { settings.clicks = $('clicksOn').checked; saveSettings() });
 $('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });
 $('bgmOn').checked = settings.bgm !== false; $('bgmOn').addEventListener('change', () => { settings.bgm = $('bgmOn').checked; saveSettings(); bgmUpdate() });
