@@ -1485,7 +1485,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 24000);
+  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 11000);
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
