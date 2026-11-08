@@ -423,33 +423,58 @@ function triggerAlarm(force = false) {
 $('testAlarm').addEventListener('click', () => { if (!session) return announce('Najpierw rozpocznij betonowanie'); triggerAlarm(true) });
 
 // ───────────────────────── rysunek kosza + suwak z boku ─────────────────────────
-const SVG_TOP = 58, SVG_BOTTOM = 282, SVG_H = 300;
+const SVG_TOP = 74, SVG_BOTTOM = 262, SVG_H = 320;
 function makeBucketSvg(cap, current, model) {
   cap = Math.max(0.01, Number(cap) || .5); current = Math.min(cap, Math.max(0, Number(current) || 0));
-  // czysty przekrój wnętrza kosza w prawdziwym kształcie
-  const CX = 120, HALF = 105, N = 32, fullH = model.fullHeightCm || 1, rimF = Math.min(1.12, (model.totalHeightCm || fullH) / fullH);
+  const CX = 120, HALF = 92, N = 36, fullH = model.fullHeightCm || 1, rimF = Math.min(1.14, (model.totalHeightCm || fullH) / fullH);
   const yOf = f => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * f, dAt = f => model.diamAt(f * fullH);
   let dmax = 0; for (let i = 0; i <= N; i++) dmax = Math.max(dmax, dAt(i / N * rimF));
-  const half = f => Math.max(10, HALF * dAt(f) / (dmax || 1));
-  const shape = (f0, f1) => { const L = [], R = []; for (let i = 0; i <= N; i++) { const f = f0 + (f1 - f0) * i / N, y = yOf(f).toFixed(1), h = half(f); L.push(`${(CX - h).toFixed(1)} ${y}`); R.unshift(`${(CX + h).toFixed(1)} ${y}`) } return 'M' + L.join('L') + 'L' + R.join('L') + 'Z' };
-  const inner = shape(0, rimF), fr = v => model.fraction(v), fy = yOf(fr(current));
+  const half = f => Math.max(13, HALF * dAt(f) / (dmax || 1)), EY = .2; // spłaszczenie elipsy (perspektywa)
+  const f2 = n => n.toFixed(1);
+  const side = (f0, f1, grow = 0) => { const L = [], R = []; for (let i = 0; i <= N; i++) { const f = f0 + (f1 - f0) * i / N, y = f2(yOf(f)), h = half(f) + grow; L.push(`${f2(CX - h)} ${y}`); R.unshift(`${f2(CX + h)} ${y}`) } return { L, R } };
+  const yR = yOf(rimF), hR = half(rimF), hB = half(0), yB = yOf(0);
+  // korpus: boki + dolny łuk (elipsa wylewu)
+  const b = side(0, rimF, 9);
+  const body = `M${b.L.join('L')}L${b.R.join('L')}A${f2(hB + 9)} ${f2((hB + 9) * EY)} 0 0 1 ${f2(CX - hB - 9)} ${f2(yB)}Z`;
+  const inn = side(0, rimF, 0);
+  const inner = `M${inn.L.join('L')}L${inn.R.join('L')}A${f2(hB)} ${f2(hB * EY)} 0 0 1 ${f2(CX - hB)} ${f2(yB)}Z`;
+  const fr = v => model.fraction(v), fc = fr(current), yC = yOf(fc), hC = half(fc);
+  // podziałka
   const marks = bucketMarks(cap); let ticks = '', lastY = 1e9;
   marks.slice().reverse().forEach((v, ri) => {
     const i = marks.length - 1 - ri, f = fr(v), y = yOf(f), hw = half(f), last = i === marks.length - 1;
-    ticks += `<line x1="${(CX - hw).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(CX + hw).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${last ? '#ff3b4e' : '#ffffff'}" stroke-width="${last ? 3 : 1.5}" ${last ? '' : 'stroke-dasharray="7 6" opacity=".55"'}/>`;
-    if (!last && Math.abs(lastY - y) < 24) return; lastY = y;
-    ticks += `<line x1="${(CX + hw).toFixed(1)}" y1="${y.toFixed(1)}" x2="246" y2="${y.toFixed(1)}" stroke="${last ? '#ff3b4e' : '#ffffff'}" stroke-width="${last ? 3 : 1.5}" opacity="${last ? 1 : .55}"/>`;
-    ticks += last ? `<rect x="248" y="${(y - 14).toFixed(1)}" width="104" height="28" rx="9" fill="#ff3b4e"/><text x="300" y="${(y + 6).toFixed(1)}" text-anchor="middle" font-size="17" font-weight="950" fill="#fff">MAX ${fmt(v)}</text>`
-      : `<text x="252" y="${(y + 6).toFixed(1)}" font-size="19" font-weight="900" fill="#ffffff">${fmt(v)}</text>`;
+    ticks += `<path d="M${f2(CX - hw)} ${f2(y)}A${f2(hw)} ${f2(hw * EY)} 0 0 0 ${f2(CX + hw)} ${f2(y)}" fill="none" stroke="${last ? '#ff4d5e' : '#ffffff'}" stroke-width="${last ? 2.5 : 1.4}" ${last ? '' : 'stroke-dasharray="5 5"'} opacity="${last ? .95 : .55}"/>`;
+    if (!last && Math.abs(lastY - y) < 26) return; lastY = y;
+    const txt = last ? 'MAX ' + fmt(v) : fmt(v), w = txt.length * 10 + 18, x0 = CX + hw + 14;
+    ticks += `<line x1="${f2(CX + hw + 2)}" y1="${f2(y)}" x2="${f2(x0)}" y2="${f2(y)}" stroke="${last ? '#ff4d5e' : '#ffffffaa'}" stroke-width="2"/>`;
+    ticks += `<g transform="translate(${f2(x0)} ${f2(y - 13)})"><rect width="${w}" height="26" rx="13" fill="${last ? '#ff4d5e' : 'rgba(10,16,22,.78)'}" stroke="${last ? '#ffffff55' : 'rgba(255,255,255,.28)'}"/><text x="${w / 2}" y="18" text-anchor="middle" font-size="15" font-weight="900" fill="#fff">${txt}</text></g>`;
   });
-  const yRim = yOf(rimF), farFromMax = Math.abs(yRim - yOf(fr(marks.at(-1)))) > 22;
-  const rim = rimF > 1.005 ? `<line x1="${(CX - half(rimF)).toFixed(1)}" y1="${yOf(rimF).toFixed(1)}" x2="${(CX + half(rimF)).toFixed(1)}" y2="${yOf(rimF).toFixed(1)}" stroke="#9aa3b3" stroke-width="2"/>${farFromMax ? `<text x="252" y="${(yRim + 5).toFixed(1)}" font-size="12" font-weight="800" fill="#9aa3b3">krawędź</text>` : ''}` : '';
-  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3cad6"/><stop offset="1" stop-color="#7d8696"/></linearGradient><clipPath id="bkClip"><path d="${inner}"/></clipPath></defs>
-<path d="${inner}" fill="#0a1218" opacity=".85"/>
-<g clip-path="url(#bkClip)"><rect x="0" y="${fy.toFixed(1)}" width="250" height="${(SVG_BOTTOM - fy + 4).toFixed(1)}" fill="url(#bkConc)"/><line x1="0" y1="${fy.toFixed(1)}" x2="250" y2="${fy.toFixed(1)}" stroke="#ffffff" stroke-width="4"/></g>
-${ticks}${rim}
-<path d="${inner}" fill="none" style="stroke:var(--c1)" stroke-width="4" stroke-linejoin="round"/>
-<text x="${CX}" y="34" text-anchor="middle" font-size="30" font-weight="950" fill="#ffffff">${fmt(current)} <tspan font-size="17" font-weight="800" fill="#b8c2cc">z ${fmt(cap)} m³</tspan></text></svg>`;
+  const conc = current > 0 ? `<g clip-path="url(#bkIn)"><rect x="0" y="${f2(yC)}" width="260" height="${f2(SVG_BOTTOM - yC + 40)}" fill="url(#bkConc)" opacity=".94"/><rect x="0" y="${f2(yC)}" width="260" height="${f2(SVG_BOTTOM - yC + 40)}" fill="url(#bkDots)" opacity=".5"/></g>
+<ellipse cx="${CX}" cy="${f2(yC)}" rx="${f2(hC)}" ry="${f2(hC * EY)}" fill="url(#bkTop)" stroke="#ffffff" stroke-width="2.5"/>` : '';
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs>
+ <linearGradient id="bkMetal" x1="0" x2="1"><stop offset="0" style="stop-color:color-mix(in srgb,var(--c2) 55%,#000)"/><stop offset=".18" style="stop-color:var(--c2)"/><stop offset=".42" style="stop-color:var(--c1)"/><stop offset=".55" style="stop-color:color-mix(in srgb,var(--c1) 60%,#fff)"/><stop offset=".75" style="stop-color:var(--c2)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 45%,#000)"/></linearGradient>
+ <linearGradient id="bkGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090d" stop-opacity=".62"/><stop offset="1" stop-color="#0b141b" stop-opacity=".5"/></linearGradient>
+ <linearGradient id="bkConc" x1="0" x2="1"><stop offset="0" stop-color="#5f6874"/><stop offset=".45" stop-color="#b9c1cc"/><stop offset=".6" stop-color="#d3d9e1"/><stop offset="1" stop-color="#5a636e"/></linearGradient>
+ <radialGradient id="bkTop" cx=".45" cy=".4" r=".7"><stop offset="0" stop-color="#e6ebf1"/><stop offset="1" stop-color="#a7b0bc"/></radialGradient>
+ <pattern id="bkDots" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2" cy="3" r="1" fill="#4b525c"/><circle cx="6.5" cy="7" r=".8" fill="#ffffff"/></pattern>
+ <linearGradient id="bkRimG" x1="0" x2="1"><stop offset="0" stop-color="#3a414b"/><stop offset=".5" stop-color="#c9d0d8"/><stop offset="1" stop-color="#3a414b"/></linearGradient>
+ <clipPath id="bkIn"><path d="${inner}"/></clipPath>
+</defs>
+<ellipse cx="${CX}" cy="${f2(yB + 30)}" rx="${f2(hR * .9)}" ry="9" fill="#000" opacity=".35"/>
+<path d="M${f2(CX - hR - 2)} ${f2(yR + 6)}L${f2(CX - hR - 12)} ${f2(yR - 26)}M${f2(CX + hR + 2)} ${f2(yR + 6)}L${f2(CX + hR + 12)} ${f2(yR - 26)}" stroke="#7d8692" stroke-width="7" stroke-linecap="round"/>
+<path d="M${f2(CX - hR - 12)} ${f2(yR - 26)}Q${CX} ${f2(yR - 52)} ${f2(CX + hR + 12)} ${f2(yR - 26)}" fill="none" stroke="#9aa3ad" stroke-width="6" stroke-linecap="round"/>
+<path d="${body}" fill="url(#bkMetal)" stroke="#11171d" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="${inner}" fill="url(#bkGlass)"/>
+${conc}
+${ticks}
+<path d="M${f2(CX - hB * .7)} ${f2(yB + hB * EY * .6)}L${f2(CX - hB * .55)} ${f2(yB + 24)}H${f2(CX + hB * .55)}L${f2(CX + hB * .7)} ${f2(yB + hB * EY * .6)}Z" fill="#59626d" stroke="#11171d" stroke-width="2"/>
+<rect x="${f2(CX + hB * .55)}" y="${f2(yB + 12)}" width="30" height="6" rx="3" fill="#8a939e" stroke="#11171d"/>
+<ellipse cx="${CX}" cy="${f2(yR)}" rx="${f2(hR + 6)}" ry="${f2((hR + 6) * EY)}" fill="none" stroke="url(#bkRimG)" stroke-width="7"/>
+<ellipse cx="${CX}" cy="${f2(yR)}" rx="${f2(hR)}" ry="${f2(hR * EY)}" fill="#05090d" opacity=".55"/>
+<path d="M${f2(CX - hR * .78)} ${f2(yR + 12)}Q${f2(CX - hR * .7)} ${f2((yR + yB) / 2)} ${f2(CX - hB * .6)} ${f2(yB - 8)}" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".12"/>
+<g transform="translate(286 22)"><rect x="-74" y="-17" width="148" height="34" rx="17" style="fill:color-mix(in srgb,var(--c2) 55%,#06100f)" stroke="rgba(255,255,255,.22)"/><text y="8" text-anchor="middle" font-size="21" font-weight="950" fill="#fff">${fmt(current)}<tspan font-size="13" font-weight="800" fill="#c9d4dc"> / ${fmt(cap)} m³</tspan></text></g>
+</svg>`;
 }
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
