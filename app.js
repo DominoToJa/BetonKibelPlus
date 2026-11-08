@@ -766,52 +766,90 @@ function bucketListRender() {
 
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
-const pc = { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
+const pc = { view: 'front', views: {}, useSide: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
 const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
 const PT_MAX = 14, PT_MIN_SIDE = 2;
 /** swobodne punkty → lewa / prawa krawędź → poziomy (od dołu do góry) */
-function pcSides() {
-  if (pc.pts.length < 2) return null;
-  const xs = pc.pts.map(p => p.x), cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const L = pc.pts.filter(p => p.x < cx).sort((a, b) => a.y - b.y), R = pc.pts.filter(p => p.x >= cx).sort((a, b) => a.y - b.y);
+function sidesFor(pts) {
+  if (pts.length < 2) return null;
+  const xs = pts.map(p => p.x), cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const L = pts.filter(p => p.x < cx).sort((a, b) => a.y - b.y), R = pts.filter(p => p.x >= cx).sort((a, b) => a.y - b.y);
   return { L, R, cx };
 }
+const pcSides = () => sidesFor(pc.pts);
 const edgeX = (E, y) => { if (y <= E[0].y) return E[0].x; if (y >= E.at(-1).y) return E.at(-1).x; for (let i = 1; i < E.length; i++) if (y <= E[i].y) { const t = (y - E[i - 1].y) / Math.max(1e-9, E[i].y - E[i - 1].y); return E[i - 1].x + (E[i].x - E[i - 1].x) * t } return E.at(-1).x };
-function pcLevels() {
-  const sd = pcSides(); if (!sd || sd.L.length < PT_MIN_SIDE || sd.R.length < PT_MIN_SIDE) return null;
+const segX = (a, b, c, d) => { const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)); return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0 };
+/** czy punkty w kolejności klikania tworzą zamknięty obrys bez skrzyżowań */
+function isOutline(pts) {
+  const n = pts.length; if (n < 4) return false;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { if (j === i + 1 || (i === 0 && j === n - 1)) continue; if (segX(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) return false }
+  return true;
+}
+function levelsOutline(pts) {
+  const ysV = pts.map(p => p.y), yt = Math.min(...ysV), yb = Math.max(...ysV); if (!(yb - yt > 10)) return null;
+  const at = y => { const xs = []; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; if ((a.y - y) * (b.y - y) <= 0 && a.y !== b.y) xs.push(a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)) } return xs.length >= 2 ? { l: Math.min(...xs), r: Math.max(...xs) } : null };
+  const e = (yb - yt) * .004, ys = new Set([yt + e, yb - e]); for (const y of ysV) if (y > yt + e && y < yb - e) ys.add(y);
+  for (let i = 1; i < 16; i++) ys.add(yt + (yb - yt) * i / 16);
+  const out = []; for (const y of [...ys].sort((a, b) => b - a)) { const h = at(y); if (h) out.push({ y, l: h.l, r: h.r, w: Math.max(1, h.r - h.l) }) }
+  return out.length >= 2 ? out : null;
+}
+function levelsFor(pts) {
+  if (pts.length >= 4 && isOutline(pts)) { const o = levelsOutline(pts); if (o) return o }
+  const sd = sidesFor(pts); if (!sd || sd.L.length < PT_MIN_SIDE || sd.R.length < PT_MIN_SIDE) return null;
   const yt = (sd.L[0].y + sd.R[0].y) / 2, yb = (sd.L.at(-1).y + sd.R.at(-1).y) / 2; if (!(yb - yt > 10)) return null;
   const ys = new Set([yt, yb]); for (const p of [...sd.L, ...sd.R]) if (p.y > yt && p.y < yb) ys.add(p.y);
   for (let i = 1; i < 12; i++) ys.add(yt + (yb - yt) * i / 12);
-  const lv = [...ys].sort((a, b) => b - a).map(y => { const l = edgeX(sd.L, y), r = edgeX(sd.R, y); return { y, l, r, w: Math.max(1, r - l) } });
-  return lv; // od dołu do góry
+  return [...ys].sort((a, b) => b - a).map(y => { const l = edgeX(sd.L, y), r = edgeX(sd.R, y); return { y, l, r, w: Math.max(1, r - l) } }); // od dołu do góry
+}
+const pcLevels = () => levelsFor(pc.pts);
+const VIEW_KEYS = ['pts', 'ref', 'img', 'file', 'cur'];
+const viewData = v => v === pc.view ? pc : (pc.views[v] || { pts: [], ref: [] });
+/** szerokość [px] na wysokości y w poziomach (od dołu) */
+const widthAtY = (lv, y) => { if (y >= lv[0].y) return lv[0].w; for (let i = 1; i < lv.length; i++) if (y >= lv[i].y) { const t = (y - lv[i - 1].y) / Math.min(-1e-9, lv[i].y - lv[i - 1].y); return lv[i - 1].w + (lv[i].w - lv[i - 1].w) * t } return lv.at(-1).w };
+function pcSwitch(v) {
+  if (pc.view === v) return;
+  pc.views[pc.view] = Object.fromEntries(VIEW_KEYS.map(k => [k, pc[k]]));
+  Object.assign(pc, { pts: [], ref: [], img: null, file: null, cur: -1 }, pc.views[v] || {}); pc.view = v;
+  if (!pc.img) { const used = pc.views.front?.cur; const idx = pc.photos.findIndex((_, i) => i !== used); if (idx >= 0) { pc.cur = idx; pc.img = pc.photos[idx].img; pc.file = pc.photos[idx].file } }
+  pcUI();
 }
 function pcCompute() {
-  const lv = pcLevels(); if (!lv) return null;
+  const F = viewData('front'), lv = levelsFor(F.pts); if (!lv) return null;
   const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
+  const S = viewData('side'), lvS = pc.useSide ? levelsFor(S.pts) : null;
   const rect = pc.shape === 'rect';
-  const mk = c => ({ h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * c), ...(rect ? { rect: true } : {}) });
+  const mk = c => {
+    const d = { h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * c), ...(rect ? { rect: true } : {}) };
+    if (lvS) { const ybS = lvS[0].y, hS = ybS - lvS.at(-1).y, cS = hPx * c / hS; d.dd = lv.map(l => widthAtY(lvS, ybS - (yb - l.y) / hPx * hS) * cS); d.lshape = true }
+    return d;
+  };
   const useRef = pc.other === 'ref';
   let c, nominal = 0;
-  if (useRef) { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
+  if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
   const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
-  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef };
+  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!lvS };
 }
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
   pcStripRender();
   $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
-  $('pcSettings').classList.toggle('hide', !pcLevels());
+  $('pcSettings').classList.toggle('hide', !levelsFor(viewData('front').pts));
+  const vt = $('pcViews'); vt.classList.toggle('hide', !has); vt.replaceChildren(
+    el('button', { type: 'button', class: 'pill' + (pc.view === 'front' ? ' on' : ''), text: '⬜ Przód' + (levelsFor(viewData('front').pts) ? ' ✓' : ''), onclick: () => pcSwitch('front') }),
+    el('button', { type: 'button', class: 'pill' + (pc.view === 'side' ? ' on' : ''), text: (pc.useSide ? '◧ Bok 90°' + (levelsFor(viewData('side').pts) ? ' ✓' : '') : '＋ Bok 90° (kosz L)'), onclick: () => { pc.useSide = true; pcSwitch('side') } }),
+    ...(pc.useSide ? [el('button', { type: 'button', class: 'pill', text: '✕ bez boku', onclick: () => { pc.useSide = false; pcSwitch('front') } })] : []));
   let t = ''; const sd = pcSides(), nl = sd ? sd.L.length : 0, nr = sd ? sd.R.length : 0;
   if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
-  else if (pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
-  else if (!pcLevels()) t = 'Klikaj po krawędziach kosza — po LEWEJ i PRAWEJ stronie, od krawędzi wlewu do wylewu. Najpierw górne rogi.';
+  else if (pc.view === 'front' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
+  else if (pc.view === 'side' && !pcLevels()) t = 'BOK 90° · obrysuj kosz widziany z boku (przy koszu L — całe „L”), od krawędzi wlewu do dołu.';
+  else if (!pcLevels()) t = 'Obrysuj kosz: klikaj po kolei DOOKOŁA krawędzi (np. lewy górny róg → w dół → wylew → w górę prawą stroną) albo osobno lewa i prawa strona.';
   else t = 'Dokładaj punkty tam, gdzie kształt się zmienia (początek lejka, załamania). Punkty możesz przeciągać.';
   const cnt = $('pcCount');
-  if (has) { cnt.classList.remove('hide'); cnt.replaceChildren(el('b', { text: pc.pts.length + ' / ' + PT_MAX }), el('span', { text: ' punktów · zostało ' + (PT_MAX - pc.pts.length) }), el('span', { class: 'pc-cnt-side' + (nl >= PT_MIN_SIDE ? ' ok' : ''), text: 'lewa: ' + nl }), el('span', { class: 'pc-cnt-side' + (nr >= PT_MIN_SIDE ? ' ok' : ''), text: 'prawa: ' + nr }), el('small', { text: pcLevels() ? '✓ można liczyć' : 'min. ' + PT_MIN_SIDE + ' na stronę' })) } else cnt.classList.add('hide');
+  if (has) { cnt.classList.remove('hide'); cnt.replaceChildren(el('b', { text: pc.pts.length + ' / ' + PT_MAX }), el('span', { text: ' punktów · zostało ' + (PT_MAX - pc.pts.length) }), ...(isOutline(pc.pts) ? [el('span', { class: 'pc-cnt-side ok', text: 'obrys dookoła ✓' })] : [el('span', { class: 'pc-cnt-side' + (nl >= PT_MIN_SIDE ? ' ok' : ''), text: 'lewa: ' + nl }), el('span', { class: 'pc-cnt-side' + (nr >= PT_MIN_SIDE ? ' ok' : ''), text: 'prawa: ' + nr })]), el('small', { text: pcLevels() ? '✓ można liczyć' : 'min. ' + PT_MIN_SIDE + ' na stronę' })) } else cnt.classList.add('hide');
   $('pcStep').textContent = t;
   const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
     el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
@@ -827,7 +865,7 @@ function pcUI() {
     box.append(el('div', { class: 'calc-main', text: 'Realnie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
     box.append(el('div', { class: 'calc-range', text: 'od ' + fmt(r.real * (1 - u)) + ' do ' + fmt(r.real * (1 + u)) + ' m³' }));
     box.append(el('div', { class: 'muted', text: (r.nominal ? 'Kosz ' + fmt(r.nominal) + ' m³ do krawędzi' : 'Do krawędzi ≈ ' + fmt(r.rim) + ' m³') + (r.fillCm ? ' · beton ' + r.fillCm + ' cm niżej = ' + Math.round(r.real / r.rim * 100) + '%' : '') }));
-    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + ' · ' + n + ' pkt obrysu' }));
+    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + ' · ' + n + ' pkt obrysu' + (r.twoViews ? ' · przód + bok' : '') }));
     const m = bucketModel({ shape: 'profile', dims: r.dims, capacity: r.real }, r.real);
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
@@ -843,7 +881,10 @@ function pcDraw() {
   const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
   const lw = 3 / k, rad = 12 / k;
   const lv = pcLevels(), sd = pcSides();
-  if (lv) {
+  if (lv && isOutline(pc.pts)) {
+    g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
+    if (pc.fill || pc.fillTap) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]) } }
+  } else if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
     if (pc.fill || pc.fillTap) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
@@ -852,7 +893,7 @@ function pcDraw() {
     for (const E of [sd.L, sd.R]) if (E.length > 1) { g.beginPath(); E.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke() }
   }
   pc.pts.forEach((p, i) => {
-    const left = sd && p.x < sd.cx;
+    const left = isOutline(pc.pts) ? true : sd && p.x < sd.cx;
     g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = left ? '#8BD1E0' : '#ffd17e'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
     g.fillStyle = '#0b1118'; g.font = `900 ${12 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y);
   });
@@ -867,7 +908,7 @@ function pcDraw() {
     const all = [...pc.pts.map((q, i) => ['p', i, q]), ...pc.ref.map((q, i) => ['r', i, q])];
     let best = null, bd = 18 / pc.k; for (const it of all) { const d = dist(p, it[2]); if (d < bd) { bd = d; best = it } }
     if (best) pc.drag = best;
-    else if (pcLevels() && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); pc.drag = ['r', pc.ref.length - 1] }
+    else if (pc.view === 'front' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); pc.drag = ['r', pc.ref.length - 1] }
     else if (pc.pts.length < PT_MAX) { pc.pts.push(p); pc.drag = ['p', pc.pts.length - 1] }
     else { pc.drag = null; announce('Maksymalnie ' + PT_MAX + ' punktów — przeciągnij istniejące') }
     pcUI();
@@ -877,7 +918,7 @@ function pcDraw() {
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 function pcOpen() {
-  Object.assign(pc, { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
+  Object.assign(pc, { view: 'front', views: {}, useSide: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
@@ -924,7 +965,7 @@ document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('cli
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
 $('pcSave').addEventListener('click', async () => {
   const r = pcCompute(); if (!r) return;
-  let photos = []; const order = [pc.photos[pc.cur], ...pc.photos.filter((_, i) => i !== pc.cur)].filter(Boolean);
+  let photos = []; const fi = viewData('front').cur, si = pc.useSide ? viewData('side').cur : -1; const order = [pc.photos[fi], pc.photos[si], ...pc.photos.filter((_, i) => i !== fi && i !== si)].filter(Boolean);
   for (const ph of order) try { photos.push(await thumbFromFile(ph.file)) } catch (e) { }
   photos = photos.concat(formPhotos);
   const name = $('pcName').value.trim() || ('Kosz ' + fmt(r.nominal || r.real) + ' m³');

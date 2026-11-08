@@ -75,10 +75,10 @@ export function areaAt(shape, d, y) {
     }
     case 'rect': return lerp(d.lBottom, d.lTop, t) * lerp(d.wBottom, d.wTop, t);
     case 'profile': {
-      const hs = d.hs, ds = d.ds; let dd = ds[ds.length - 1];
-      if (y <= hs[0]) dd = ds[0];
-      else for (let i = 1; i < hs.length; i++) if (y <= hs[i]) { dd = lerp(ds[i - 1], ds[i], (y - hs[i - 1]) / Math.max(1e-9, hs[i] - hs[i - 1])); break }
-      return d.rect ? dd * dd * e : Math.PI * (dd / 2) ** 2 * e;
+      const at = arr => { if (y <= d.hs[0]) return arr[0]; for (let i = 1; i < d.hs.length; i++) if (y <= d.hs[i]) return lerp(arr[i - 1], arr[i], (y - d.hs[i - 1]) / Math.max(1e-9, d.hs[i] - d.hs[i - 1])); return arr[arr.length - 1] };
+      const w = at(d.ds), dp = Array.isArray(d.dd) && d.dd.length === d.ds.length ? at(d.dd) : null;
+      if (dp != null) return d.rect ? w * dp : Math.PI / 4 * w * dp;     // dwa widoki: przód × bok
+      return d.rect ? w * w * e : Math.PI * (w / 2) ** 2 * e;
     }
     default: return 0;
   }
