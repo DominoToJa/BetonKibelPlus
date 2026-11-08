@@ -679,3 +679,12 @@ details.set-cat[open]>summary{border-bottom:1px solid color-mix(in srgb,var(--c1
 .intro-domino{animation-delay:5.95s!important;animation-duration:.7s!important}
 .intro-title{animation-delay:6.3s!important;animation-duration:.7s!important}
 .intro-tags span:nth-child(1){animation-delay:7.1s!important}.intro-tags span:nth-child(2){animation-delay:7.9s!important}.intro-tags span:nth-child(3){animation-delay:8.7s!important}
+
+/* ── wydajność (płynniej na iPhonie) ── */
+body,body.ui-hud,body.ui-glass{background-attachment:scroll!important}
+body.ui-hud .panel,body[class*="tx-"] .panel{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.ui-glass :is(.metric,.tile,.bucket-pick,.big-btn,.lektor,.active-bucket,.he-row,.calc-box,.notice,.audio-status,.bot-quote){backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.ui-glass .panel{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter:blur(6px)!important}
+.bucket,body.ui-hud .bucket{filter:none!important}
+.bucket-stage:has(.vslider.drag) .bucket svg *{transition:none!important}
+main section.hide *{animation:none!important}
