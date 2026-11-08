@@ -1348,6 +1348,7 @@ const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) 
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
 document.querySelectorAll('#setNav [data-go]').forEach(b => b.addEventListener('click', () => { const d = $(b.dataset.go); if (!d) return; d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
 $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $('testMode')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) });
+$('introReplay').addEventListener('click', () => { try { sessionStorage.setItem('bkp_after_intro', currentTab) } catch (e) { } location.reload() });
 $('musicTest').addEventListener('click', () => { if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
 $('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });
