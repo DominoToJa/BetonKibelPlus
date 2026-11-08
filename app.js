@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, bgm: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -236,11 +236,18 @@ function playBoom() {
   const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .45); e.gain.setValueAtTime(vol, t); e.gain.exponentialRampToValueAtTime(.001, t + .5); o.connect(e); e.connect(ctx.destination); o.start(t); o.stop(t + .55);
 }
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
-let introJinglePending = false;
+let introJinglePending = false, voicePending = false;
+/* „Betonowy głos” — głos w intro (przycisza muzykę, gdy mówi) */
+function playIntroVoice() {
+  try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
+    voiceEl.onplay = () => bgmUpdate(); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
+    voiceEl.play().catch(() => { voicePending = true }) } catch (e) { }
+}
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
 const BGM_TABS = new Set(['home', 'history', 'drum', 'settings', 'theme']);
 let bgm = null, bgmTimer = 0, introPlaying = false;
-const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * .5;
+let voiceEl = null; const voiceBusy = () => !!(voiceEl && !voiceEl.paused && !voiceEl.ended);
+const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * (voiceBusy() ? .22 : .5);
 const songBusy = () => !!(songEl && !songEl.paused && !songEl.ended);
 const bgmWanted = () => !songBusy() && settings.music && settings.bgm !== false && !document.hidden && (introPlaying || ((BGM_TABS.has(TAB_OF[currentTab]) || BGM_TABS.has(currentTab)) && !(typeof micWanted !== 'undefined' && micWanted)));
 function bgmFade(to, done) {
@@ -267,7 +274,7 @@ function bgmWatch() {
   }, 200);
 }
 document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none'; window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
-document.addEventListener('pointerdown', () => { getAC(); if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
+document.addEventListener('pointerdown', () => { getAC(); if (voicePending) { voicePending = false; playIntroVoice() } if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -483,7 +490,7 @@ async function start() {
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
-  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (settings.music) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
+  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (voiceEl) { voiceEl.pause(); voiceEl = null } if (settings.music) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
 }
 $('start').addEventListener('click', start);
 $('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
@@ -1343,6 +1350,7 @@ document.querySelectorAll('#setNav [data-go]').forEach(b => b.addEventListener('
 $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $('testMode')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) });
 $('musicTest').addEventListener('click', () => { if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
+$('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });
 $('bgmOn').checked = settings.bgm !== false; $('bgmOn').addEventListener('change', () => { settings.bgm = $('bgmOn').checked; saveSettings(); bgmUpdate() });
 $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); if (bgm && !bgm.paused) bgmFade(bgmTarget()); else playSong('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
@@ -1458,5 +1466,6 @@ drainNative();
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
   box.addEventListener('click', close); setTimeout(close, 10000);
   if (settings.music) { introPlaying = true; bgmUpdate(); setTimeout(() => { if (!done) playBoom() }, 4500) }
+  if (settings.introVoice !== false) playIntroVoice();
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
