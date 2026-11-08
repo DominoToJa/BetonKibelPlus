@@ -875,10 +875,10 @@ function report(key, value) { const text = (pickVariant(key) || 'X').replace(/X/
 let lastErrAt = 0;
 function heardText(t) {
   const n = normalise(t); if (n.length < 2) return;
+  if (n.split(' ').length > 7) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } // długie zdania = ktoś rozmawia, nie komenda
   const r = command(t);
   if (r === true) { micDisplay('✓ „' + t + '”'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
-  if (!r && n.split(' ').length >= 2 && Date.now() - lastErrAt > 20000) { lastErrAt = Date.now(); sayBot('error') }
 }
 function command(utterance) {
   const t = normalise(utterance); if (!t) return false;

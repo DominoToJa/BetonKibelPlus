@@ -727,6 +727,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let t = norm(raw)
         let now = nowMs()
         guard active else { return }
+        if t.split(separator: " ").count > 7 { return }  // rozmowa, nie komenda
         let waiting = phase == "away" || phase == "late"
         if waiting && !t.contains(" ile ") && has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
