@@ -148,7 +148,7 @@ const number = x => Number(String(x ?? '').replace(',', '.').trim());
 const dur = n => { n = Math.max(0, Math.floor(Number(n) || 0)); return String(Math.floor(n / 3600)).padStart(2, '0') + ':' + String(Math.floor(n % 3600 / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0') };
 const shortDur = n => { n = Math.max(0, Math.floor(Number(n) || 0)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') };
 const escapeHTML = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v) } e.append(...kids); return e };
+const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== null && v !== undefined) e.setAttribute(k, v) } e.append(...kids); return e };
 
 // ───────────────────────── kosze ─────────────────────────
 let kibelN = 0;
@@ -211,13 +211,53 @@ function tab(name) {
 document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => { if (b.dataset.go === 'buckets') bucketReturn = currentTab; tab(b.dataset.go) }));
 $('openSettings').addEventListener('click', () => tab('settings'));
-$('homeNew').addEventListener('click', () => tab('setup'));
-$('homeContinue').addEventListener('click', () => tab('work'));
+const HOME_ITEMS = {
+  continue: { name: 'Kontynuuj betonowanie', ico: '▶', go: () => tab('work') },
+  new: { name: 'Nowe betonowanie', ico: '＋', sub: 'Budowa, ilość betonu, kosz', go: () => tab('setup') },
+  buckets: { name: 'Moje kosze', kibel: true, sub: 'zmierz i zapisz kosze', go: () => { bucketReturn = 'home'; tab('buckets') } },
+  history: { name: 'Budowy', ico: '▤', sub: 'historia betonowań', go: () => tab('history') },
+  settings: { name: 'Ustawienia', ico: '⚙️', sub: 'lektor, teksty, sygnały', go: () => tab('settings') },
+  work: { name: 'Licznik', ico: '🏗', sub: 'kibel i podziałka', go: () => tab('work') },
+  drum: { name: 'Diagram gruszki', ico: '🛢', sub: 'podziałka bębna', go: () => tab('drum') },
+  theme: { name: 'Wygląd', ico: '🎨', sub: 'kolory, układ, tekstura', go: () => { themeReturn = 'home'; tab('theme') } },
+};
+const HOME_DEFAULT = [['continue', 1, 'big'], ['new', 1, 'big'], ['buckets', 1, 'small'], ['history', 1, 'small'], ['settings', 1, 'small'], ['work', 0, 'small'], ['drum', 0, 'small'], ['theme', 0, 'small']];
+function homeConfig() {
+  let cfg = Array.isArray(settings.home) ? settings.home.filter(x => HOME_ITEMS[x[0]]) : [];
+  for (const d of HOME_DEFAULT) if (!cfg.some(x => x[0] === d[0])) cfg.push(d.slice());
+  return cfg;
+}
 function homeRender() {
-  $('homeContinue').classList.toggle('hide', !session);
-  if (session) $('homeContinueInfo').textContent = session.site + ' · zostało ' + fmt(left()) + ' m³';
   const h = new Date().getHours();
   $('homeHello').textContent = session ? 'Betonowanie w toku' : (h < 10 ? 'Dzień dobry, Domi' : h < 18 ? 'Gotowy do lania?' : 'Dobry wieczór, Domi');
+  const big = $('homeBig'), small = $('homeSmall'); big.replaceChildren(); small.replaceChildren();
+  for (const [id, show, size] of homeConfig()) {
+    const it = HOME_ITEMS[id]; if (!show || (id === 'continue' && !session)) continue;
+    const sub = id === 'continue' ? session.site + ' · zostało ' + fmt(left()) + ' m³' : it.sub;
+    if (size === 'big') {
+      const b = el('button', { type: 'button', class: 'big-btn' + (id === 'continue' ? ' primary' : ''), onclick: it.go }); if (id === 'continue') b.id = 'homeContinue'; if (id === 'new') b.id = 'homeNew';
+      if (it.kibel) b.append(kibelIcon(), ' '); else b.append(it.ico + ' ');
+      b.append(it.name, el('small', { text: sub || '' })); big.append(b);
+    } else {
+      const b = el('button', { type: 'button', onclick: it.go }); if (id === 'new') b.id = 'homeNew';
+      b.append(it.kibel ? kibelIcon() : el('span', { class: 'hs-ico', text: it.ico }), el('br'), it.name); small.append(b);
+    }
+  }
+  small.classList.toggle('hide', !small.children.length);
+}
+function homeEditorRender() {
+  const box = $('homeEditor'); box.replaceChildren(); const cfg = homeConfig();
+  const save = () => { settings.home = cfg; saveSettings(); homeEditorRender(); homeRender() };
+  cfg.forEach((row, i) => {
+    const [id, show, size] = row, it = HOME_ITEMS[id];
+    const chk = el('input', { type: 'checkbox', 'aria-label': 'Pokaż ' + it.name }); chk.checked = !!show; chk.addEventListener('change', () => { row[1] = chk.checked ? 1 : 0; save() });
+    box.append(el('div', { class: 'he-row' + (show ? '' : ' off') },
+      chk, (() => { const n = el('span', { class: 'he-name' }); n.append(it.kibel ? kibelIcon() : el('span', { class: 'he-ico', text: it.ico }), it.name); return n })(),
+      el('button', { type: 'button', class: 'he-size' + (size === 'big' ? ' on' : ''), text: size === 'big' ? 'Duży' : 'Mały', onclick: () => { row[2] = size === 'big' ? 'small' : 'big'; save() } }),
+      el('button', { type: 'button', class: 'he-arrow', text: '↑', 'aria-label': 'W górę', disabled: i === 0 ? '' : null, onclick: () => { if (i) { [cfg[i - 1], cfg[i]] = [cfg[i], cfg[i - 1]]; save() } } }),
+      el('button', { type: 'button', class: 'he-arrow', text: '↓', 'aria-label': 'W dół', onclick: () => { if (i < cfg.length - 1) { [cfg[i + 1], cfg[i]] = [cfg[i], cfg[i + 1]]; save() } } })));
+  });
+  [...box.querySelectorAll('[disabled=""]')].forEach(b => b.disabled = true);
 }
 
 // ───────────────────────── nowe betonowanie ─────────────────────────
@@ -818,6 +858,7 @@ function themeRender() {
     tile.style.setProperty('--c1', a); tile.style.setProperty('--c2', b); g.append(tile);
   }
   const [c1, c2] = themeColors(); $('cc1').value = settings.c1 || c1; $('cc2').value = settings.c2 || c2;
+  homeEditorRender();
   const lg = $('layGrid'); lg.replaceChildren();
   for (const [id, name, n] of LAYOUTS) { const pv = el('div', { class: 'lay-prev ' + id }); for (let i = 0; i < n; i++) pv.append(el('i', { class: i === 1 ? 'a' : '' })); lg.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.layout || 'classic') === id ? ' on' : ''), onclick: () => { settings.layout = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
   $('tabsBottom').checked = !!settings.tabsBottom;
@@ -825,6 +866,7 @@ function themeRender() {
   for (const [id, name] of TEXTURES) tg.append(el('button', { type: 'button', class: 'tx-tile' + ((settings.texture || 'none') === id ? ' on' : ''), onclick: () => { settings.texture = id; applyTheme(); saveSettings(); themeRender() } }, el('div', { class: 'tx-sw tx-' + id }), el('span', { text: name })));
 }
 let ccT; const ccChange = () => { settings.theme = 'custom'; settings.c1 = $('cc1').value; settings.c2 = $('cc2').value; applyTheme(); clearTimeout(ccT); ccT = setTimeout(() => { saveSettings(); themeRender() }, 250) };
+$('homeReset').addEventListener('click', () => { settings.home = null; saveSettings(); homeEditorRender(); homeRender() });
 $('tabsBottom').addEventListener('change', () => { settings.tabsBottom = $('tabsBottom').checked; applyTheme(); saveSettings() });
 $('cc1').addEventListener('input', ccChange); $('cc2').addEventListener('input', ccChange);
 $('themeDone').addEventListener('click', () => { settings.themeChosen = true; saveSettings(); tab(themeReturn || 'home') });

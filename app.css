@@ -294,3 +294,14 @@ body.tabs-bottom main{padding-bottom:110px}
 .check-row input{width:22px;height:22px}
 body.lay-big .icon-btn{min-height:0}
 .hs-ico{font-size:1.15em}
+body.lay-tiles #homeBig{display:contents}
+.home-editor{display:grid;gap:6px}
+.he-row{display:grid;grid-template-columns:26px 1fr auto 40px 40px;gap:6px;align-items:center;padding:6px 8px;border-radius:12px;background:color-mix(in srgb,var(--c2) 18%,#070b10);border:1px solid color-mix(in srgb,var(--c2) 45%,#1a2228)}
+.he-row.off{opacity:.5}
+.he-row input{width:22px;height:22px;margin:0}
+.he-name{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;min-width:0}
+.he-name .tile-ico{width:22px;height:22px;flex:none}.he-ico{width:22px;text-align:center;flex:none}
+.he-size{padding:7px 10px;font-size:12px;min-width:58px}.he-size.on{background:var(--grad);color:var(--ink)}
+.he-arrow{padding:7px 0;font-size:16px;font-weight:900}
+.he-arrow:disabled{opacity:.3}
+.home-small .tile-ico{width:32px;height:32px;margin:0 auto}body.lay-compact .home-small .tile-ico,body.lay-big .home-small .tile-ico{margin:0}
