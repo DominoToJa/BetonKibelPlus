@@ -3,6 +3,7 @@ import UIKit
 import AVFoundation
 import Speech
 import MediaPlayer
+import UserNotifications
 import Capacitor
 
 /// BetonKibelPlus DOMINO — moduł natywny:
@@ -66,6 +67,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var elOn = false
     private var headsetButtons = false
     private var keepAwake = true
+    private var lockStatus = true
+    private var site = ""
     private var remoteReady = false
     private var elTag = ""
     private var voiceOn = true
@@ -93,6 +96,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         nc.addObserver(self, selector: #selector(onMediaReset(_:)), name: AVAudioSession.mediaServicesWereResetNotification, object: nil)
         nc.addObserver(self, selector: #selector(onEngineConfig(_:)), name: .AVAudioEngineConfigurationChange, object: engine)
         nc.addObserver(self, selector: #selector(onRouteChange(_:)), name: AVAudioSession.routeChangeNotification, object: nil)
+        nc.addObserver(self, selector: #selector(onBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        nc.addObserver(self, selector: #selector(onForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
     }
 
     // MARK: - Uprawnienia
@@ -275,6 +280,33 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             MPNowPlayingInfoPropertyPlaybackRate: 1.0
         ]
     }
+    // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
+    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus() } }
+    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus() } }
+    private func statusLine() -> String {
+        var trip = ""
+        if method != "taczka" {
+            if phase == "away" { let s = max(0, Int((deadline - nowMs()) / 1000)); trip = s > 0 ? " · kosz w drodze (\(s / 60):\(String(format: "%02d", s % 60)))" : " · kosz powinien już być" }
+            else if phase == "late" { trip = " · czekam na kosz" }
+            else { trip = " · kosz na miejscu" }
+        }
+        return "Wylano \(fmt(poured)) z \(fmt(loadM3)) m³" + trip
+    }
+    private func postStatus() {
+        guard lockStatus, active else { clearStatus(); return }
+        let c = UNMutableNotificationContent()
+        c.title = "🏗 Zostało \(fmt(leftM3)) m³" + (site.isEmpty ? "" : " · \(site)")
+        c.body = statusLine()
+        c.sound = nil
+        c.threadIdentifier = "bkp-status"
+        if #available(iOS 15.0, *) { c.interruptionLevel = .passive; c.relevanceScore = 1 }
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "bkp-status", content: c, trigger: nil))
+    }
+    private func clearStatus() {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["bkp-status"])
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["bkp-status"])
+    }
+
     @objc func haptic(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             let kind = call.getString("kind") ?? "success"
@@ -312,6 +344,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
             if let hb = call.getBool("headsetButtons"), hb != self.headsetButtons { self.headsetButtons = hb; self.setupRemote(); if self.listening { try? self.configureSession() } }
             if let v = call.getBool("voiceOn") { self.voiceOn = v }
@@ -569,6 +602,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     @objc func setState(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             self.active = call.getBool("active") ?? false
+            self.site = call.getString("site") ?? ""
             UIApplication.shared.isIdleTimerDisabled = self.keepAwake && self.active
             self.method = call.getString("method") ?? "kibel"
             self.phase = call.getString("phase") ?? "ready"
@@ -582,6 +616,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
             self.updateNowPlaying()
+            if !self.active { self.clearStatus() } else if UIApplication.shared.applicationState != .active { self.postStatus() }
             call.resolve()
         }
     }
@@ -660,7 +695,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
             phase = "late"; deadline = now + 30000
-            pending.append(["type": "delay", "at": now])
+            pending.append(["type": "delay", "at": now]); postStatus()
             say(key: "late", text: nil)
             scheduleAsk()
         } else if has(t, ["cofnij", "anuluj", "usun ostatni", "usun", "cofnij ostatni", "wycofaj", "odejmij", "minus jeden", "pomylka", "blad", "skasuj", "skasuj ostatni"]) {
@@ -673,7 +708,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal", "start", "jazda", "leci", "polecial"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
-            pending.append(["type": "depart", "at": now])
+            pending.append(["type": "depart", "at": now]); postStatus()
             say(key: "depart", text: nil)
             scheduleAsk()
         } else if has(t, ["dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
@@ -684,7 +719,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
             poured += amount
             pending.append(["type": "add", "at": now, "amount": amount])
-            updateNowPlaying()
+            updateNowPlaying(); postStatus()
             say(key: "added", text: nil)
             var note: String? = nil
             for (thr, key) in [(loadM3 * 0.75, "left75"), (loadM3 * 0.5, "left50"), (3.0, "left3"), (1.5, "left15"), (0.5, "left05")].sorted(by: { $0.0 > $1.0 }) {
@@ -703,7 +738,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             guard method != "taczka" else { return }
             phase = "returned"; deadline = 0; departed = 0; reminders = 0
             askTimer?.invalidate()
-            pending.append(["type": "returned", "at": now])
+            pending.append(["type": "returned", "at": now]); postStatus()
             say(key: "arrived", text: nil)
         } else {
             say(key: "error", text: nil)

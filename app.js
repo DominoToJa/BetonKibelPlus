@@ -64,7 +64,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -148,7 +148,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), headsetButtons: !!settings.headsetBtn, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -275,7 +275,7 @@ function remember() {
 function syncNative() {
   if (!nativeVoice) return;
   const s = session;
-  NV.setState({ active: !!s, method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
+  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
 let modelCache = { key: '', model: null }, customOpen = false;
@@ -496,7 +496,21 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   const note = reached.length ? reached[reached.length - 1].key : (lowNow ? 'low' : null), jobId = session.id;
   if (note) setTimeout(() => { if (session?.id === jobId) sayBot(note) }, nativeVoice ? 0 : 1900);
 }
-$('bucket').addEventListener('click', () => add(session?.dose));
+/* dodawanie: zwykłe dotknięcie albo przytrzymanie (ochrona przed przypadkowym naliczeniem w rękawicach) */
+(function bucketPress() {
+  const b = $('bucket'); let t = 0, fired = false;
+  const cancel = () => { clearTimeout(t); t = 0; b.classList.remove('holding') };
+  b.addEventListener('pointerdown', e => { if (!settings.holdAdd || !session) return; fired = false; b.classList.add('holding'); t = setTimeout(() => { fired = true; b.classList.remove('holding'); add(session?.dose) }, 480) });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, cancel);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  b.addEventListener('click', e => { if (!settings.holdAdd || e.detail === 0) { add(session?.dose); return } if (!fired) announce('Przytrzymaj kibel, żeby dodać'); fired = false });
+})();
+$('ohUndo').addEventListener('click', () => undo());
+$('ohTrip').addEventListener('click', () => { if (phase === 'away' || phase === 'late') returned(); else depart() });
+$('ohMic').addEventListener('click', () => $('mic').click());
+const setOneHand = on => { settings.oneHand = on; saveSettings(); document.body.classList.toggle('one-hand', on); $('oneHandBtn').textContent = on ? '✋ Pełny widok' : '✋ Jedna ręka'; if (session) render(); window.scrollTo({ top: 0 }) };
+$('oneHandBtn').addEventListener('click', () => setOneHand(!settings.oneHand)); $('ohExit').addEventListener('click', () => setOneHand(false));
+document.body.classList.toggle('one-hand', !!settings.oneHand); $('oneHandBtn').textContent = settings.oneHand ? '✋ Pełny widok' : '✋ Jedna ręka';
 function undo({ silent = false } = {}) {
   if (!session?.entries?.length) return announce('Nie ma czego cofnąć');
   const last = session.entries.pop();
@@ -719,7 +733,9 @@ function render() {
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
   $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
-  $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
+  $('touchText').textContent = (settings.holdAdd ? 'PRZYTRZYMAJ, ŻEBY DODAĆ · ' + ({ taczka: 'TACZKA', inne: 'ŁYŻKA' }[s.method] || 'KIBEL') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
+  $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
+  $('ohTrip').classList.toggle('hide', s.method === 'taczka'); $('ohTrip').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał'; $('ohTrip').classList.toggle('good', phase === 'away' || phase === 'late');
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
   const ab = $('activeBucket'); ab.replaceChildren();
   const cur = s.bucketProfile; ab.classList.toggle('hide', !cur);
@@ -1184,7 +1200,7 @@ $('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('
 
 // ───────────────────────── ustawienia ─────────────────────────
 applyTheme();
-$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
+$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('holdAdd').checked = settings.holdAdd !== false; $('lockStatus').checked = settings.lockStatus !== false; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
 $('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
@@ -1220,7 +1236,7 @@ $('elDownload').addEventListener('click', async () => {
 });
 $('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć pobrany głos z telefonu?', 'Usuń', true))) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
 elLoadNames().then(elUI);
-for (const [id, k] of [['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative() });
+for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playJingle('start') });
 $('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playJingle('start') });

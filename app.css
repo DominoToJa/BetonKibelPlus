@@ -585,3 +585,21 @@ body.ui-neo .ask-card{background:#e0e5ec;border:0}body.ui-neo .ask-card p{color:
 button.mini{padding:6px 9px;font-size:13px}
 body.ui-hud .tile.on :is(b,small,strong,span){color:var(--c1)!important}
 .he-r b{white-space:nowrap}
+
+/* przytrzymanie kibla */
+.bucket{position:relative}
+.bucket.holding::after{content:"";position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:6px solid var(--c1);box-shadow:0 0 24px var(--c1);animation:holdRing .48s linear forwards;pointer-events:none}
+@keyframes holdRing{from{transform:scale(1.4);opacity:.2}to{transform:scale(.55);opacity:1}}
+.bucket{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+/* tryb jednej ręki */
+.oh-only{display:none!important}
+.one-hand-btn{margin-left:auto;flex:none!important;padding:8px 12px;font-size:13px}
+body.one-hand .oh-only{display:grid!important}
+body.one-hand #work :is(#workModes,.grid.three,.grid.two,#hudPanel,.bucket-meta,.controls,#activeBucket,.quick-caps,#travelPanel,#cmdList,#entries,.vslider),body.one-hand #work .label,body.one-hand #work details,body.one-hand #work>.actions,body.one-hand #work>.panel.slim:has(#mic){display:none!important}
+body.one-hand .bucket-stage{grid-template-columns:1fr!important}
+body.one-hand .bucket{width:100%!important;max-width:420px;margin:0 auto}
+.oh-top{text-align:center;gap:2px;margin:10px 0 4px}
+.oh-top small{color:#c9d5e2;font-weight:850;letter-spacing:.08em}.oh-top strong{font-size:clamp(44px,15vw,64px);font-weight:900;color:var(--c1);line-height:1.05;font-variant-numeric:tabular-nums}
+.oh-bar{grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.oh-bar button{min-height:96px;font-size:18px;font-weight:900;border-radius:20px}
+.oh-exit{width:100%;margin-top:10px;padding:12px;font-size:13px;opacity:.85}

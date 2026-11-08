@@ -74,7 +74,8 @@
 </div></section>
 
 <section id="work" class="hide">
-<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kibel</span></div>
+<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kibel</span><button type="button" id="oneHandBtn" class="one-hand-btn">✋ Jedna ręka</button></div>
+<div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small></div>
 <div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kibel</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Inne</button></div>
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small>Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
@@ -89,6 +90,8 @@
     <div class="vs-track"><div class="vs-fill" id="vsFill"></div><div class="vs-ticks" id="vsTicks"></div><div class="vs-thumb" id="vsThumb"><span id="vsValue">0,5</span></div></div>
   </div>
 </div>
+<div class="oh-bar oh-only"><button type="button" id="ohUndo">↶ Cofnij</button><button type="button" id="ohTrip">▶ Wyjechał</button><button type="button" id="ohMic" class="mic-btn">🎙 Mikrofon</button></div>
+<button type="button" id="ohExit" class="oh-only oh-exit">Pełny widok (zakończ, ustawienia)</button>
 <div id="hudPanel" class="hud-only">
  <div class="hud-status"><span class="hud-ico"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M2 12h4l3-7 4 14 3-7h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><small>STATUS POZIOMU</small><b id="hudState">—</b></div><div class="hud-pct"><small>POJEMNOŚĆ</small><b id="hudPct">0%</b></div></div>
  <div class="hud-reg"><div class="hud-reg-head"><span>⚙ Regulacja poziomu</span><b id="hudVal">0 m³</b></div><input type="range" id="hudRange" min="0" max="1" step="0.01" value="0" aria-label="Ile wlano do kosza"><div class="hud-quick" id="hudQuick"></div></div>
@@ -170,6 +173,8 @@
 <label class="label" for="ttsPitch">Wysokość głosu</label><input id="ttsPitch" type="range" min="0.5" max="1.6" step="0.05" value="1">
 </details>
 <button type="button" id="ttsTest" class="full" style="margin-top:12px">🔊 Sprawdź głos</button>
+<label class="label check"><input type="checkbox" id="holdAdd" checked> ✋ Dodawanie przytrzymaniem kibla (przypadkowe dotknięcie nie nalicza)</label>
+<label class="label check"><input type="checkbox" id="lockStatus" checked> 🔒 Licznik na ekranie blokady (ile zostało, kurs kosza)</label>
 <label class="label check"><input type="checkbox" id="keepAwake" checked> ☀️ Ekran nie gaśnie podczas betonowania</label>
 <label class="label check"><input type="checkbox" id="hapticsOn" checked> 📳 Wibracja przy naliczeniu</label>
 <label class="label check"><input type="checkbox" id="headsetBtn"> 🎧 Przycisk słuchawki BT: naciśnięcie = dodaj kibel, wstecz = cofnij</label>
