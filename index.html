@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BetonKibelPlus">
 <link rel="stylesheet" href="/app.css"></head><body>
-<script>/* motyw kolorów przed pierwszym rysowaniem */try{var st=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}"),T={violet:["#8BD1E0","#9B4CD3"],green:["#2FD271","#056C7F"],orange:["#FFB627","#E4572E"],yellow:["#FFE45E","#2E86AB"],red:["#FF6B6B","#7A1F5C"],ice:["#A8E6FF","#3D5AFE"],steel:["#C9D6DF","#52616B"],lime:["#C6F432","#1B998B"]},id=st.theme||"green",c=id==="custom"?[st.c1||"#2FD271",st.c2||"#056C7F"]:(T[id]||T.green);document.body.style.setProperty("--c1",c[0]);document.body.style.setProperty("--c2",c[1]);if(id!=="violet")document.body.classList.add("themed")}catch(e){}</script>
+<script>/* motyw kolorów przed pierwszym rysowaniem */try{var st=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}"),T={violet:["#8BD1E0","#9B4CD3"],green:["#2FD271","#056C7F"],orange:["#FFB627","#E4572E"],yellow:["#FFE45E","#2E86AB"],red:["#FF6B6B","#7A1F5C"],ice:["#A8E6FF","#3D5AFE"],steel:["#C9D6DF","#52616B"],lime:["#C6F432","#1B998B"]},id=st.theme||"green",c=id==="custom"?[st.c1||"#2FD271",st.c2||"#056C7F"]:(T[id]||T.green);document.body.style.setProperty("--c1",c[0]);document.body.style.setProperty("--c2",c[1]);if(id!=="violet")document.body.classList.add("themed");if(st.texture&&st.texture!=="none")document.body.classList.add("tx-"+st.texture);if(st.layout&&st.layout!=="classic")document.body.classList.add("lay-"+st.layout);if(st.tabsBottom)document.body.classList.add("tabs-bottom")}catch(e){}</script>
 
 <div id="intro" aria-hidden="true">
   <svg class="intro-logo" viewBox="0 0 1024 1024" role="img" aria-label="BK+ DOMINO">
@@ -31,8 +31,8 @@
   <button id="homeNew" type="button" class="big-btn">＋ Nowe betonowanie<small>Budowa, ilość betonu, kosz</small></button>
   <div class="grid three home-small">
     <button type="button" data-go="buckets"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg1" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".35" style="stop-color:var(--c2)"/><stop offset=".7" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg1)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg><br>Moje kosze</button>
-    <button type="button" data-go="history">▤<br>Budowy</button>
-    <button type="button" data-go="settings">⚙️<br>Ustawienia</button>
+    <button type="button" data-go="history"><span class="hs-ico">▤</span><br>Budowy</button>
+    <button type="button" data-go="settings"><span class="hs-ico">⚙️</span><br>Ustawienia</button>
   </div>
 </section>
 
@@ -123,17 +123,22 @@
 </section>
 
 <section id="theme" class="hide"><div class="panel">
-<h2>🎨 Wybierz kolory</h2>
+<h2>🎨 Wygląd aplikacji</h2>
 <p class="hint">Dotknij zestawu — aplikacja od razu się przemaluje. Możesz to zmienić później w ⚙️ Ustawieniach.</p>
 <div id="themeGrid" class="theme-grid"></div>
 <div class="label">Albo własne kolory</div>
 <div class="custom-colors"><label>Kolor 1<input type="color" id="cc1" value="#2FD271"></label><label>Kolor 2<input type="color" id="cc2" value="#056C7F"></label></div>
+<div class="label">Układ ekranu</div>
+<div id="layGrid" class="lay-grid"></div>
+<label class="check-row"><input type="checkbox" id="tabsBottom"> Zakładki na dole ekranu (łatwiej kciukiem)</label>
+<div class="label">Tekstura tła</div>
+<div id="txGrid" class="tx-grid"></div>
 <button type="button" id="themeDone" class="primary full big" style="margin-top:16px">✓ Gotowe</button>
 </div></section>
 
 <section id="settings" class="hide">
 <div class="panel"><h2>⚙️ Ustawienia</h2>
-<button type="button" id="openTheme" class="full theme-open">🎨 Kolory aplikacji</button>
+<button type="button" id="openTheme" class="full theme-open">🎨 Wygląd: kolory, układ, tekstura</button>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <div class="label">Lektor</div><div id="lektorList" class="lektor-list"></div>
 <p class="hint" id="voiceHint"></p>

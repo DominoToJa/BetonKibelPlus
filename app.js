@@ -40,7 +40,7 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -68,6 +68,8 @@ try {
   if (s) Object.assign(settings, s);
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
+const LAYOUTS = [['classic', 'Klasyczny', 4], ['tiles', 'Kafelki 2×2', 5], ['compact', 'Kompaktowy', 5], ['big', 'Wielkie przyciski', 3]];
+const TEXTURES = [['none', 'Gładkie'], ['beton', 'Beton'], ['stal', 'Stal szczotkowana'], ['blacha', 'Blacha ryflowana'], ['carbon', 'Carbon'], ['siatka', 'Siatka zbrojeniowa']];
 const THEMES = [['green', 'Zieleń', '#2FD271', '#056C7F'], ['violet', 'Błękit i fiolet', '#8BD1E0', '#9B4CD3'], ['orange', 'Pomarańcz budowlany', '#FFB627', '#E4572E'], ['yellow', 'Kask i niebo', '#FFE45E', '#2E86AB'], ['red', 'Czerwień', '#FF6B6B', '#7A1F5C'], ['ice', 'Lód', '#A8E6FF', '#3D5AFE'], ['steel', 'Stal', '#C9D6DF', '#52616B'], ['lime', 'Limonka', '#C6F432', '#1B998B']];
 const themeColors = () => { if (settings.theme === 'custom') return [settings.c1 || '#2FD271', settings.c2 || '#056C7F']; const t = THEMES.find(x => x[0] === settings.theme) || THEMES[0]; return [t[2], t[3]] };
 const hexRgb = h => { h = String(h).replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) / 255) };
@@ -105,6 +107,9 @@ function applyTheme() {
   const [c1, c2] = themeColors(), st = document.body.style;
   st.setProperty('--c1', c1); st.setProperty('--c2', c2); st.setProperty('--ink', (relLum(c1) + relLum(c2)) / 2 > .18 ? '#06121a' : '#ffffff');
   document.body.classList.toggle('themed', settings.theme !== 'violet');
+  for (const [t] of TEXTURES) document.body.classList.toggle('tx-' + t, settings.texture === t);
+  for (const [l] of LAYOUTS) document.body.classList.toggle('lay-' + l, l !== 'classic' && settings.layout === l);
+  document.body.classList.toggle('tabs-bottom', !!settings.tabsBottom);
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#05090c');
   recolorDiagram();
 }
@@ -813,8 +818,14 @@ function themeRender() {
     tile.style.setProperty('--c1', a); tile.style.setProperty('--c2', b); g.append(tile);
   }
   const [c1, c2] = themeColors(); $('cc1').value = settings.c1 || c1; $('cc2').value = settings.c2 || c2;
+  const lg = $('layGrid'); lg.replaceChildren();
+  for (const [id, name, n] of LAYOUTS) { const pv = el('div', { class: 'lay-prev ' + id }); for (let i = 0; i < n; i++) pv.append(el('i', { class: i === 1 ? 'a' : '' })); lg.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.layout || 'classic') === id ? ' on' : ''), onclick: () => { settings.layout = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
+  $('tabsBottom').checked = !!settings.tabsBottom;
+  const tg = $('txGrid'); tg.replaceChildren();
+  for (const [id, name] of TEXTURES) tg.append(el('button', { type: 'button', class: 'tx-tile' + ((settings.texture || 'none') === id ? ' on' : ''), onclick: () => { settings.texture = id; applyTheme(); saveSettings(); themeRender() } }, el('div', { class: 'tx-sw tx-' + id }), el('span', { text: name })));
 }
 let ccT; const ccChange = () => { settings.theme = 'custom'; settings.c1 = $('cc1').value; settings.c2 = $('cc2').value; applyTheme(); clearTimeout(ccT); ccT = setTimeout(() => { saveSettings(); themeRender() }, 250) };
+$('tabsBottom').addEventListener('change', () => { settings.tabsBottom = $('tabsBottom').checked; applyTheme(); saveSettings() });
 $('cc1').addEventListener('input', ccChange); $('cc2').addEventListener('input', ccChange);
 $('themeDone').addEventListener('click', () => { settings.themeChosen = true; saveSettings(); tab(themeReturn || 'home') });
 $('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('theme') });
