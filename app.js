@@ -112,6 +112,7 @@ function recolorDiagram() {
   };
   src.src = img.dataset.orig;
 }
+const UI_STYLES = [['3d', 'Klasyczny 3D'], ['hud', 'Panel HUD'], ['glass', 'Szkło'], ['machine', 'Ciężki sprzęt'], ['neo', 'Neumorfizm jasny'], ['tactical', 'Taktyczny'], ['terminal', 'Terminal']];
 function applyTheme() {
   const [c1, c2] = themeColors(), st = document.body.style;
   st.setProperty('--c1', c1); st.setProperty('--c2', c2); st.setProperty('--ink', (relLum(c1) + relLum(c2)) / 2 > .18 ? '#06121a' : '#ffffff');
@@ -119,7 +120,7 @@ function applyTheme() {
   for (const [t] of TEXTURES) document.body.classList.toggle('tx-' + t, settings.texture === t);
   for (const [l] of LAYOUTS) document.body.classList.toggle('lay-' + l, l !== 'classic' && settings.layout === l);
   document.body.classList.toggle('tabs-bottom', !!settings.tabsBottom);
-  document.body.classList.toggle('ui-hud', settings.ui === 'hud');
+  for (const [u] of UI_STYLES) document.body.classList.toggle('ui-' + u, u !== '3d' && settings.ui === u);
   if (session && currentTab === 'work') render();
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#05090c');
   recolorDiagram();
@@ -533,7 +534,7 @@ function renderHudPanel(s) {
   const cap = Number(s.capacity || .5), dose = Number(s.dose || 0), pct = Math.round(dose / cap * 100);
   $('hudState').textContent = dose <= 0 ? 'Pusty' : pct < 35 ? 'Niski' : pct < 92 ? 'Optymalny' : 'Pełny';
   $('hudPct').textContent = pct + '%'; $('hudVal').textContent = fmt(dose) + ' m³';
-  const r = $('hudRange'); r.max = String(cap); r.step = String(bucketStep(cap)); if (document.activeElement !== r) r.value = String(dose);
+  const r = $('hudRange'); r.max = String(cap); r.step = '0.01'; if (document.activeElement !== r) r.value = String(dose);
   r.style.setProperty('--p', Math.min(100, dose / cap * 100) + '%');
   const marks = bucketMarks(cap), pick = [0, ...marks.slice(0, -1).filter((_, i, a) => a.length <= 2 || i === Math.floor(a.length / 3) || i === Math.floor(a.length * 2 / 3)), cap];
   $('hudQuick').replaceChildren(...[...new Set(pick)].map(v => el('button', { type: 'button', class: (v === cap ? 'max' : '') + (Math.abs(v - dose) < 1e-4 ? ' on' : ''), text: v === cap ? 'MAX' : fmt(v), onclick: () => changeDose(v, true) })));
@@ -547,15 +548,17 @@ function renderSlider(model) {
   $('vsThumb').style.bottom = pct(dose);
   $('vsValue').textContent = fmt(dose);
   const ticks = $('vsTicks'); ticks.replaceChildren();
-  for (const v of bucketMarks(cap)) { const t = el('span', { class: 'vs-tick' + (Math.abs(v - dose) < 1e-4 ? ' on' : ''), text: fmt(v) }); t.style.bottom = pct(v); ticks.append(t) }
+  const marks = bucketMarks(cap), minor = cap <= 1 ? .05 : .1;
+  for (let v = minor; v < cap - 1e-6; v += minor) { if (marks.some(m => Math.abs(m - v) < 1e-4)) continue; const t = el('span', { class: 'vs-tick minor' }); t.style.bottom = pct(v); ticks.append(t) }
+  for (const v of marks) { const near = Math.abs(model.fraction(v) - model.fraction(dose)) < .15; const t = el('span', { class: 'vs-tick major' + (near ? ' near' : '') + (v >= cap - 1e-6 ? ' max' : ''), text: fmt(v) }); t.style.bottom = pct(v); ticks.append(t) }
   const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(cap)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
 }
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false;
-  const fromY = y => { if (!session) return; const r = vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const step = bucketStep(session.capacity); const v = Math.round(model.volumeAtFraction(f) / step) * step; changeDose(Math.min(session.capacity, Math.max(0, v)), true) };
-  vs.addEventListener('pointerdown', e => { dragging = true; vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
+  const fromY = y => { if (!session) return; const r = vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100; changeDose(Math.min(session.capacity, Math.max(0, v)), true) };
+  vs.addEventListener('pointerdown', e => { dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
-  const end = () => { dragging = false }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
+  const end = () => { dragging = false; vs.classList.remove('drag') }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
   vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(session.capacity, session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
@@ -568,7 +571,7 @@ function render() {
   $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
-  $('bucketSvgWrap').innerHTML = settings.ui === 'hud' ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
+  $('bucketSvgWrap').innerHTML = ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
   $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ, ŻEBY DODAĆ TACZKĘ' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
@@ -998,7 +1001,7 @@ function themeRender() {
   const [c1, c2] = themeColors(); $('cc1').value = settings.c1 || c1; $('cc2').value = settings.c2 || c2;
   homeEditorRender();
   const ug = $('uiGrid'); ug.replaceChildren();
-  for (const [id, name] of [['3d', 'Klasyczny 3D'], ['hud', 'Panel HUD']]) { const pv = el('div', { class: 'ui-prev ' + (id === '3d' ? 'd3' : id) }); pv.append(el('i'), el('i'), el('i')); ug.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.ui || '3d') === id ? ' on' : ''), onclick: () => { settings.ui = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
+  for (const [id, name] of UI_STYLES) { const pv = el('div', { class: 'ui-prev ' + (id === '3d' ? 'd3' : id) }); pv.append(el('i'), el('i'), el('i')); ug.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.ui || '3d') === id ? ' on' : ''), onclick: () => { settings.ui = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
   const lg = $('layGrid'); lg.replaceChildren();
   for (const [id, name, n] of LAYOUTS) { const pv = el('div', { class: 'lay-prev ' + id }); for (let i = 0; i < n; i++) pv.append(el('i', { class: i === 1 ? 'a' : '' })); lg.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.layout || 'classic') === id ? ' on' : ''), onclick: () => { settings.layout = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
   $('tabsBottom').checked = !!settings.tabsBottom;
