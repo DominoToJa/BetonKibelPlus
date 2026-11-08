@@ -174,7 +174,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let input = engine.inputNode
         if tapInstalled { input.removeTap(onBus: 0); tapInstalled = false }
         // tłumienie szumu i echa (wbudowane w iOS): mniej łapie otoczenie i nie słyszy własnego lektora
-        if !voiceProcOn { try? input.setVoiceProcessingEnabled(true); voiceProcOn = true }
+        if !voiceProcOn {
+            try? input.setVoiceProcessingEnabled(true); voiceProcOn = true
+            // nie przyciszaj lektora/dźwięków, gdy mikrofon słucha
+            if #available(iOS 17.0, *) { input.voiceProcessingOtherAudioDuckingConfiguration = AVAudioVoiceProcessingOtherAudioDuckingConfiguration(enableAdvancedDucking: false, duckingLevel: .min) }
+        }
         let format = input.outputFormat(forBus: 0)
         guard format.sampleRate > 0 && format.channelCount > 0 else {
             throw NSError(domain: "DominoNative", code: 1, userInfo: [NSLocalizedDescriptionKey: "Brak wejścia mikrofonu"])
@@ -486,8 +490,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         try? configureSession()
         let u = AVSpeechUtterance(string: item.text)
         u.voice = (voiceId.isEmpty ? nil : AVSpeechSynthesisVoice(identifier: voiceId)) ?? bestPolishVoice()
-        u.rate = rate
-        u.pitchMultiplier = pitch
+        u.rate = min(0.6, max(0.44, rate))
+        u.pitchMultiplier = min(1.06, max(0.94, pitch))
+        u.volume = 1.0
+        u.preUtteranceDelay = 0.05
+        u.postUtteranceDelay = 0.12
         synth.speak(u)
     }
 

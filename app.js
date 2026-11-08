@@ -65,21 +65,21 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.85, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'low', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.95, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'low', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
 const LEKTORS = [
-  ['zosia', 'Zosia — spokojna', 'Ciepły, równy głos. Najprzyjemniejszy na co dzień.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], .47, 1.02],
-  ['zosia_pogodna', 'Zosia — pogodna', 'Trochę jaśniej i żywiej, nie męczy.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], .52, 1.12],
-  ['google', 'Google — naturalna', 'Głos Google polski w zwykłym tempie.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], .5, 1],
-  ['google_szybka', 'Google — szybka i konkretna', 'Krótko i na temat, gdy leje się szybko.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], .58, 1.02],
-  ['asystentka', 'Asystentka — miękka', 'Wolniej i łagodnie, dobra przy hałasie w tle.', 'f', [/zofia/i, /zosia/i, /paulina/i, /google/i, ...F], .44, 1.16],
-  ['krzysztof', 'Krzysztof — spokojny', 'Męski, spokojny i wyraźny.', 'm', [/krzysztof/i, /marek/i, ...M], .47, .98],
-  ['krzysztof_radio', 'Krzysztof — radiowy', 'Jak prezenter: płynnie i czytelnie.', 'm', [/krzysztof/i, /marek/i, ...M], .52, .92],
-  ['majster', 'Majster — niski', 'Niższy męski głos, bez pośpiechu.', 'm', [/marek/i, /krzysztof/i, ...M], .45, .84],
-  ['dyspozytor', 'Dyspozytor — wyraźny', 'Szybciej i dobitnie, dobry na komendy.', 'm', [/krzysztof/i, /marek/i, ...M], .55, 1],
-  ['lektor', 'Lektor filmowy', 'Niski, wolny, z powagą.', 'm', [/marek/i, /krzysztof/i, ...M], .43, .78],
+  ['zosia', 'Zosia — spokojna', 'Ciepły, równy głos. Najprzyjemniejszy na co dzień.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], 0.5, 1],
+  ['zosia_pogodna', 'Zosia — pogodna', 'Trochę jaśniej i żywiej, nie męczy.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], 0.53, 1.03],
+  ['google', 'Google — naturalna', 'Głos Google polski w zwykłym tempie.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], 0.5, 1],
+  ['google_szybka', 'Google — szybka i konkretna', 'Krótko i na temat, gdy leje się szybko.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], 0.55, 1],
+  ['asystentka', 'Asystentka — miękka', 'Wolniej i łagodnie, dobra przy hałasie w tle.', 'f', [/zofia/i, /zosia/i, /paulina/i, /google/i, ...F], 0.47, 0.98],
+  ['krzysztof', 'Krzysztof — spokojny', 'Męski, spokojny i wyraźny.', 'm', [/krzysztof/i, /marek/i, ...M], 0.5, 1],
+  ['krzysztof_radio', 'Krzysztof — radiowy', 'Jak prezenter: płynnie i czytelnie.', 'm', [/krzysztof/i, /marek/i, ...M], 0.52, 1],
+  ['majster', 'Majster — niski', 'Niższy męski głos, bez pośpiechu.', 'm', [/marek/i, /krzysztof/i, ...M], 0.48, 0.97],
+  ['dyspozytor', 'Dyspozytor — wyraźny', 'Szybciej i dobitnie, dobry na komendy.', 'm', [/krzysztof/i, /marek/i, ...M], 0.54, 1],
+  ['lektor', 'Lektor filmowy', 'Niski, wolny, z powagą.', 'm', [/marek/i, /krzysztof/i, ...M], 0.47, 0.96],
 ];
 let voiceList = []; // {id, name, quality}
 const qScore = v => (v.quality === 'premium' ? 3 : v.quality === 'enhanced' ? 2 : 1) + (/natural|online/i.test(v.name) ? 2 : 0);
@@ -93,6 +93,8 @@ try {
   if (s) Object.assign(settings, s);
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
+/* jednorazowo: naturalniejszy lektor — bez skrajnej wysokości i tempa, które „rozjeżdżały” głos */
+if (!settings.lektorFixV1) { const L0 = LEKTORS.find(x => x[0] === settings.lektor) || LEKTORS[0]; settings.rate = L0[5]; settings.pitch = L0[6]; settings.tempo = .95; settings.lektorFixV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 /* jednorazowo: styl Panel HUD + kolory Hopper (cyjan) */
 if (!settings.hopperV1) { settings.ui = 'hud'; settings.theme = 'hopper'; settings.hopperV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 const LAYOUTS = [['classic', 'Klasyczny', 4], ['tiles', 'Kafelki 2×2', 5], ['compact', 'Kompaktowy', 5], ['big', 'Wielkie przyciski', 3]];
@@ -149,14 +151,14 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: (Number(settings.rate) || 0.5) * tempoK(), pitch: Number(settings.pitch) || 1, useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ texts: TEXTS, voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
 const polishVoices = () => 'speechSynthesis' in window ? speechSynthesis.getVoices().filter(v => /^pl(?:-|$)/i.test(v.lang)) : [];
 // ── Lektor ElevenLabs: teksty pobrane raz z internetu, potem grane bez netu ──
-const tempoK = () => Math.min(1.2, Math.max(.55, Number(settings.tempo) || .85));
-const elSpeed = () => Math.min(1.2, Math.max(.7, Math.round(tempoK() * 1.06 * 100) / 100));
+const tempoK = () => Math.min(1.15, Math.max(.8, Number(settings.tempo) || .95));
+const elSpeed = () => Math.min(1.15, Math.max(.8, Math.round(tempoK() * 100) / 100));
 const elTag = () => [settings.elVoice, settings.elModel, settings.elStab, settings.elSim, elSpeed()].join('|');
 const elReady = () => !!(settings.el && settings.elVoice && settings.elKey);
 function elName(text) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(elTag() + '|' + String(text).trim())) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0 } return h.toString(16).padStart(8, '0') }
@@ -182,7 +184,7 @@ function ttsSpeak(key, text) {
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
   try {
-    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = (Number(settings.rate) || .5) * 2 * tempoK(); u.pitch = Number(settings.pitch) || 1;
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'pl-PL'; u.rate = Math.min(1.2, Math.max(.88, (Number(settings.rate) || .5) * 2 * tempoK())); u.pitch = Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1));
     const pv = polishVoices(); const id = resolvedVoiceId(); const v = pv.find(v => v.voiceURI === id) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
 }
@@ -1430,6 +1432,7 @@ function lektorRender() {
   const box = $('lektorList'); box.replaceChildren();
   for (const L of LEKTORS) {
     const [id, name, desc] = L, r = lektorVoice(L), on = settings.lektor === id && !settings.voice;
+    if (voiceList.length && !r.exact && id !== 'zosia' && !on) continue; // nie pokazujemy „podróbek” (np. męskich na Zosi)
     const used = r.voice ? (r.exact ? '🔊 ' + r.voice.name : '⚠️ brak tego głosu — zastępczo ' + r.voice.name) : '';
     box.append(el('button', { type: 'button', class: 'lektor' + (on ? ' on' : ''), onclick: () => { settings.lektor = id; settings.voice = ''; settings.rate = L[5]; settings.pitch = L[6]; $('ttsRate').value = String(L[5]); $('ttsPitch').value = String(L[6]); $('ttsVoice').value = ''; saveSettings(); lektorRender(); speak('ask', TEXTS.ask || 'Czy kosz już wrócił?') } },
       el('strong', { text: (on ? '✓ ' : '') + name }), el('small', { text: desc }), el('em', { text: used })));
