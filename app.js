@@ -1368,7 +1368,7 @@ $('pcSave').addEventListener('click', async () => {
   if (!storeProfile(p)) return;
   pcClose(); closeBucketForm(); useSavedBucket(p);
 });
-$('bPhotoCalc').addEventListener('click', () => { pcOpen(); pcCameraNow() });
+$('bPhotoCalc').addEventListener('click', () => { pcOpen() }); // bez automatycznego aparatu — wybierasz: Zrób zdjęcie albo Z galerii
 
 // ───────────────────────── kolory aplikacji ─────────────────────────
 let themeReturn = 'home';
