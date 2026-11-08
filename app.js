@@ -1141,7 +1141,7 @@ function pcCompute() {
 function pcUI() {
   const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
   pc.moreAsked = pc.moreAsked || {};
-  clearTimeout(pc.moreT); if (has && !pc.moreAsked[pc.view] && levelsFor(pc.pts) && n >= 4) pc.moreT = setTimeout(() => { if (pc.moreAsked[pc.view] || $('pc').classList.contains('hide') || document.querySelector('.ask-back') || !levelsFor(pc.pts)) return; const free = ['front', 'side', 'top'].filter(v => v !== pc.view && !levelsFor(viewData(v).pts || [])); pc.moreAsked[pc.view] = true; if (free.length && pc.photos.length < 6) pcAskMore() }, 3500);
+  // pytanie „Dodać jeszcze zdjęcie?” pada dopiero po ✓ Gotowe w powiększonym zaznaczaniu
   pcStripRender();
   $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
   $('pcSettings').classList.toggle('hide', !pcMainView());
@@ -1204,11 +1204,11 @@ function pcDraw() {
   const lv = pcLevels(), sd = pcSides();
   if (lv && isOutline(pc.pts)) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, w.l, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
+    if ((pc.fill || pc.fillTap) && pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, w.l, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === 'front') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, L, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
+    if ((pc.fill || pc.fillTap) && pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, L, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (sd) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271';
     for (const E of [sd.L, sd.R]) if (E.length > 1) { g.beginPath(); E.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke() }
@@ -1250,7 +1250,7 @@ function pcDraw() {
   const up = e => {
     if (!st || (e && e.pointerId !== st.id)) return; const s0 = st; st = null;
     if (!pc.edit) { if (!s0.moved && pc.img) pcEditOpen(); return }
-    if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')) } pc.drag = null; pcUI(); return }
+    if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; pc.drag = null; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')); pc.moreAsked[pc.view] = true; pcEditClose(true); return } pc.drag = null; pcUI(); return }
     if (s0.moved) return;
     const p = s0.p;
     if (pc.view === 'front' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) pc.ref.push(p);
@@ -1269,6 +1269,11 @@ function pcEditOpen() {
 function pcEditClose(keep) {
   if (!keep && pc.backup) { pc.pts = pc.backup.pts; pc.ref = pc.backup.ref; pc.fill = pc.backup.fill }
   pc.edit = false; pc.backup = null; pc.fillTap = false; $('pcWrap').classList.remove('editing'); $('pcEditBar').classList.add('hide'); pcUI();
+  pc.moreAsked = pc.moreAsked || {};
+  if (keep && !pc.moreAsked[pc.view] && levelsFor(pc.pts) && pc.pts.length >= 4 && pc.photos.length < 6) {
+    const free = ['front', 'side', 'top'].filter(v => v !== pc.view && !levelsFor(viewData(v).pts || []));
+    pc.moreAsked[pc.view] = true; if (free.length) setTimeout(() => { if (!$('pc').classList.contains('hide') && !pc.edit) pcAskMore() }, 1200);
+  }
 }
 function pcZoom(d) { pc.zoom = Math.max(1, Math.min(4, Math.round(((pc.zoom || 1) + d) * 2) / 2)); pcDraw(); $('pcZoomVal').textContent = pc.zoom + '×' }
 function pcOpen() {
@@ -1354,7 +1359,12 @@ function pcFillFromY(y) {
   const yt = lv.at(-1).y, yb = lv[0].y, f = Math.min(1, Math.max(.4, (yb - y) / (yb - yt)));
   pc.fill = Math.max(0, Math.min(60, Math.round(r.dims.h * (1 - f)))); $('pcFill').value = String(pc.fill); pcUI();
 }
-$('pcFillTap').addEventListener('click', () => { if (!pcCompute()) return announce('Najpierw zaznacz kosz i wybierz wielkość'); pc.fillTap = !pc.fillTap; pcUI(); if (pc.fillTap) $('pcWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }) });
+$('pcFillTap').addEventListener('click', () => {
+  if (!pcCompute()) return announce('Najpierw zaznacz kosz i wybierz wielkość');
+  const mv = pcMainView(); if (mv === 'top') return announce('Na zdjęciu z góry nie widać wysokości — ustaw beton suwakiem');
+  if (pc.view !== mv) pcSwitch(mv);
+  pc.fillTap = true; pcEditOpen(); pc.fillTap = true; pcUI();
+});
 ['pcOther', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
