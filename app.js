@@ -397,7 +397,7 @@ $('undo').addEventListener('click', () => undo());
 const bucketStep = cap => { cap = Number(cap) || .5; if (cap <= .1) return .01; if (cap <= .75) return .05; return .1 };
 const bucketMarks = cap => {
   cap = Number(cap) || .5;
-  const step = cap <= .12 ? .02 : cap <= .3 ? .05 : cap <= .65 ? .1 : cap <= 1.3 ? .2 : cap <= 2.6 ? .5 : 1;
+  const step = cap <= .12 ? .02 : cap <= .3 ? .05 : cap <= .65 ? .1 : cap <= 1.3 ? .2 : cap <= 2.1 ? .25 : cap <= 3.1 ? .5 : 1;
   const out = []; for (let v = step; v < cap - step * .6; v += step) out.push(Math.round(v * 100) / 100);
   out.push(Math.round(cap * 100) / 100); return out;
 };
@@ -423,31 +423,33 @@ function triggerAlarm(force = false) {
 $('testAlarm').addEventListener('click', () => { if (!session) return announce('Najpierw rozpocznij betonowanie'); triggerAlarm(true) });
 
 // ───────────────────────── rysunek kosza + suwak z boku ─────────────────────────
-const SVG_TOP = 86, SVG_BOTTOM = 229, SVG_H = 300;
+const SVG_TOP = 58, SVG_BOTTOM = 282, SVG_H = 300;
 function makeBucketSvg(cap, current, model) {
   cap = Math.max(0.01, Number(cap) || .5); current = Math.min(cap, Math.max(0, Number(current) || 0));
-  // wnętrze kosza rysowane z prawdziwego kształtu (średnica na każdej wysokości)
-  const N = 24, dAt = f => model.diamAt(f * model.fullHeightCm);
-  let dmax = 0; for (let i = 0; i <= N; i++) dmax = Math.max(dmax, dAt(i / N));
-  const half = f => Math.max(9, 73 * dAt(f) / (dmax || 1)), yOf = f => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * f;
-  const fr = v => model.fraction(v);
-  const leftPts = [], rightPts = [];
-  for (let i = 0; i <= N; i++) { const f = i / N, y = yOf(f), h = half(f); leftPts.push(`${(165 - h).toFixed(1)} ${y.toFixed(1)}`); rightPts.unshift(`${(165 + h).toFixed(1)} ${y.toFixed(1)}`) }
-  const inner = 'M' + leftPts.join('L') + 'L' + rightPts.join('L') + 'Z';
-  const fy = yOf(fr(current));
-  const marks = bucketMarks(cap), ys = marks.map(v => yOf(fr(v)));
-  let ticks = '';
-  marks.forEach((v, i) => {
-    const f = fr(v), y = ys[i], hw = half(f), xl = 165 - hw, xr = 165 + hw, last = i === marks.length - 1;
-    const tooClose = i < marks.length - 1 && Math.abs(ys[i] - ys[marks.length - 1]) < 27;
-    const label = last ? 'MAX ' + fmt(v) : fmt(v), w = label.length * 11 + 14;
-    ticks += `<line x1="${(xl + 2).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr - 2).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="2" stroke-dasharray="6 5" opacity=".75"/>`;
-    ticks += `<line x1="${(xr - 22).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr + 6).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="6" stroke-linecap="round"/>`;
-    if (tooClose) return;
-    const lx = Math.max(xr + 12, 246);
-    ticks += `<g transform="translate(${lx.toFixed(1)} ${y.toFixed(1)})"><rect x="0" y="-13" width="${w}" height="26" rx="8" fill="#ff3b4e" stroke="#14112e" stroke-width="2"/><text x="${(w / 2).toFixed(1)}" y="6" text-anchor="middle" font-size="17" font-weight="950" fill="#ffffff">${label}</text></g>`;
+  // czysty przekrój wnętrza kosza w prawdziwym kształcie
+  const CX = 120, HALF = 105, N = 32, fullH = model.fullHeightCm || 1, rimF = Math.min(1.12, (model.totalHeightCm || fullH) / fullH);
+  const yOf = f => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * f, dAt = f => model.diamAt(f * fullH);
+  let dmax = 0; for (let i = 0; i <= N; i++) dmax = Math.max(dmax, dAt(i / N * rimF));
+  const half = f => Math.max(10, HALF * dAt(f) / (dmax || 1));
+  const shape = (f0, f1) => { const L = [], R = []; for (let i = 0; i <= N; i++) { const f = f0 + (f1 - f0) * i / N, y = yOf(f).toFixed(1), h = half(f); L.push(`${(CX - h).toFixed(1)} ${y}`); R.unshift(`${(CX + h).toFixed(1)} ${y}`) } return 'M' + L.join('L') + 'L' + R.join('L') + 'Z' };
+  const inner = shape(0, rimF), fr = v => model.fraction(v), fy = yOf(fr(current));
+  const marks = bucketMarks(cap); let ticks = '', lastY = 1e9;
+  marks.slice().reverse().forEach((v, ri) => {
+    const i = marks.length - 1 - ri, f = fr(v), y = yOf(f), hw = half(f), last = i === marks.length - 1;
+    ticks += `<line x1="${(CX - hw).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(CX + hw).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${last ? '#ff3b4e' : '#ffffff'}" stroke-width="${last ? 3 : 1.5}" ${last ? '' : 'stroke-dasharray="7 6" opacity=".55"'}/>`;
+    if (!last && Math.abs(lastY - y) < 24) return; lastY = y;
+    ticks += `<line x1="${(CX + hw).toFixed(1)}" y1="${y.toFixed(1)}" x2="246" y2="${y.toFixed(1)}" stroke="${last ? '#ff3b4e' : '#ffffff'}" stroke-width="${last ? 3 : 1.5}" opacity="${last ? 1 : .55}"/>`;
+    ticks += last ? `<rect x="248" y="${(y - 14).toFixed(1)}" width="104" height="28" rx="9" fill="#ff3b4e"/><text x="300" y="${(y + 6).toFixed(1)}" text-anchor="middle" font-size="17" font-weight="950" fill="#fff">MAX ${fmt(v)}</text>`
+      : `<text x="252" y="${(y + 6).toFixed(1)}" font-size="19" font-weight="900" fill="#ffffff">${fmt(v)}</text>`;
   });
-  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".28" style="stop-color:var(--c2)"/><stop offset=".62" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="${inner}"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="${inner}" fill="#0f0c26" opacity=".45"/><g clip-path="url(#bkClip)"><rect x="60" y="${fy.toFixed(1)}" width="210" height="${(SVG_BOTTOM - fy + 2).toFixed(1)}" fill="#9aa3b3" opacity=".95"/><line x1="60" y1="${(fy - 1).toFixed(1)}" x2="270" y2="${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e" stroke="#ffffffaa" stroke-width="3" paint-order="stroke">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e" stroke="#ffffffaa" stroke-width="3" paint-order="stroke">z ${fmt(cap)} m³</text></svg>`;
+  const yRim = yOf(rimF), farFromMax = Math.abs(yRim - yOf(fr(marks.at(-1)))) > 22;
+  const rim = rimF > 1.005 ? `<line x1="${(CX - half(rimF)).toFixed(1)}" y1="${yOf(rimF).toFixed(1)}" x2="${(CX + half(rimF)).toFixed(1)}" y2="${yOf(rimF).toFixed(1)}" stroke="#9aa3b3" stroke-width="2"/>${farFromMax ? `<text x="252" y="${(yRim + 5).toFixed(1)}" font-size="12" font-weight="800" fill="#9aa3b3">krawędź</text>` : ''}` : '';
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkConc" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3cad6"/><stop offset="1" stop-color="#7d8696"/></linearGradient><clipPath id="bkClip"><path d="${inner}"/></clipPath></defs>
+<path d="${inner}" fill="#0a1218" opacity=".85"/>
+<g clip-path="url(#bkClip)"><rect x="0" y="${fy.toFixed(1)}" width="250" height="${(SVG_BOTTOM - fy + 4).toFixed(1)}" fill="url(#bkConc)"/><line x1="0" y1="${fy.toFixed(1)}" x2="250" y2="${fy.toFixed(1)}" stroke="#ffffff" stroke-width="4"/></g>
+${ticks}${rim}
+<path d="${inner}" fill="none" style="stroke:var(--c1)" stroke-width="4" stroke-linejoin="round"/>
+<text x="${CX}" y="34" text-anchor="middle" font-size="30" font-weight="950" fill="#ffffff">${fmt(current)} <tspan font-size="17" font-weight="800" fill="#b8c2cc">z ${fmt(cap)} m³</tspan></text></svg>`;
 }
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
@@ -688,7 +690,7 @@ const pc = { photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nomina
 const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
-const PT_MAX = 20, PT_MIN_SIDE = 2;
+const PT_MAX = 14, PT_MIN_SIDE = 2;
 /** swobodne punkty → lewa / prawa krawędź → poziomy (od dołu do góry) */
 function pcSides() {
   if (pc.pts.length < 2) return null;
