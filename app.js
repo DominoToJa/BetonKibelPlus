@@ -1155,7 +1155,7 @@ function pcUI() {
   let t = ''; const sd = pcSides(), nl = sd ? sd.L.length : 0, nr = sd ? sd.R.length : 0;
   if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcia kosza (możesz kilka). Mierzymy na zdjęciu z boku.';
   else if (pc.fillTap) t = '👆 Stuknij na zdjęciu wysokość, do której dochodzi beton (możesz przeciągnąć palcem).';
-  else if (pc.view === 'front' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
+  else if (pc.view === pcMainView() && pc.view !== 'top' && pc.other === 'ref' && pc.ref.length < 2 && pcLevels()) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
   else if (pc.view === 'top' && !pcLevels()) t = 'Z GÓRY · zdjęcie kosza od góry (do środka wlewu), lewo-prawo tak jak na zdjęciu z przodu. Obrysuj krawędź wlewu dookoła.';
   else if (pc.view === 'top' && pcMainView() === 'top') t = 'Z góry gotowe ✓ — liczę z przybliżonego kształtu. Dodaj przód albo bok, żeby było dokładniej (nie trzeba).';
   else if (pc.view === 'top') t = !pcMainView() ? 'Z góry gotowe ✓ — teraz dodaj zdjęcie z PRZODU (cały kosz w kadrze), bez niego nie policzę wysokości.' : 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
@@ -1167,7 +1167,7 @@ function pcUI() {
   $('pcStep').textContent = t;
   const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
     el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
-    el('button', { type: 'button', class: 'pill' + (pc.other === 'ref' ? ' on' : ''), text: '📏 Nie wiem — zmierz', onclick: () => { pc.other = 'ref'; pc.ref = []; pcUI() } }));
+    el('button', { type: 'button', class: 'pill' + (pc.other === 'ref' ? ' on' : ''), text: '📏 Nie wiem — zmierz', onclick: () => pcRefStart() }));
   $('pcOtherRow').classList.toggle('hide', pc.other !== true); $('pcRefBox').classList.toggle('hide', pc.other !== 'ref');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
   $('pcFillTxt').textContent = pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy samej krawędzi';
@@ -1253,7 +1253,7 @@ function pcDraw() {
     if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; pc.drag = null; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')); pc.moreAsked[pc.view] = true; pcEditClose(true); return } pc.drag = null; pcUI(); return }
     if (s0.moved) return;
     const p = s0.p;
-    if (pc.view === 'front' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) pc.ref.push(p);
+    if (pc.view === pcMainView() && pc.view !== 'top' && pcLevels() && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); if (pc.ref.length === 2) { pcUI(); setTimeout(() => { if (pc.edit) pcEditClose(true); announce('Wzorzec zaznaczony ✓ — wybierz z listy, co to jest') ; $('pcRefBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, 500); return } }
     else if (pc.pts.length < PT_MAX) pc.pts.push(p);
     else announce('Maksymalnie ' + PT_MAX + ' punktów — przeciągnij istniejące');
     pcUI();
@@ -1262,6 +1262,14 @@ function pcDraw() {
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
 /* powiększone zdjęcie do zaznaczania: ✓ zachowaj · ✕ wyjdź bez zmian */
+/* „Nie wiem — zmierz”: zaznacz na zdjęciu przedmiot o znanej długości (człowiek, paleta, drzwi) */
+function pcRefStart() {
+  const mv = pcMainView(); if (!mv || mv === 'top') return announce('Najpierw obrysuj kosz na zdjęciu z przodu albo z boku');
+  if (pc.view !== mv) pcSwitch(mv);
+  pc.other = 'ref'; pc.ref = []; pc.moreAsked = pc.moreAsked || {}; pc.moreAsked[pc.view] = true; pcUI();
+  askChoice('Co jest na zdjęciu obok kosza? (do porównania wielkości)', [...$('pcRefType').options].map(o => [o.textContent, o.value, o.value === $('pcRefType').value ? 'primary' : '']), v => { $('pcRefType').value = v; $('pcRefType').dispatchEvent(new Event('change')) })
+    .then(v => { if (v == null) return; if (v === '-1') { $('pcRefCustom')?.focus(); announce('Wpisz długość w cm, potem stuknij oba końce na zdjęciu'); } pcEditOpen() });
+}
 function pcEditOpen() {
   pc.edit = true; pc.zoom = 1; pc.backup = { pts: pc.pts.map(p => ({ ...p })), ref: pc.ref.map(p => ({ ...p })), fill: pc.fill };
   $('pcWrap').classList.add('editing'); $('pcEditBar').classList.remove('hide'); pcUI(); $('pcWrap').scrollTo(0, 0);
