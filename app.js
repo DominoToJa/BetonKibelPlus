@@ -106,6 +106,8 @@ const escapeHTML = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<':
 const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v) } e.append(...kids); return e };
 
 // ───────────────────────── kosze ─────────────────────────
+let kibelN = 0;
+const kibelIcon = () => { const w = document.createElement('span'); w.className = 'tile-ico'; const id = 'kbx' + (++kibelN); w.innerHTML = '<svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="' + id + '" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#' + id + ')" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg>'; return w };
 const PROFILE_KEY = 'beton_bucket_profiles_18', SITE_BUCKET_KEY = 'beton_site_bucket_assignments_24';
 let profiles = [];
 try { const st = JSON.parse(localStorage.getItem(PROFILE_KEY) || '[]'); if (Array.isArray(st)) profiles = st.map(migrateProfile) } catch (e) { }
@@ -145,7 +147,7 @@ function currentModel() {
 }
 
 // ───────────────────────── nawigacja ─────────────────────────
-const TAB_OF = { home: 'home', setup: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
+const TAB_OF = { home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
 let currentTab = 'home', bucketReturn = '';
 function tab(name) {
   currentTab = name;
@@ -157,6 +159,7 @@ function tab(name) {
   if (name === 'buckets') bucketListRender();
   if (name === 'settings') settingsRender();
   if (name === 'setup') { renderPresets(); refreshKnownSites() }
+  if (name === 'pickBucket') sheetRender();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
@@ -182,25 +185,21 @@ function renderPresets() {
   $('bucketPick').classList.toggle('hide', !useTiles); r.classList.toggle('hide', useTiles);
   if (!useTiles) { r.className = 'chips'; for (const v of opts.taczka) r.append(el('button', { type: 'button', class: 'pill' + (Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { $('portion').value = fmt(v); renderPresets() } })); return }
   const p = getProfile(chosenProfileId), cap = number($('portion').value);
-  const pic = p?.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : el('span', { class: 'tile-ico', text: '🪣' });
+  const pic = p?.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : kibelIcon();
   $('bucketPick').replaceChildren(el('div', { class: 'tile-pic' }, pic), el('div', { class: 'bp-txt' }, el('strong', { text: p ? p.name : 'Kosz ' + (cap > 0 ? fmt(cap) + ' m³' : '') }), el('small', { text: p ? fmt(p.capacity) + ' m³ · ' + (p.dims ? '📐 dokładna podziałka' : 'zapisany') : 'standardowy · dotknij, żeby wybrać zapisany' })), el('span', { class: 'bp-change', text: 'Zmień ›' }));
-  if (!$('bsheet').classList.contains('hide')) sheetRender();
 }
 function sheetRender() {
-  const r = $('bsheetTiles'); r.replaceChildren();
-  const pick = fn => () => { fn(); closeSheet() };
+  const r = $('pickTiles'); r.replaceChildren();
+  const pick = fn => () => { fn(); tab('setup') };
   for (const p of profiles) {
-    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : el('span', { class: 'tile-ico', text: '🪣' });
+    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : kibelIcon();
     r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(p.id)) },
       el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
-  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { closeSheet(); bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
 }
-function openSheet() { sheetRender(); $('bsheet').classList.remove('hide'); document.body.style.overflow = 'hidden' }
-function closeSheet() { $('bsheet').classList.add('hide'); document.body.style.overflow = '' }
-$('bucketPick').addEventListener('click', openSheet); $('bsheetClose').addEventListener('click', closeSheet);
-$('bsheet').addEventListener('click', e => { if (e.target.id === 'bsheet') closeSheet() });
+$('bucketPick').addEventListener('click', () => tab('pickBucket')); $('pickBack').addEventListener('click', () => tab('setup'));
 function restoreSiteBucket() {
   if (method === 'taczka') return;
   const id = siteAssignments[siteKey($('site').value)];
@@ -564,7 +563,7 @@ function bucketListRender() {
   const box = $('bucketList'); box.replaceChildren();
   if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
   for (const p of profiles) {
-    const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : el('div', { class: 'bucket-thumb ph', text: '🪣' });
+    const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kibelIcon()); return d })();
     const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
     const acts = el('div', { class: 'bucket-acts' });
     if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));

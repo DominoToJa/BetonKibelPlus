@@ -29,7 +29,7 @@
   <button id="homeContinue" type="button" class="big-btn primary hide">▶ Kontynuuj betonowanie<small id="homeContinueInfo"></small></button>
   <button id="homeNew" type="button" class="big-btn">＋ Nowe betonowanie<small>Budowa, ilość betonu, kosz</small></button>
   <div class="grid three home-small">
-    <button type="button" data-go="buckets">🪣<br>Moje kosze</button>
+    <button type="button" data-go="buckets"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg1" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg1)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg><br>Moje kosze</button>
     <button type="button" data-go="history">▤<br>Budowy</button>
     <button type="button" data-go="settings">⚙️<br>Ustawienia</button>
   </div>
@@ -40,13 +40,18 @@
 <label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
 <div class="label">Rozładunek</div><div class="grid three"><button class="method on" data-method="kibel" type="button">🏗<br>Kibel</button><button class="method" data-method="taczka" type="button">🛒<br>Taczka</button><button class="method" data-method="inne" type="button">🚜<br>Inne</button></div>
 <div class="label" id="presetsLabel">Kosz</div><button type="button" id="bucketPick" class="bucket-pick"></button><div id="presets" class="chips"></div>
-<button type="button" class="link-btn" data-go="buckets" id="setupBucketsLink">🪣 Zmierz / dodaj własny kosz ›</button>
+<button type="button" class="link-btn" data-go="buckets" id="setupBucketsLink">Zmierz / dodaj własny kosz ›</button>
 <label class="label" for="portion">Albo wpisz własną pojemność (m³)</label><input id="portion" inputmode="decimal" value="0,5">
 <div id="cycleFields"><label class="label" for="cycleMin">Czas kursu kosza (minuty)</label><input id="cycleMin" inputmode="decimal" value="2" placeholder="np. 2,5"></div>
 <p id="error" class="error" aria-live="polite"></p><button class="primary full big" id="start" type="button">▶ ROZPOCZNIJ</button>
 </div></section>
 
-<section id="buckets" class="hide"><div class="panel"><h2>🪣 Moje kosze</h2>
+<section id="pickBucket" class="hide"><div class="panel">
+<div class="pick-head"><button type="button" id="pickBack" class="icon-btn" aria-label="Wróć">‹</button><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg3" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg3)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Wybierz kosz</h2></div>
+<div id="pickTiles" class="tiles"></div>
+</div></section>
+
+<section id="buckets" class="hide"><div class="panel"><h2 class="h-ico"><svg class="kibel-ico" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="kbg2" x1="0" x2="1"><stop stop-color="#5b3a9e"/><stop offset=".35" stop-color="#9B4CD3"/><stop offset=".7" stop-color="#8BD1E0"/><stop offset="1" stop-color="#5b3a9e"/></linearGradient></defs><path d="M20 15L25 4M44 15L39 4" stroke="#8a929e" stroke-width="3.5" stroke-linecap="round"/><path d="M24 5Q32 0 40 5" fill="none" stroke="#aab1bb" stroke-width="3.5"/><path d="M9 16Q32 12 55 16L50 43Q49 47 44 48L38 55H26L20 48Q15 47 14 43Z" fill="url(#kbg2)" stroke="#1a1d22" stroke-width="2.5" stroke-linejoin="round"/><path d="M7 16.5Q32 11 57 16.5" stroke="#3a3f48" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M24 48L26 55H38L40 48" fill="#6b727d" stroke="#1a1d22" stroke-width="2"/><path d="M19 22L45 22L41 39L23 39Z" fill="#0f0c26" opacity=".25"/></svg> Moje kosze</h2>
 <div id="bucketList"></div>
 <button type="button" id="newBucket" class="primary full">＋ Nowy kosz</button>
 <div id="bucketForm" class="hide bucket-form">
@@ -191,12 +196,6 @@
   </div>
   <div id="pcResult" class="calc-box hide" aria-live="polite"></div>
   <div class="row pc-acts"><button type="button" id="pcBack">↶ Cofnij</button><button type="button" id="pcSkip" class="hide">Pomiń</button><button type="button" id="pcNext" class="primary">Dalej ›</button></div>
- </div>
-</div>
-<div id="bsheet" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="bsheetTitle">
- <div class="pc-sheet">
-  <div class="pc-top"><strong id="bsheetTitle">🪣 Wybierz kosz</strong><button type="button" id="bsheetClose" class="icon-btn" aria-label="Zamknij">✕</button></div>
-  <div id="bsheetTiles" class="tiles"></div>
  </div>
 </div>
 <div id="toast" role="status"></div>
