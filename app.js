@@ -222,6 +222,13 @@ function playJingle(kind = 'start') {
   [0, 4, 8, 10].forEach(k => kick(t0 + k * b));
   return 2000;
 }
+/* muzyka „Solid Ground” (od Domiego): intro, start i koniec betonowania */
+const SONG_LEN = { intro: 8000, start: 3600, finish: 2600 };
+let songEl = null;
+function playSong(kind) {
+  if (!settings.music) return Promise.resolve(false);
+  try { songEl?.pause(); songEl = new Audio('sounds/' + kind + '.mp3'); songEl.volume = Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))); return songEl.play().then(() => true, () => false) } catch (e) { return Promise.resolve(false) }
+}
 function playBoom() {
   if (!settings.music) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return; const t = ctx.currentTime + .02, vol = .5 * Number(settings.musicVol ?? .6);
   const len = Math.floor(ctx.sampleRate * .7), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2.5;
@@ -230,7 +237,7 @@ function playBoom() {
 }
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false;
-document.addEventListener('pointerdown', () => { const ctx = getAC(); if (introJinglePending && ctx) { introJinglePending = false; setTimeout(() => playJingle('start'), 30) } }, { once: true, capture: true });
+document.addEventListener('pointerdown', () => { const ctx = getAC(); if (introJinglePending) { introJinglePending = false; playSong('intro').then(ok => { if (!ok && ctx) playJingle('start') }) } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -435,14 +442,14 @@ async function start() {
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
-  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; const wait = playJingle('start'); if (wait) setTimeout(() => sayBot('start'), wait - 300); else sayBot('start');
+  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (settings.music) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
 }
 $('start').addEventListener('click', start);
 function finishCurrent(showNotice = true) {
   if (!session) return;
   archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
-  NATIVE.cancel?.(); syncNative(); if (showNotice) { const w = playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), 1500); else sayBot('finish') }
+  NATIVE.cancel?.(); syncNative(); if (showNotice) { if (settings.music) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
 }
 $('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return; finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
@@ -1238,8 +1245,8 @@ $('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć p
 elLoadNames().then(elUI);
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
-$('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playJingle('start') });
-$('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playJingle('start') });
+$('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playSong('start') });
+$('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playSong('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
@@ -1351,7 +1358,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', close); setTimeout(close, 4700);
-  if (settings.music) { setTimeout(() => { if (done) return; playBoom(); if (!playJingle('start')) introJinglePending = true }, 1950); setTimeout(() => { introJinglePending = false }, 9000) }
+  box.addEventListener('click', close); setTimeout(close, 7400);
+  if (settings.music) { playSong('intro').then(ok => { if (!ok) introJinglePending = true }); setTimeout(() => { if (!done) playBoom() }, 3000); setTimeout(() => { introJinglePending = false }, 12000) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
