@@ -49,7 +49,7 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud' };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -154,6 +154,34 @@ function sayBot(key, text) {
   else beep();
 }
 function beep() { try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ctx = new AC(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = 700; g.gain.setValueAtTime(.06, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .22); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .22); setTimeout(() => ctx.close(), 700) } catch (err) { } }
+/* ── muzyczka (własna, generowana na żywo — bez plików i praw autorskich) ── */
+let audioCtx = null;
+const getAC = () => { try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AC(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx } catch (e) { return null } };
+const midiHz = m => 440 * 2 ** ((m - 69) / 12);
+function playJingle(kind = 'start') {
+  if (!settings.music) return 0; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return 0;
+  const t0 = ctx.currentTime + .05, vol = .22 * Number(settings.musicVol ?? .6);
+  const out = ctx.createGain(); out.gain.value = vol; const comp = ctx.createDynamicsCompressor(); out.connect(comp); comp.connect(ctx.destination);
+  const echo = ctx.createDelay(); echo.delayTime.value = .19; const fb = ctx.createGain(); fb.gain.value = .28; const wet = ctx.createGain(); wet.gain.value = .35; echo.connect(fb); fb.connect(echo); echo.connect(wet); wet.connect(out);
+  const pluck = (m, at, len = .35, g = .5, type = 'triangle') => { const o = ctx.createOscillator(), e = ctx.createGain(), f = ctx.createBiquadFilter(); o.type = type; o.frequency.value = midiHz(m); f.type = 'lowpass'; f.frequency.setValueAtTime(4200, at); f.frequency.exponentialRampToValueAtTime(900, at + len); e.gain.setValueAtTime(0, at); e.gain.linearRampToValueAtTime(g, at + .012); e.gain.exponentialRampToValueAtTime(.001, at + len); o.connect(f); f.connect(e); e.connect(out); e.connect(echo); o.start(at); o.stop(at + len + .05) };
+  const pad = (ms, at, len, g = .08) => ms.forEach(m => { const o = ctx.createOscillator(), e = ctx.createGain(), f = ctx.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.value = midiHz(m); o.detune.value = (Math.random() - .5) * 14; f.type = 'lowpass'; f.frequency.value = 1100; e.gain.setValueAtTime(0, at); e.gain.linearRampToValueAtTime(g, at + .25); e.gain.setValueAtTime(g, at + len - .35); e.gain.linearRampToValueAtTime(0, at + len); o.connect(f); f.connect(e); e.connect(out); o.start(at); o.stop(at + len + .05) });
+  const kick = at => { const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(130, at); o.frequency.exponentialRampToValueAtTime(45, at + .16); e.gain.setValueAtTime(.7, at); e.gain.exponentialRampToValueAtTime(.001, at + .2); o.connect(e); e.connect(out); o.start(at); o.stop(at + .22) };
+  const b = .2; // ósemka
+  if (kind === 'finish') {
+    [[72, 0], [71, 1], [67, 2], [64, 3], [65, 4], [67, 5], [72, 7]].forEach(([m, k]) => pluck(m, t0 + k * b, k === 7 ? 1.4 : .4, .45));
+    pad([48, 55, 60, 64], t0, 1.0, .06); pad([53, 57, 60, 65], t0 + 1.0, .45, .06); pad([48, 55, 64, 67], t0 + 1.4, 1.5, .07); kick(t0); kick(t0 + 1.4);
+    return 2900;
+  }
+  // start: energiczny motyw C – F – G – C
+  const mel = [[60, 0], [64, 1], [67, 2], [72, 3], [69, 4], [72, 5], [74, 6], [76, 8], [79, 9], [84, 10]];
+  mel.forEach(([m, k]) => pluck(m, t0 + k * b, k === 10 ? 1.3 : .32, k === 10 ? .55 : .42));
+  pad([48, 55, 64], t0, .8, .06); pad([53, 60, 65], t0 + .8, .4, .06); pad([55, 62, 67], t0 + 1.2, .4, .06); pad([48, 55, 64, 72], t0 + 1.6, 1.6, .07);
+  [0, 4, 8, 10].forEach(k => kick(t0 + k * b));
+  return 2000;
+}
+/* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
+let introJinglePending = false;
+document.addEventListener('pointerdown', () => { const ctx = getAC(); if (introJinglePending && ctx) { introJinglePending = false; setTimeout(() => playJingle('start'), 30) } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -335,14 +363,14 @@ function start() {
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
-  remember(); refreshKnownSites(); tab('work'); sayBot('start');
+  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; const wait = playJingle('start'); if (wait) setTimeout(() => sayBot('start'), wait - 300); else sayBot('start');
 }
 $('start').addEventListener('click', start);
 function finishCurrent(showNotice = true) {
   if (!session) return;
   archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
-  NATIVE.cancel?.(); syncNative(); if (showNotice) sayBot('finish');
+  NATIVE.cancel?.(); syncNative(); if (showNotice) { const w = playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), 1500); else sayBot('finish') }
 }
 $('finish').addEventListener('click', () => { if (!session) return; if (!confirm('Zakończyć betonowanie i zapisać w historii?')) return; finishCurrent(); tab('history') });
 $('new').addEventListener('click', () => { if (session && !confirm('Zakończyć aktualne betonowanie i zacząć nowe?')) return; finishCurrent(false); tab('setup') });
@@ -542,7 +570,8 @@ function renderHudPanel(s) {
   $('hudQuick').replaceChildren(...[...new Set(pick)].map(v => el('button', { type: 'button', class: (v === cap ? 'max' : '') + (Math.abs(v - dose) < 1e-4 ? ' on' : ''), text: v === cap ? 'MAX' : fmt(v), onclick: () => changeDose(v, true) })));
   $('hudOnline').textContent = '● ' + (phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : 'Gotowy');
 }
-$('hudRange').addEventListener('input', () => { if (session) changeDose(Number($('hudRange').value), true) });
+$('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(session.capacity, Number($('hudRange').value)); renderSoon() } });
+$('hudRange').addEventListener('change', () => { if (session) changeDose(Number($('hudRange').value), true) });
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
   const pct = v => (model.fraction(v) * 100).toFixed(2) + '%';
@@ -556,14 +585,16 @@ function renderSlider(model) {
   const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(cap)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
 }
 (function sliderInput() {
-  const vs = $('vslider'); let dragging = false;
-  const fromY = y => { if (!session) return; const r = vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100; changeDose(Math.min(session.capacity, Math.max(0, v)), true) };
+  const vs = $('vslider'); let dragging = false, dirty = false;
+  const fromY = y => { if (!session) return; const r = vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.min(session.capacity, Math.max(0, Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100)); if (v === session.dose) return; session.dose = v; renderSoon(); dirty = true };
   vs.addEventListener('pointerdown', e => { dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
-  const end = () => { dragging = false; vs.classList.remove('drag') }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
+  const end = () => { dragging = false; vs.classList.remove('drag'); if (dirty && session) { dirty = false; changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
   vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(session.capacity, session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
+let renderQ = 0;
+function renderSoon() { if (renderQ) return; renderQ = requestAnimationFrame(() => { renderQ = 0; render() }) }
 function render() {
   if (!session) return; const s = session; if (!s.capacity) s.capacity = s.dose || .5;
   const model = currentModel();
@@ -1020,7 +1051,7 @@ $('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('
 
 // ───────────────────────── ustawienia ─────────────────────────
 applyTheme();
-$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('confirmOn').checked = settings.confirm;
+$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
 $('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
@@ -1035,6 +1066,8 @@ function lektorRender() {
       el('strong', { text: (on ? '✓ ' : '') + name }), el('small', { text: desc }), el('em', { text: used })));
   }
 }
+$('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); if (settings.music) playJingle('start') });
+$('musicVol').addEventListener('change', () => { settings.musicVol = Number($('musicVol').value); saveSettings(); playJingle('start') });
 $('alarmOn').addEventListener('change', () => { settings.alarm = $('alarmOn').checked; saveSettings() });
 $('confirmOn').addEventListener('change', () => { settings.confirm = $('confirmOn').checked; saveSettings() });
 $('ttsTest').addEventListener('click', () => speak('ask', TEXTS.ask || 'Sprawdzenie lektora'));
@@ -1124,5 +1157,6 @@ drainNative();
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => box.remove(), 450) };
   box.addEventListener('click', close); setTimeout(close, 2100);
+  if (settings.music) { if (!playJingle('start')) introJinglePending = true; setTimeout(() => { introJinglePending = false }, 8000) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
