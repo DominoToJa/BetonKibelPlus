@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BetonKibelPlus">
 <link rel="stylesheet" href="/app.css"></head><body>
-<script>/* motyw kolorów przed pierwszym rysowaniem */try{var st=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}"),T={violet:["#8BD1E0","#9B4CD3"],green:["#2FD271","#056C7F"],orange:["#FFB627","#E4572E"],yellow:["#FFE45E","#2E86AB"],red:["#FF6B6B","#7A1F5C"],ice:["#A8E6FF","#3D5AFE"],steel:["#C9D6DF","#52616B"],lime:["#C6F432","#1B998B"]},id=st.theme||"green",c=id==="custom"?[st.c1||"#2FD271",st.c2||"#056C7F"]:(T[id]||T.green);document.body.style.setProperty("--c1",c[0]);document.body.style.setProperty("--c2",c[1]);if(id!=="violet")document.body.classList.add("themed");if(st.texture&&st.texture!=="none")document.body.classList.add("tx-"+st.texture);if(st.layout&&st.layout!=="classic")document.body.classList.add("lay-"+st.layout);if(st.tabsBottom)document.body.classList.add("tabs-bottom")}catch(e){}</script>
+<script>/* motyw kolorów przed pierwszym rysowaniem */try{var st=JSON.parse(localStorage.getItem("beton_settings_v2")||"{}"),T={violet:["#8BD1E0","#9B4CD3"],green:["#2FD271","#056C7F"],orange:["#FFB627","#E4572E"],yellow:["#FFE45E","#2E86AB"],red:["#FF6B6B","#7A1F5C"],ice:["#A8E6FF","#3D5AFE"],steel:["#C9D6DF","#52616B"],lime:["#C6F432","#1B998B"]},id=st.theme||"green",c=id==="custom"?[st.c1||"#2FD271",st.c2||"#056C7F"]:(T[id]||T.green);document.body.style.setProperty("--c1",c[0]);document.body.style.setProperty("--c2",c[1]);if(id!=="violet")document.body.classList.add("themed");if(st.texture&&st.texture!=="none")document.body.classList.add("tx-"+st.texture);if(st.ui==="hud")document.body.classList.add("ui-hud");if(st.layout&&st.layout!=="classic")document.body.classList.add("lay-"+st.layout);if(st.tabsBottom)document.body.classList.add("tabs-bottom")}catch(e){}</script>
 
 <div id="intro" aria-hidden="true">
   <svg class="intro-logo" viewBox="0 0 1024 1024" role="img" aria-label="BK+ DOMINO">
@@ -19,7 +19,7 @@
 </div>
 
 <main>
-<header class="top"><h1>BETON<b>KIBELPLUS</b></h1><button id="openSettings" type="button" class="icon-btn" aria-label="Ustawienia">⚙️</button></header>
+<header class="top"><div class="brand"><span class="hud-logo hud-only" aria-hidden="true">◆</span><div><h1>BETON<b>KIBELPLUS</b></h1><span class="hud-online hud-only" id="hudOnline">● Gotowy</span></div></div><button id="openSettings" type="button" class="icon-btn" aria-label="Ustawienia">⚙️</button></header>
 <nav class="tabs" aria-label="Nawigacja"><button data-tab="home">⌂ Start</button><button data-tab="work">🏗 Licznik</button><button data-tab="history">▤ Budowy</button><button data-tab="drum">🛢 Diagram</button></nav>
 
 <section id="home">
@@ -83,6 +83,10 @@
     <div class="vs-track"><div class="vs-fill" id="vsFill"></div><div class="vs-ticks" id="vsTicks"></div><div class="vs-thumb" id="vsThumb"><span id="vsValue">0,5</span></div></div>
   </div>
 </div>
+<div id="hudPanel" class="hud-only">
+ <div class="hud-status"><span class="hud-ico"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M2 12h4l3-7 4 14 3-7h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><div><small>STATUS POZIOMU</small><b id="hudState">—</b></div><div class="hud-pct"><small>POJEMNOŚĆ</small><b id="hudPct">0%</b></div></div>
+ <div class="hud-reg"><div class="hud-reg-head"><span>⚙ Regulacja poziomu</span><b id="hudVal">0 m³</b></div><input type="range" id="hudRange" min="0" max="1" step="0.01" value="0" aria-label="Ile wlano do kosza"><div class="hud-quick" id="hudQuick"></div></div>
+</div>
 <div class="bucket-meta"><b id="dose">0,5</b> m³ z <b id="bucketCap">0,5</b> m³ <span id="levelHint" class="level-hint"></span></div>
 <div class="controls"><button id="less" type="button">− 0,05</button><button id="more" type="button">+ 0,05</button><button id="undo" type="button">↶ Cofnij</button></div>
 <div id="activeBucket" class="active-bucket hide"></div>
@@ -123,6 +127,8 @@
 <div id="themeGrid" class="theme-grid"></div>
 <div class="label">Albo własne kolory</div>
 <div class="custom-colors"><label>Kolor 1<input type="color" id="cc1" value="#2FD271"></label><label>Kolor 2<input type="color" id="cc2" value="#056C7F"></label></div>
+<div class="label">Styl aplikacji</div>
+<div id="uiGrid" class="lay-grid"></div>
 <div class="label">Układ ekranu</div>
 <div id="layGrid" class="lay-grid"></div>
 <label class="check-row"><input type="checkbox" id="tabsBottom"> Zakładki na dole ekranu (łatwiej kciukiem)</label>

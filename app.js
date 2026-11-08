@@ -40,7 +40,7 @@ const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy 
 const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false };
+let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: '3d' };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -110,6 +110,8 @@ function applyTheme() {
   for (const [t] of TEXTURES) document.body.classList.toggle('tx-' + t, settings.texture === t);
   for (const [l] of LAYOUTS) document.body.classList.toggle('lay-' + l, l !== 'classic' && settings.layout === l);
   document.body.classList.toggle('tabs-bottom', !!settings.tabsBottom);
+  document.body.classList.toggle('ui-hud', settings.ui === 'hud');
+  if (session && currentTab === 'work') render();
   document.querySelector('meta[name=theme-color]')?.setAttribute('content', '#05090c');
   recolorDiagram();
 }
@@ -476,6 +478,59 @@ ${ticks}
 <g transform="translate(286 22)"><rect x="-74" y="-17" width="148" height="34" rx="17" style="fill:color-mix(in srgb,var(--c2) 55%,#06100f)" stroke="rgba(255,255,255,.22)"/><text y="8" text-anchor="middle" font-size="21" font-weight="950" fill="#fff">${fmt(current)}<tspan font-size="13" font-weight="800" fill="#c9d4dc"> / ${fmt(cap)} m³</tspan></text></g>
 </svg>`;
 }
+function makeBucketSvgHud(cap, current, model) {
+  cap = Math.max(0.01, Number(cap) || .5); current = Math.min(cap, Math.max(0, Number(current) || 0));
+  const CX = 132, HALF = 100, N = 36, fullH = model.fullHeightCm || 1, rimF = Math.min(1.14, (model.totalHeightCm || fullH) / fullH);
+  const yOf = f => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * f, dAt = f => model.diamAt(f * fullH), f2 = n => n.toFixed(1);
+  let dmax = 0; for (let i = 0; i <= N; i++) dmax = Math.max(dmax, dAt(i / N * rimF));
+  const half = f => Math.max(14, HALF * dAt(f) / (dmax || 1));
+  const L = [], R = []; for (let i = 0; i <= N; i++) { const f = rimF * i / N, y = f2(yOf(f)), h = half(f); L.push(`${f2(CX - h)} ${y}`); R.unshift(`${f2(CX + h)} ${y}`) }
+  const body = 'M' + L.join('L') + 'L' + R.join('L') + 'Z';
+  const yR = yOf(rimF), hR = half(rimF), yB = yOf(0), hB = half(0), fr = v => model.fraction(v), yC = yOf(fr(current));
+  const marks = bucketMarks(cap); let left = '', right = '', lastY = 1e9;
+  marks.slice().reverse().forEach((v, ri) => {
+    const i = marks.length - 1 - ri, y = yOf(fr(v)), hw = half(fr(v)), last = i === marks.length - 1, hit = !last && current >= v - 1e-6;
+    const col = last ? '#ff4d5e' : hit ? 'var(--c1)' : '#7f8c99';
+    left += `<line x1="${f2(CX - hw + 6)}" y1="${f2(y)}" x2="${f2(CX - hw + 36)}" y2="${f2(y)}" style="stroke:${col}" stroke-width="${last ? 2.5 : 2}" ${last ? '' : 'stroke-dasharray="3 4"'}/><circle cx="${f2(CX - hw + 22)}" cy="${f2(y)}" r="3.5" style="fill:${col}"/>`;
+    if (!last && Math.abs(lastY - y) < 30) return; lastY = y;
+    const txt = (last ? '⚠ MAX ' : '● ') + fmt(v), w = txt.length * 9 + 22, x0 = 246;
+    right += `<g transform="translate(${x0} ${f2(y - 14)})"><rect width="${w}" height="28" rx="8" style="fill:${last ? 'rgba(255,77,94,.22)' : hit ? 'color-mix(in srgb,var(--c1) 18%,#071018)' : 'rgba(18,26,34,.9)'};stroke:${last ? '#ff4d5e' : hit ? 'var(--c1)' : 'rgba(255,255,255,.18)'}"/><text x="${w / 2}" y="19" text-anchor="middle" font-size="14" font-weight="850" style="fill:${last ? '#ffd0d5' : hit ? 'var(--c1)' : '#cfd6dd'}">${txt}</text></g>`;
+  });
+  const cardY = Math.min(yB - 70, Math.max(yR + 50, (yR + yB) / 2 - 32));
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<defs>
+ <linearGradient id="hdBody" x1="0" x2="1"><stop offset="0" stop-color="#121a23"/><stop offset=".5" stop-color="#2a3542"/><stop offset="1" stop-color="#101820"/></linearGradient>
+ <linearGradient id="hdLiq" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--c1)" stop-opacity=".95"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c1) 45%,#04121a)" stop-opacity=".95"/></linearGradient>
+ <linearGradient id="hdShine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+ <filter id="hdGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+ <clipPath id="hdClip"><path d="${body}"/></clipPath>
+</defs>
+<rect x="${f2(CX - 26)}" y="${f2(yR - 42)}" width="52" height="16" rx="3" fill="#3b4756" stroke="#5c6b7c"/>
+<path d="M${f2(CX - hR * .55)} ${f2(yR - 26)}H${f2(CX + hR * .55)}L${f2(CX + hR * .62)} ${f2(yR - 6)}H${f2(CX - hR * .62)}Z" fill="#232d39" stroke="#5c6b7c" stroke-width="1.5"/>
+<path d="M${f2(CX - hR - 10)} ${f2(yR - 6)}H${f2(CX + hR + 10)}L${f2(CX + hR)} ${f2(yR + 4)}H${f2(CX - hR)}Z" fill="#2f3a47" stroke="#6b7a8b" stroke-width="1.5"/>
+<path d="${body}" fill="url(#hdBody)" stroke="#55657a" stroke-width="2"/>
+<g clip-path="url(#hdClip)">
+ <rect x="0" y="${f2(yC)}" width="280" height="${f2(yB - yC + 6)}" fill="url(#hdLiq)"/>
+ <rect x="${f2(CX - hR)}" y="${f2(yR)}" width="${f2(hR * 2)}" height="${f2(yB - yR)}" fill="url(#hdShine)"/>
+ ${current > 0 ? `<line x1="0" y1="${f2(yC)}" x2="280" y2="${f2(yC)}" style="stroke:var(--c1)" stroke-width="3" filter="url(#hdGlow)"/>` : ''}
+</g>
+<path d="M${f2(CX - hB)} ${f2(yB)}H${f2(CX + hB)}L${f2(CX + hB * .8)} ${f2(yB + 16)}H${f2(CX - hB * .8)}Z" fill="#1b2430" stroke="#5c6b7c" stroke-width="1.5"/>
+<path d="M${f2(CX - hB * .8)} ${f2(yB + 20)}H${f2(CX + hB * .8)}L${f2(CX + hB * .65)} ${f2(yB + 34)}H${f2(CX - hB * .65)}Z" fill="#1b2430" stroke="#5c6b7c" stroke-width="1.5"/>
+${left}${right}
+<g transform="translate(${CX} ${f2(cardY)})"><rect x="-64" y="0" width="128" height="68" rx="12" fill="rgba(6,10,14,.82)" stroke="rgba(255,255,255,.14)"/><text y="38" text-anchor="middle" font-size="34" font-weight="950" fill="#fff">${fmt(current)}</text><text y="58" text-anchor="middle" font-size="13" font-weight="800" style="fill:var(--c1)">z ${fmt(cap)} m³</text></g>
+</svg>`;
+}
+function renderHudPanel(s) {
+  const cap = Number(s.capacity || .5), dose = Number(s.dose || 0), pct = Math.round(dose / cap * 100);
+  $('hudState').textContent = dose <= 0 ? 'Pusty' : pct < 35 ? 'Niski' : pct < 92 ? 'Optymalny' : 'Pełny';
+  $('hudPct').textContent = pct + '%'; $('hudVal').textContent = fmt(dose) + ' m³';
+  const r = $('hudRange'); r.max = String(cap); r.step = String(bucketStep(cap)); if (document.activeElement !== r) r.value = String(dose);
+  r.style.setProperty('--p', Math.min(100, dose / cap * 100) + '%');
+  const marks = bucketMarks(cap), pick = [0, ...marks.slice(0, -1).filter((_, i, a) => a.length <= 2 || i === Math.floor(a.length / 3) || i === Math.floor(a.length * 2 / 3)), cap];
+  $('hudQuick').replaceChildren(...[...new Set(pick)].map(v => el('button', { type: 'button', class: (v === cap ? 'max' : '') + (Math.abs(v - dose) < 1e-4 ? ' on' : ''), text: v === cap ? 'MAX' : fmt(v), onclick: () => changeDose(v, true) })));
+  $('hudOnline').textContent = '● ' + (phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : 'Gotowy');
+}
+$('hudRange').addEventListener('input', () => { if (session) changeDose(Number($('hudRange').value), true) });
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
   const pct = v => (model.fraction(v) * 100).toFixed(2) + '%';
@@ -504,7 +559,7 @@ function render() {
   $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
-  $('bucketSvgWrap').innerHTML = makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model);
+  $('bucketSvgWrap').innerHTML = settings.ui === 'hud' ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
   $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ, ŻEBY DODAĆ TACZKĘ' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
@@ -891,6 +946,8 @@ function themeRender() {
   }
   const [c1, c2] = themeColors(); $('cc1').value = settings.c1 || c1; $('cc2').value = settings.c2 || c2;
   homeEditorRender();
+  const ug = $('uiGrid'); ug.replaceChildren();
+  for (const [id, name] of [['3d', 'Klasyczny 3D'], ['hud', 'Panel HUD']]) { const pv = el('div', { class: 'ui-prev ' + (id === '3d' ? 'd3' : id) }); pv.append(el('i'), el('i'), el('i')); ug.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.ui || '3d') === id ? ' on' : ''), onclick: () => { settings.ui = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
   const lg = $('layGrid'); lg.replaceChildren();
   for (const [id, name, n] of LAYOUTS) { const pv = el('div', { class: 'lay-prev ' + id }); for (let i = 0; i < n; i++) pv.append(el('i', { class: i === 1 ? 'a' : '' })); lg.append(el('button', { type: 'button', class: 'lay-tile' + ((settings.layout || 'classic') === id ? ' on' : ''), onclick: () => { settings.layout = id; applyTheme(); saveSettings(); themeRender() } }, pv, el('span', { text: name }))) }
   $('tabsBottom').checked = !!settings.tabsBottom;
