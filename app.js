@@ -349,7 +349,7 @@ function currentModel() {
 }
 
 // ───────────────────────── nawigacja ─────────────────────────
-const TAB_OF = { theme: '', home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: '', work: 'work', history: 'history', drum: 'drum' };
+const TAB_OF = { theme: 'settings', home: 'home', setup: 'home', pickBucket: 'home', buckets: 'home', settings: 'settings', work: 'work', history: 'history', drum: 'drum' };
 let currentTab = 'home', bucketReturn = '';
 function tab(name) {
   if (name === 'home' && settings.startForm !== false) name = 'setup';

@@ -688,3 +688,9 @@ body.ui-glass .panel{backdrop-filter:blur(6px)!important;-webkit-backdrop-filter
 .bucket,body.ui-hud .bucket{filter:none!important}
 .bucket-stage:has(.vslider.drag) .bucket svg *{transition:none!important}
 main section.hide *{animation:none!important}
+
+/* iPhone: treść poniżej paska stanu / wycięcia; zakładka Opcje */
+main{padding-top:calc(14px + env(safe-area-inset-top))!important;padding-bottom:calc(80px + env(safe-area-inset-bottom))!important}
+.top{padding-top:4px}
+.tabs{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.tabs button{padding-left:2px!important;padding-right:2px!important;font-size:12.5px!important;white-space:nowrap}
