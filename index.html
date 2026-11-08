@@ -37,7 +37,7 @@
 <section id="setup" class="hide"><div class="panel"><h2>Nowe betonowanie</h2>
 <label class="label" for="site">Nazwa budowy</label><input id="site" list="knownSites" placeholder="np. Mindelheim — fundamenty" autocomplete="off"><datalist id="knownSites"></datalist><p class="hint" id="autoBucketHint"></p>
 <label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
-<div class="label">Rozładunek</div><div class="grid three"><button class="method on" data-method="kibel" type="button">🏗<br>Kibel</button><button class="method" data-method="taczka" type="button">🛒<br>Taczka</button><button class="method" data-method="inne" type="button">🚜<br>Inne</button></div>
+<div class="label">Rozładunek</div><div class="grid three"><button class="method on" data-method="kibel" type="button">🏗<br>Kosz</button><button class="method" data-method="taczka" type="button">🛒<br>Taczka</button><button class="method" data-method="inne" type="button">🚜<br>Inne</button></div>
 <div class="label" id="presetsLabel">Kosz</div><button type="button" id="bucketPick" class="bucket-pick"></button><div id="presets" class="chips"></div>
 <button type="button" class="link-btn" data-go="buckets" id="setupBucketsLink">Zmierz / dodaj własny kosz ›</button>
 <label class="label" for="portion">Albo wpisz własną pojemność (m³)</label><input id="portion" inputmode="decimal" value="0,5">
@@ -56,7 +56,7 @@
 <button type="button" id="newBucket" class="primary full">＋ Dodaj kosz / taczkę / łyżkę</button>
 <div id="bucketForm" class="hide bucket-form">
   <h3 id="bucketFormTitle">Nowy kosz</h3>
-  <label class="label" for="bKind">Rodzaj</label><select id="bKind"><option value="kosz">🏗 Kosz (kibel)</option><option value="taczka">🛒 Taczka</option><option value="lyzka">🚜 Łyżka koparki</option></select>
+  <label class="label" for="bKind">Rodzaj</label><select id="bKind"><option value="kosz">🏗 Kosz</option><option value="taczka">🛒 Taczka</option><option value="lyzka">🚜 Łyżka koparki</option></select>
   <label class="label" for="bName">Nazwa</label><input id="bName" placeholder="np. Pomarańczowy Eichinger">
   <label class="label" for="bShape">Kształt wnętrza</label><select id="bShape"></select>
   <p class="hint" id="bShapeHint"></p>
@@ -74,16 +74,16 @@
 </div></section>
 
 <section id="work" class="hide">
-<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kibel</span><button type="button" id="oneHandBtn" class="one-hand-btn">✋ Jedna ręka</button></div>
+<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kosz</span><button type="button" id="oneHandBtn" class="one-hand-btn">✋ Jedna ręka</button></div>
 <div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small></div>
-<div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kibel</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Inne</button></div>
+<div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kosz</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Inne</button></div>
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small>Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
 <div class="bot-quote" aria-live="polite"><span id="status">Gotowy</span><strong id="botText">Gotowy do betonowania.</strong></div></div>
 
 <div id="alert" class="notice hide"><h3>🔔 Czy kosz już jest?</h3><div class="actions"><button id="late" type="button">Jeszcze nie</button><button id="arrived" type="button" class="good">Tak, jest</button></div></div>
 
-<div id="bucketPanel" class="panel"><p class="bucket-guide" id="touchText">DOTKNIJ KIBLA, ŻEBY DODAĆ</p>
+<div id="bucketPanel" class="panel"><p class="bucket-guide" id="touchText">DOTKNIJ KOSZA, ŻEBY DODAĆ</p>
 <div class="bucket-stage">
   <button id="bucket" class="bucket" type="button" aria-label="Dodaj porcję betonu"><span id="bucketSvgWrap"></span></button>
   <div id="vslider" class="vslider" role="slider" tabindex="0" aria-label="Ile wlano do kosza" aria-valuemin="0">
@@ -173,11 +173,11 @@
 <label class="label" for="ttsPitch">Wysokość głosu</label><input id="ttsPitch" type="range" min="0.5" max="1.6" step="0.05" value="1">
 </details>
 <button type="button" id="ttsTest" class="full" style="margin-top:12px">🔊 Sprawdź głos</button>
-<label class="label check"><input type="checkbox" id="holdAdd" checked> ✋ Dodawanie przytrzymaniem kibla (przypadkowe dotknięcie nie nalicza)</label>
+<label class="label check"><input type="checkbox" id="holdAdd" checked> ✋ Dodawanie przytrzymaniem kosza (przypadkowe dotknięcie nie nalicza)</label>
 <label class="label check"><input type="checkbox" id="lockStatus" checked> 🔒 Licznik na ekranie blokady (ile zostało, kurs kosza)</label>
 <label class="label check"><input type="checkbox" id="keepAwake" checked> ☀️ Ekran nie gaśnie podczas betonowania</label>
 <label class="label check"><input type="checkbox" id="hapticsOn" checked> 📳 Wibracja przy naliczeniu</label>
-<label class="label check"><input type="checkbox" id="headsetBtn"> 🎧 Przycisk słuchawki BT: naciśnięcie = dodaj kibel, wstecz = cofnij</label>
+<label class="label check"><input type="checkbox" id="headsetBtn"> 🎧 Przycisk słuchawki BT: naciśnięcie = dodaj kosz, wstecz = cofnij</label>
 <p class="hint">Przycisk słuchawki działa tylko na iPhonie i wycisza muzykę z innych aplikacji, gdy mikrofon słucha. Komendy głosowe przez mikrofon słuchawki BT działają zawsze.</p>
 <label class="label check"><input type="checkbox" id="musicOn" checked> 🎵 Muzyka „Solid Ground”: intro, start i koniec betonowania</label>
 <label class="label" for="musicVol">Głośność muzyczki</label><input id="musicVol" type="range" min="0.15" max="1" step="0.05" value="0.6">
