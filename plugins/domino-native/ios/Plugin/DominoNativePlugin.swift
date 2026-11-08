@@ -376,7 +376,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var lastPick: [String: Int] = [:]
     /// Każda linia tekstu = osobny wariant; losuje bez powtórzenia poprzedniego.
     private func pick(_ key: String?) -> String {
-        guard let k = key, let raw = texts[k] else { return "" }
+        guard let base = key else { return "" }
+        let sfx = method == "taczka" ? "_taczka" : (method == "inne" ? "_koparka" : "")
+        let k = (!sfx.isEmpty && !(texts[base + sfx] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ? base + sfx : base
+        guard let raw = texts[k] else { return "" }
         let lines = raw.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         if lines.isEmpty { return "" }
         var i = Int.random(in: 0..<lines.count)
@@ -667,13 +670,13 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             report("reportLeft", fmt(leftM3), "Zostało X metra sześciennego.")
         } else if has(t, ["ile wylano", "ile juz wylano", "ile nalano", "ile poszlo", "ile wylalismy", "ile zalalismy", "ile zalane", "ile kubikow poszlo", "ile metrow wylano", "ile mamy wylane", "ile zrobione", "licznik"]) {
             report("reportPoured", fmt(poured), "Wylano X metra sześciennego.")
-        } else if has(t, ["kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal", "start", "jazda", "leci", "polecial"]) {
+        } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal", "start", "jazda", "leci", "polecial"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
             pending.append(["type": "depart", "at": now])
             say(key: "depart", text: nil)
             scheduleAsk()
-        } else if has(t, ["wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
+        } else if has(t, ["dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
             guard leftM3 > 0.0001 else { return }
             let before = leftM3
             let spoken = spokenAmount(raw)
@@ -696,7 +699,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                 departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
                 scheduleAsk()
             }
-        } else if has(t, ["tak", "jest", "juz jest", "kosz jest", "kibel jest", "wrocil", "juz wrocil", "przyjechal", "przybyl", "dojechal", "no", "no jest", "ja", "jo", "mamy", "dobra", "okej", "ok", "gotowe"]) {
+        } else if has(t, ["koparka jest", "koparka wrocila", "lyzka jest", "lyzka wrocila", "tak", "jest", "juz jest", "kosz jest", "kibel jest", "wrocil", "juz wrocil", "przyjechal", "przybyl", "dojechal", "no", "no jest", "ja", "jo", "mamy", "dobra", "okej", "ok", "gotowe"]) {
             guard method != "taczka" else { return }
             phase = "returned"; deadline = 0; departed = 0; reminders = 0
             askTimer?.invalidate()

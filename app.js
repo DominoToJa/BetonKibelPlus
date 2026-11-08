@@ -32,11 +32,26 @@ const DEFAULT_TEXTS = {
   low: 'Uwaga, beton się kończy.\nBetonu zostało niewiele.\nZbliżamy się do końca.\nUwaga, końcówka betonu.',
   finish: 'Koniec betonowania. Dobra robota!\nGotowe, beton wylany.\nSkończone. Dziękuję za pracę!\nTo już wszystko. Brawo!',
   micOn: 'Mikrofon włączony.\nSłucham.\nJestem gotowy.\nMikrofon działa, słucham.',
+  start_taczka: 'Zaczynamy, taczki w ruch!\nLejemy taczkami. Powodzenia!\nBetonowanie taczką rozpoczęte.\nNo to wozimy. Do roboty!',
+  added_taczka: 'Taczka wylana.\nKolejna taczka.\nTaczka policzona.\nJest taczka, jedziemy dalej.',
+  capacityChanged_taczka: 'Pojemność taczki ustawiona.\nTaczka zmieniona.\nUstawione, nowa taczka.\nZapisałem pojemność taczki.',
+  finish_taczka: 'Koniec wożenia. Dobra robota!\nOstatnia taczka, beton wylany.\nSkończone. Odstaw taczkę!\nTo już wszystko. Brawo!',
+  start_koparka: 'Zaczynamy z koparką. Powodzenia!\nKoparka gotowa, lejemy.\nBetonowanie koparką rozpoczęte.\nŁyżka w ruch, zaczynamy!',
+  depart_koparka: 'Łyżka w drodze.\nKoparka jedzie z betonem.\nPrzyjąłem, łyżka w trasie.\nDobra, koparka jedzie.',
+  ask_koparka: 'Czy koparka już wróciła?\nŁyżka jest już na miejscu?\nWróciła koparka?\nJest łyżka?',
+  remind_koparka: 'Koparka już jest?\nHalo, czy łyżka wróciła?\nDaj znać, czy koparka jest.\nCzekam na informację o koparce.',
+  arrived_koparka: 'Dobrze, lejemy z łyżki.\nŚwietnie, łyżka na miejscu.\nSuper, wysypujemy.\nPrzyjąłem, lejemy.',
+  late_koparka: 'W porządku, zapytam o koparkę za chwilę.\nDobrze, czekamy na łyżkę.\nJasne, odezwę się za moment.\nRozumiem, koparka jeszcze jedzie.',
+  added_koparka: 'Łyżka wylana.\nKolejna łyżka.\nŁyżka policzona.\nMamy kolejną łyżkę.',
+  capacityChanged_koparka: 'Pojemność łyżki ustawiona.\nŁyżka zmieniona.\nUstawione, nowa łyżka.\nZapisałem pojemność łyżki.',
+  finish_koparka: 'Koniec betonowania koparką. Dobra robota!\nGotowe, łyżka odstawiona.\nSkończone. Dziękuję operatorowi!\nTo już wszystko. Brawo!',
 };
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
   ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania']]],
+  ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
+  ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
   ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
 ];
 const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy kosz wrócił?', arrived: 'Kosz jest', late: 'Kosza jeszcze nie ma', remind: 'Sprawdź powrót kosza', added: 'Naliczono kosz', undo: 'Cofnięto', low: 'Kończy się beton', finish: 'Koniec betonowania', error: 'Nie rozpoznano komendy', left75: 'Zostało 75% betonu', left50: 'Zostało 50% betonu', left3: 'Zostały 3 m³', left15: 'Zostało 1,5 m³', left05: 'Zostało 0,5 m³', capacityChanged: 'Kosz zmieniony', doseSet: 'Ilość ustawiona', fullBucket: 'Pełny kosz', halfBucket: 'Pół kosza', micOn: 'Mikrofon włączony' };
@@ -170,7 +185,9 @@ function speak(key, text) {
     try { elAudio?.pause(); elAudio = new Audio(URL.createObjectURL(res)); elAudio.play().catch(() => ttsSpeak(key, text)) } catch (e) { ttsSpeak(key, text) }
   }).catch(() => ttsSpeak(key, text));
 }
+const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
 function sayBot(key, text) {
+  if (text == null) key = methodKey(key);
   const full = pickVariant(key, text), short = SHORT[key] || full;
   const shown = settings.mode === 'full' ? (full || short) : short;
   if (shown) $('botText').textContent = shown;
@@ -556,6 +573,45 @@ ${ticks}
 <g transform="translate(286 22)"><rect x="-74" y="-17" width="148" height="34" rx="17" style="fill:color-mix(in srgb,var(--c2) 55%,#06100f)" stroke="rgba(255,255,255,.22)"/><text y="8" text-anchor="middle" font-size="21" font-weight="950" fill="#fff">${fmt(current)}<tspan font-size="13" font-weight="800" fill="#c9d4dc"> / ${fmt(cap)} m³</tspan></text></g>
 </svg>`;
 }
+/* taczka i łyżka koparki — rysunki dla rozładunku „Taczka” i „Inne” */
+function fillLayer(id, path, yTop, yBot, cap, current, model) {
+  const f = cap > 0 ? model.fraction(Math.min(cap, Math.max(0, current))) : 0, y = yBot - (yBot - yTop) * f;
+  return `<clipPath id="${id}"><path d="${path}"/></clipPath>
+  <g clip-path="url(#${id})"><rect x="0" y="${y.toFixed(1)}" width="360" height="${(yBot - y + 4).toFixed(1)}" fill="url(#${id}g)"/><rect x="0" y="${y.toFixed(1)}" width="360" height="4" fill="#ffffff55"/></g>
+  <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="color-mix(in srgb, var(--c1) 55%, #9aa6b2)"/><stop offset="1" stop-color="color-mix(in srgb, var(--c2) 70%, #3a4554)"/></linearGradient>`;
+}
+const valPill = (x, y, cur, cap) => `<g><rect x="${x - 62}" y="${y - 30}" width="124" height="56" rx="14" fill="#06101cdd" stroke="#ffffff22"/><text x="${x}" y="${y + 2}" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="900" font-size="30" fill="#fff">${fmt(cur)}</text><text x="${x}" y="${y + 20}" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="800" font-size="12.5" fill="var(--c1)">z ${fmt(cap)} m³</text></g>`;
+function makeTaczkaSvg(cap, current, model) {
+  const tray = 'M55 150 L305 150 L262 246 Q257 254 246 254 L122 254 Q111 254 106 246 Z';
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <ellipse cx="180" cy="304" rx="150" ry="9" fill="#0008"/>
+  <path d="M14 206 L112 258 L282 262" fill="none" stroke="#5b6672" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M10 204 L40 220" stroke="#1d2430" stroke-width="13" stroke-linecap="round"/>
+  <path d="M122 258 L112 300 M112 300 h22" fill="none" stroke="#5b6672" stroke-width="8" stroke-linecap="round"/>
+  <path d="${tray}" fill="#0b1426" fill-opacity=".88"/>
+  ${fillLayer('tq', tray, 150, 254, cap, current, model)}
+  <path d="${tray}" fill="none" stroke="var(--c1)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M49 150 H311" stroke="color-mix(in srgb, var(--c1) 60%, #fff)" stroke-width="9" stroke-linecap="round"/>
+  <path d="M262 246 L286 262" stroke="#5b6672" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="286" cy="262" r="32" fill="#141a22" stroke="#2b3340" stroke-width="5"/><circle cx="286" cy="262" r="21" fill="none" stroke="#3a4554" stroke-width="3" stroke-dasharray="6 5"/><circle cx="286" cy="262" r="8" fill="#9aa6b2"/>
+  ${valPill(180, 205, current, cap)}
+</svg>`;
+}
+function makeKoparkaSvg(cap, current, model) {
+  const b = 'M72 100 H292 C322 150 304 226 228 254 L100 256 Q74 256 72 232 Z';
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <ellipse cx="185" cy="300" rx="140" ry="9" fill="#0008"/>
+  <path d="M292 100 L352 6" stroke="#ffb703" stroke-width="30" stroke-linecap="round"/><path d="M292 100 L352 6" stroke="#0004" stroke-width="30" stroke-dasharray="2 22"/>
+  <path d="M250 98 L318 30" stroke="#5b6672" stroke-width="12" stroke-linecap="round"/><path d="M262 86 L300 48" stroke="#cfd8e0" stroke-width="5" stroke-linecap="round"/>
+  <path d="${b}" fill="#0b1426" fill-opacity=".88"/>
+  ${fillLayer('kq', b, 100, 256, cap, current, model)}
+  <path d="${b}" fill="none" stroke="var(--c1)" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M66 100 H298" stroke="color-mix(in srgb, var(--c1) 60%, #fff)" stroke-width="9" stroke-linecap="round"/>
+  <g fill="#cfd8e0" stroke="#5b6672" stroke-width="2" stroke-linejoin="round"><path d="M74 214 L44 226 L72 232 Z"/><path d="M76 234 L48 250 L80 252 Z"/><path d="M92 254 L70 270 L104 256 Z"/></g>
+  <circle cx="292" cy="100" r="13" fill="#2b3340" stroke="#9aa6b2" stroke-width="4"/><circle cx="250" cy="100" r="10" fill="#2b3340" stroke="#9aa6b2" stroke-width="4"/>
+  ${valPill(180, 185, current, cap)}
+</svg>`;
+}
 function makeBucketSvgHud(cap, current, model) {
   cap = Math.max(0.01, Number(cap) || .5); current = Math.min(cap, Math.max(0, Number(current) || 0));
   const CX = 132, HALF = 100, N = 36, fullH = model.fullHeightCm || 1, rimF = Math.min(1.14, (model.totalHeightCm || fullH) / fullH);
@@ -642,9 +698,10 @@ function render() {
   $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
-  $('bucketSvgWrap').innerHTML = ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
+  $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
+  $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
-  $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ, ŻEBY DODAĆ TACZKĘ' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
+  $('touchText').textContent = s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KIBLA, ŻEBY DODAĆ · SUWAK = ILE WLANO';
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
   const ab = $('activeBucket'); ab.replaceChildren();
   const cur = s.bucketProfile; ab.classList.toggle('hide', !cur);
@@ -701,10 +758,10 @@ function command(utterance) {
   if (has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
   if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowka|polowe|polowa|pol')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
-  if (has('kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|start|jazda|leci|polecial')) { depart(); return true }
-  if (has('wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
+  if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|start|jazda|leci|polecial')) { depart(); return true }
+  if (has('dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
     const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : session?.dose); return true }
-  if (has('tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
+  if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
   return false;
 }
 function micDisplay(t) { $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
