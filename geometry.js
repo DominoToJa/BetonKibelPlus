@@ -23,6 +23,12 @@ export const SHAPES = {
     hint: 'Średnica wnętrza i wysokość.',
     fields: [['d', 'Średnica (cm)', 90], ['h', 'Wysokość wnętrza (cm)', 90]],
   },
+  profile: {
+    label: 'Profil ze zdjęcia',
+    hint: 'Kształt odczytany ze zdjęcia z boku (góra, ewentualnie początek lejka, wylew).',
+    fields: [],
+    hidden: true,
+  },
   plate: {
     label: 'Bez mierzenia — tylko tabliczka',
     hint: 'Wpisz pojemność z tabliczki. Podziałka będzie orientacyjna (typowy kibel zwężany).',
@@ -35,6 +41,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 export function cleanDims(shape, raw) {
   const def = SHAPES[shape]; if (!def) return null;
+  if (shape === 'profile') { const ok = raw && Array.isArray(raw.hs) && Array.isArray(raw.ds) && raw.hs.length === raw.ds.length && raw.hs.length >= 2 && raw.h > 0; return ok ? raw : null }
   const out = {};
   for (const [k] of def.fields) {
     const v = num(raw?.[k]);
@@ -51,6 +58,9 @@ export function totalHeight(shape, d) {
   return d.h;
 }
 
+/** Średnica zastępcza [cm] na wysokości y (do rysunku). */
+export function diameterAt(shape, d, y) { return 2 * Math.sqrt(areaAt(shape, d, y) / Math.PI) }
+
 /** Pole przekroju [cm²] na wysokości y [cm] od dna. */
 export function areaAt(shape, d, y) {
   const H = totalHeight(shape, d);
@@ -64,6 +74,12 @@ export function areaAt(shape, d, y) {
       const r = lerp(d.dOut, d.d, Math.max(0, y) / d.hCone) / 2; return Math.PI * r * r * e;
     }
     case 'rect': return lerp(d.lBottom, d.lTop, t) * lerp(d.wBottom, d.wTop, t);
+    case 'profile': {
+      const hs = d.hs, ds = d.ds; let dd = ds[ds.length - 1];
+      if (y <= hs[0]) dd = ds[0];
+      else for (let i = 1; i < hs.length; i++) if (y <= hs[i]) { dd = lerp(ds[i - 1], ds[i], (y - hs[i - 1]) / Math.max(1e-9, hs[i] - hs[i - 1])); break }
+      return d.rect ? dd * dd * e : Math.PI * (dd / 2) ** 2 * e;
+    }
     default: return 0;
   }
 }
@@ -133,6 +149,7 @@ export function bucketModel(profile, fallbackCapacity) {
   return {
     capacity, measured, shape, dims, geoCapacity: geo, totalHeightCm: table.H, fullHeightCm,
     heightCm,
+    diamAt: y => diameterAt(shape, dims, y),
     fraction: v => fullHeightCm > 0 ? heightCm(v) / fullHeightCm : 0,
     /** odwrotność fraction: ułamek wysokości pełnego poziomu → m³ */
     volumeAtFraction: f => {

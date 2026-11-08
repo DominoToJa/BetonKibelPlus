@@ -426,22 +426,28 @@ $('testAlarm').addEventListener('click', () => { if (!session) return announce('
 const SVG_TOP = 86, SVG_BOTTOM = 229, SVG_H = 300;
 function makeBucketSvg(cap, current, model) {
   cap = Math.max(0.01, Number(cap) || .5); current = Math.min(cap, Math.max(0, Number(current) || 0));
-  const lT = 92, lB = 126, rT = 238, rB = 204;
-  const yAt = v => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * model.fraction(v);
-  const xAt = (y, leftSide) => { const t = (y - SVG_TOP) / (SVG_BOTTOM - SVG_TOP); const a = leftSide ? lT : rT, b = leftSide ? lB : rB; return a + (b - a) * t };
-  const fy = yAt(current), xL = xAt(fy, true), xR = xAt(fy, false);
+  // wnętrze kosza rysowane z prawdziwego kształtu (średnica na każdej wysokości)
+  const N = 24, dAt = f => model.diamAt(f * model.fullHeightCm);
+  let dmax = 0; for (let i = 0; i <= N; i++) dmax = Math.max(dmax, dAt(i / N));
+  const half = f => Math.max(9, 73 * dAt(f) / (dmax || 1)), yOf = f => SVG_BOTTOM - (SVG_BOTTOM - SVG_TOP) * f;
+  const fr = v => model.fraction(v);
+  const leftPts = [], rightPts = [];
+  for (let i = 0; i <= N; i++) { const f = i / N, y = yOf(f), h = half(f); leftPts.push(`${(165 - h).toFixed(1)} ${y.toFixed(1)}`); rightPts.unshift(`${(165 + h).toFixed(1)} ${y.toFixed(1)}`) }
+  const inner = 'M' + leftPts.join('L') + 'L' + rightPts.join('L') + 'Z';
+  const fy = yOf(fr(current));
+  const marks = bucketMarks(cap), ys = marks.map(v => yOf(fr(v)));
   let ticks = '';
-  const marks = bucketMarks(cap), ys = marks.map(yAt);
   marks.forEach((v, i) => {
+    const f = fr(v), y = ys[i], hw = half(f), xl = 165 - hw, xr = 165 + hw, last = i === marks.length - 1;
     const tooClose = i < marks.length - 1 && Math.abs(ys[i] - ys[marks.length - 1]) < 27;
-    const y = yAt(v), xl = xAt(y, true), xr = xAt(y, false), last = i === marks.length - 1;
     const label = last ? 'MAX ' + fmt(v) : fmt(v), w = label.length * 11 + 14;
     ticks += `<line x1="${(xl + 2).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr - 2).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="2" stroke-dasharray="6 5" opacity=".75"/>`;
     ticks += `<line x1="${(xr - 22).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(xr + 6).toFixed(1)}" y2="${y.toFixed(1)}" stroke="#ff3b4e" stroke-width="6" stroke-linecap="round"/>`;
     if (tooClose) return;
-    ticks += `<g transform="translate(${(xr + 12).toFixed(1)} ${y.toFixed(1)})"><rect x="0" y="-13" width="${w}" height="26" rx="8" fill="#ff3b4e" stroke="#14112e" stroke-width="2"/><text x="${(w / 2).toFixed(1)}" y="6" text-anchor="middle" font-size="17" font-weight="950" fill="#ffffff">${label}</text></g>`;
+    const lx = Math.max(xr + 12, 246);
+    ticks += `<g transform="translate(${lx.toFixed(1)} ${y.toFixed(1)})"><rect x="0" y="-13" width="${w}" height="26" rx="8" fill="#ff3b4e" stroke="#14112e" stroke-width="2"/><text x="${(w / 2).toFixed(1)}" y="6" text-anchor="middle" font-size="17" font-weight="950" fill="#ffffff">${label}</text></g>`;
   });
-  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".28" style="stop-color:var(--c2)"/><stop offset=".62" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="M92 86L238 86L204 229L126 229Z"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="M92 86L238 86L204 229L126 229Z" fill="#0f0c26" opacity=".35"/><g clip-path="url(#bkClip)"><path d="M${xL.toFixed(1)} ${fy.toFixed(1)}L${xR.toFixed(1)} ${fy.toFixed(1)}L204 229L126 229Z" fill="#9aa3b3" opacity=".95"/><path d="M${xL.toFixed(1)} ${(fy - 1).toFixed(1)}L${xR.toFixed(1)} ${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e">z ${fmt(cap)} m³</text></svg>`;
+  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="bkSteel" x1="0" x2="1"><stop style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/><stop offset=".28" style="stop-color:var(--c2)"/><stop offset=".62" style="stop-color:var(--c1)"/><stop offset="1" style="stop-color:color-mix(in srgb,var(--c2) 70%,#000)"/></linearGradient><linearGradient id="bkRim" x1="0" x2="1"><stop stop-color="#1c2128"/><stop offset=".48" stop-color="#6f7683"/><stop offset="1" stop-color="#1f252d"/></linearGradient><clipPath id="bkClip"><path d="${inner}"/></clipPath></defs><path d="M95 82L124 21M235 82L206 21" stroke="#5d6570" stroke-width="12" stroke-linecap="round"/><path d="M119 22Q165 -4 211 22" fill="none" stroke="#9098a3" stroke-width="12"/><path d="M47 79Q165 60 283 79L259 218Q255 236 227 244L196 274H134L103 244Q75 236 71 218Z" fill="url(#bkSteel)" stroke="#22262b" stroke-width="7"/><path d="M42 81Q165 55 288 81" stroke="url(#bkRim)" stroke-width="19" fill="none"/><path d="M121 242L134 275H196L209 242" fill="#5d6570" stroke="#282a31" stroke-width="5"/><path d="${inner}" fill="#0f0c26" opacity=".45"/><g clip-path="url(#bkClip)"><rect x="60" y="${fy.toFixed(1)}" width="210" height="${(SVG_BOTTOM - fy + 2).toFixed(1)}" fill="#9aa3b3" opacity=".95"/><line x1="60" y1="${(fy - 1).toFixed(1)}" x2="270" y2="${(fy - 1).toFixed(1)}" stroke="#ffffff" stroke-width="5"/></g>${ticks}<text x="165" y="172" text-anchor="middle" font-size="42" font-weight="950" fill="#14112e" stroke="#ffffffaa" stroke-width="3" paint-order="stroke">${fmt(current)}</text><text x="165" y="199" text-anchor="middle" font-size="20" font-weight="900" fill="#14112e" stroke="#ffffffaa" stroke-width="3" paint-order="stroke">z ${fmt(cap)} m³</text></svg>`;
 }
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
@@ -589,10 +595,12 @@ document.addEventListener('visibilitychange', () => {
 
 // ───────────────────────── moje kosze ─────────────────────────
 let editingId = '', formPhotos = [];
-for (const [k, s] of Object.entries(SHAPES)) $('bShape').append(el('option', { value: k, text: s.label }));
+for (const [k, s] of Object.entries(SHAPES)) { const o = el('option', { value: k, text: s.label }); if (s.hidden) o.hidden = true; $('bShape').append(o) }
+let formProfile = null;
 function thumbFromFile(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onerror = () => rej(Error('zdjęcie')); r.onload = () => { const img = new Image(); img.onerror = () => rej(Error('zdjęcie')); img.onload = () => { const c = document.createElement('canvas'); const k = Math.min(1, 440 / Math.max(img.width, img.height)); c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k)); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .6)) }; img.src = r.result }; r.readAsDataURL(file) }) }
 function dimFields(shape, values = {}) {
   const box = $('bDims'); box.replaceChildren();
+  if (shape === 'profile') { formProfile = values && values.hs ? values : formProfile; box.append(el('p', { class: 'hint', style: 'grid-column:1/-1', text: formProfile ? '📐 Kształt ze zdjęcia: wys. ' + Math.round(formProfile.h) + ' cm, góra Ø ' + Math.round(formProfile.ds.at(-1)) + ' cm, wylew Ø ' + Math.round(formProfile.ds[0]) + ' cm' + (formProfile.ds.length > 2 ? ', z początkiem lejka' : '') : 'Brak profilu — użyj „Policz ze zdjęć”.' })); $('bShapeHint').textContent = SHAPES.profile.hint; bucketPreview(); return }
   for (const [k, label, ph] of SHAPES[shape].fields) {
     const inp = el('input', { id: 'bd_' + k, inputmode: 'decimal', placeholder: 'np. ' + ph }); if (values[k] != null) inp.value = fmt(values[k]);
     inp.addEventListener('input', () => { formEstimated = false; $('bd_e')?.remove(); bucketPreview() });
@@ -601,7 +609,7 @@ function dimFields(shape, values = {}) {
   if (values.e) box.append(el('input', { type: 'hidden', id: 'bd_e', value: String(values.e) }));
   $('bShapeHint').textContent = SHAPES[shape].hint; bucketPreview();
 }
-function formDims() { const shape = $('bShape').value; const raw = { e: $('bd_e')?.value }; for (const [k] of SHAPES[shape].fields) raw[k] = $('bd_' + k)?.value; return cleanDims(shape, raw) }
+function formDims() { const shape = $('bShape').value; if (shape === 'profile') return cleanDims('profile', formProfile); const raw = { e: $('bd_e')?.value }; for (const [k] of SHAPES[shape].fields) raw[k] = $('bd_' + k)?.value; return cleanDims(shape, raw) }
 function bucketPreview() {
   const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), geo = dims ? geoCapacity(shape, dims) : null, plate = number($('bPlate').value), real = number($('bReal').value);
   const box = $('bPreview'); box.replaceChildren();
@@ -645,11 +653,21 @@ $('bSave').addEventListener('click', () => {
   if (i >= 0) profiles[i] = p; else profiles.push(p);
   if (!saveProfiles()) { profiles = backup; return }
   if (session?.bucketProfile?.id === p.id) { session.bucketProfile = snapshot(p); session.capacity = p.capacity; session.dose = Math.min(session.dose, p.capacity); remember() }
-  closeBucketForm(); announce('Zapisano: ' + p.name + ' · ' + fmt(p.capacity) + ' m³');
-  // od razu do licznika z podziałką tego kosza
-  if (session && session.method !== 'taczka') { changeCapacity(p.capacity, p); tab('work') }
-  else { if (method === 'taczka') selectMethod('kibel'); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
+  closeBucketForm(); useSavedBucket(p);
 });
+/** Po zapisie: od razu do licznika (trwa betonowanie) albo wybrany w „Nowe betonowanie”. */
+function useSavedBucket(p) {
+  announce('Zapisano: ' + p.name + ' · ' + fmt(p.capacity) + ' m³');
+  if (session && session.method !== 'taczka') { changeCapacity(p.capacity, p); tab('work') }
+  else { if (method === 'taczka') selectMethod('kibel'); chooseProfile(p.id, false); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
+}
+function storeProfile(p) {
+  const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
+  if (i >= 0) profiles[i] = p; else profiles.push(p);
+  if (!saveProfiles()) { profiles = backup; return false }
+  if (session?.bucketProfile?.id === p.id) { session.bucketProfile = snapshot(p); session.capacity = p.capacity; session.dose = Math.min(session.dose, p.capacity); remember() }
+  return true;
+}
 function bucketListRender() {
   const box = $('bucketList'); box.replaceChildren();
   if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
@@ -664,187 +682,128 @@ function bucketListRender() {
   }
 }
 
-// ───────────────────────── kosz ze zdjęć: bok + góra → rzeczywista pojemność ─────────────────────────
+// ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
-const PC_STEPS = ['side-photo', 'side', 'fill', 'top-photo', 'top', 'scale', 'result'];
-const PC_SIDE = ['lewy GÓRNY róg (krawędź wlewu)', 'prawy GÓRNY róg', 'prawy DOLNY róg (nad zasuwą)', 'lewy DOLNY róg'];
-const PC_TOP = ['1 — LEWĄ krawędź otworu', '2 — PRAWĄ krawędź otworu', '3 — PRZEDNIĄ krawędź (bliżej Ciebie)', '4 — TYLNĄ krawędź (dalej)'];
-const newPhoto = () => ({ img: null, file: null, pts: [] });
-const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'ref', cap: .75, ref: [], k: 1, drag: -1 };
+const pc = { img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, shape: 'round', k: 1, drag: -1, editId: '' };
+const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-/** 4 rogi w dowolnej kolejności → [lewy górny, prawy górny, prawy dolny, lewy dolny] */
-const orderCorners = P => { if (P.length < 4) return P; const s = P.slice().sort((a, b) => a.y - b.y); const top = s.slice(0, 2).sort((a, b) => a.x - b.x), bot = s.slice(2).sort((a, b) => a.x - b.x); return [top[0], top[1], bot[1], bot[0]] };
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
-function pcOpen() {
-  Object.assign(pc, { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: $('bShape').value === 'rect' ? 'rect' : 'round', mode: 'ref', ref: [], drag: -1 });
-  $('pcPlate').value = $('bPlate').value || '';
-  $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
+const PT_HELP = ['GÓRA — lewa krawędź wlewu', 'GÓRA — prawa krawędź wlewu', 'WYLEW na dole — lewa strona', 'WYLEW na dole — prawa strona'];
+/** punkty → poziomy (od dołu): pary posortowane po wysokości */
+function pcLevels() {
+  const n = pc.pts.length - pc.pts.length % 2; if (n < 4) return null;
+  const P = pc.pts.slice(0, n).slice().sort((a, b) => a.y - b.y), lv = [];
+  for (let i = 0; i < n; i += 2) { const a = P[i], b = P[i + 1]; lv.push({ y: (a.y + b.y) / 2, w: Math.abs(a.x - b.x), l: Math.min(a.x, b.x), r: Math.max(a.x, b.x) }) }
+  return lv.reverse(); // od dołu do góry
 }
-function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
-const pcPhoto = () => ['top-photo', 'top'].includes(pc.step) ? pc.top : pc.side;
-const canvasStep = () => ['side', 'fill', 'top'].includes(pc.step) || (pc.step === 'scale' && pc.mode === 'ref');
 function pcCompute() {
-  const [TL, TR, BR, BL] = orderCorners(pc.side.pts); if (!BL) return null;
-  const topW = dist(TL, TR), botW = dist(BL, BR), mT = mid(TL, TR), mB = mid(BL, BR), hPx = dist(mT, mB);
-  if (!(topW > 5 && botW > 2 && hPx > 5)) return null;
-  let fillFrac = 1;
-  if (pc.fill) { const vx = mT.x - mB.x, vy = mT.y - mB.y; fillFrac = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); fillFrac = Math.min(1, Math.max(.3, fillFrac)) }
-  let e = 1; const T = pc.top.pts; if (T.length === 4) { const w = dist(T[0], T[1]), dpt = dist(T[2], T[3]); if (w > 5 && dpt > 3) e = Math.min(3, Math.max(.3, dpt / w)) }
-  const rect = pc.shape === 'rect', shape = rect ? 'rect' : 'cone';
-  const mk = c => { const d = rect ? { lTop: topW * c, wTop: topW * c * e, lBottom: botW * c, wBottom: botW * c * e, h: hPx * c } : { dTop: topW * c, dBottom: botW * c, h: hPx * c }; if (!rect && Math.abs(e - 1) > .01) d.e = e; return d };
-  let c, nominal = 0, mode = pc.mode;
-  if (mode === 'ref') { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp; const pl = number($('pcPlate').value); if (pl > 0) nominal = pl }
-  else { nominal = mode === 'plate' ? number($('pcPlate').value) : pc.cap; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / topW; c = c0 * Math.cbrt(nominal / geoCapacity(shape, mk(c0))) }
-  const dims = mk(c), rim = geoCapacity(shape, dims), real = volumeUpTo(shape, dims, fillFrac * dims.h);
-  const u = mode === 'ref' ? .15 : (pc.fill && T.length === 4 ? .06 : .09);
-  const onlyPlate = mode !== 'ref' && !pc.fill;
-  return { shape, dims, rim, real, lo: real * (1 - u), hi: real * (1 + u), nominal, mode, fillFrac, belowRim: dims.h * (1 - fillFrac), e, onlyPlate };
+  const lv = pcLevels(); if (!lv) return null;
+  const yb = lv[0].y, hPx = yb - lv[lv.length - 1].y; if (!(hPx > 10) || lv.some(l => !(l.w > 3))) return null;
+  const rect = pc.shape === 'rect';
+  const mk = c => ({ h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * c), ...(rect ? { rect: true } : {}) });
+  const useRef = pc.other === 'ref';
+  let c, nominal = 0;
+  if (useRef) { const rp = pc.ref.length === 2 ? dist(pc.ref[0], pc.ref[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
+  else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
+  const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
+  return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef };
 }
 function pcUI() {
-  const st = pc.step, i = PC_STEPS.indexOf(st), ph = pcPhoto();
-  $('pcProgress').replaceChildren(...['Bok', 'Beton', 'Góra', 'Skala', 'Wynik'].map((t, j) => el('span', { class: [1, 2, 4, 5, 6][j] <= i ? 'on' : '', text: t })));
-  const isPick = st === 'side-photo' || st === 'top-photo';
-  $('pcPick').classList.toggle('hide', !isPick);
-  $('pcPickText').textContent = '📸 Zrób zdjęcie';
-  $('pcGalSub').textContent = st === 'side-photo' ? 'możesz zaznaczyć 2 naraz: bok + góra' : '';
-  $('pcPickSub').textContent = st === 'top-photo' ? 'Stań nad koszem i sfotografuj otwór z góry. Można pominąć.' : 'Cały kosz w kadrze, aparat na wysokości połowy kosza.';
-  $('pcShapeToggle').classList.toggle('hide', !['top-photo', 'top'].includes(st));
-  $('pcTopHint').classList.toggle('hide', !['top-photo', 'top'].includes(st) || (st === 'top' && pc.top.pts.length > 0));
-  document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
-  $('pcWrap').classList.toggle('hide', !canvasStep());
-  $('pcScale').classList.toggle('hide', st !== 'scale');
-  document.querySelectorAll('[data-pcmode]').forEach(b => b.classList.toggle('on', b.dataset.pcmode === pc.mode));
-  $('pcModePlate').classList.toggle('hide', pc.mode === 'typ');
-  $('pcPlateLabel').textContent = pc.mode === 'ref' ? 'Tabliczka (m³) — opcjonalnie, do porównania' : 'Co jest na tabliczce (m³)?';
-  $('pcModeHint').textContent = pc.mode === 'ref' ? 'Najdokładniej: zaznacz na zdjęciu z boku przedmiot o znanym rozmiarze — policzę prawdziwą pojemność, niezależnie od tabliczki.' : pc.mode === 'plate' ? 'Zdjęcie da tylko kształt. Pojemność = tabliczka, chyba że zaznaczyłeś niżej linię betonu.' : 'Wielkość na oko — kształt i podziałka ze zdjęć.'; $('pcModeRef').classList.toggle('hide', pc.mode !== 'ref'); $('pcModeTyp').classList.toggle('hide', pc.mode !== 'typ');
+  const has = !!pc.img, n = pc.pts.length, r = has ? pcCompute() : null;
+  $('pcPick').classList.toggle('hide', has); $('pcWrap').classList.toggle('hide', !has); $('pcTools').classList.toggle('hide', !has);
+  $('pcSettings').classList.toggle('hide', n < 4);
+  let t = '';
+  if (!has) t = 'Krok 1 · Zrób albo wybierz zdjęcie kosza z boku.';
+  else if (n < 4) t = 'Dotknij: ' + PT_HELP[n] + '.';
+  else if (pc.other === 'ref' && pc.ref.length < 2) t = 'Dotknij ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu obok kosza.';
+  else if (n < 6) t = 'Gotowe. Jeśli kosz ma proste ścianki u góry — dotknij jeszcze 2 punkty tam, gdzie zaczyna się lejek (lewo i prawo).';
+  else t = 'Profil gotowy — punkty możesz przeciągać.';
+  $('pcStep').textContent = t;
+  const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
+    el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
+    el('button', { type: 'button', class: 'pill' + (pc.other === 'ref' ? ' on' : ''), text: '📏 Nie wiem — zmierz', onclick: () => { pc.other = 'ref'; pc.ref = []; pcUI() } }));
+  $('pcOtherRow').classList.toggle('hide', pc.other !== true); $('pcRefBox').classList.toggle('hide', pc.other !== 'ref');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
-  $('pcCapPick').replaceChildren(...[.25, .5, .75, 1, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(pc.cap - v) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { pc.cap = v; pcUI() } })));
-  $('pcResult').classList.toggle('hide', st !== 'result');
-  $('pcBack').classList.toggle('hide', st === 'side-photo');
-  $('pcSkip').classList.toggle('hide', !['fill', 'top-photo', 'top'].includes(st));
-  $('pcSkip').textContent = st === 'fill' ? 'Beton do krawędzi' : 'Pomiń górę';
-  $('pcNext').classList.toggle('hide', isPick);
-  $('pcNext').textContent = st === 'result' ? '✓ Użyj w koszu' : 'Dalej ›';
-  let txt = '', ok = true;
-  if (st === 'side-photo') txt = 'Krok 1 · Zdjęcie kosza z boku.';
-  else if (st === 'side') { ok = pc.side.pts.length === 4; txt = ok ? 'Przeciągnij punkty na krawędzie wnętrza, potem „Dalej”.' : 'Dotknij: ' + PC_SIDE[pc.side.pts.length] + '.' }
-  else if (st === 'fill') { ok = !!pc.fill; txt = 'Dotknij wysokości, do której FAKTYCZNIE dochodzi beton (np. spaw, pasek, ślad betonu). Jeśli do samej krawędzi — „Beton do krawędzi”.' }
-  else if (st === 'top-photo') txt = 'Krok 2 (można pominąć) · Zdjęcie otworu z góry — pokaże, czy kosz jest owalny albo kanciasty.';
-  else if (st === 'top') { ok = pc.top.pts.length === 4; txt = ok ? 'Gotowe — „Dalej”. Możesz poprawić punkty.' : 'Dotknij: ' + PC_TOP[pc.top.pts.length] + '.' }
-  else if (st === 'scale') {
-    txt = 'Krok 3 · Skąd znamy wielkość kosza?';
-    if (pc.mode === 'plate') ok = number($('pcPlate').value) > 0;
-    if (pc.mode === 'ref') { ok = pc.ref.length === 2 && pcRefCm() > 0; txt = pc.ref.length < 2 ? 'Dotknij na zdjęciu ' + (pc.ref.length ? 'drugiego' : 'pierwszego') + ' końca przedmiotu.' : 'Przedmiot zaznaczony — „Dalej”.' }
-  }
-  else if (st === 'result') {
-    txt = 'Wynik';
-    const r = pcCompute(), box = $('pcResult'); box.replaceChildren();
-    if (!r) { box.append(el('div', { class: 'error', text: 'Brakuje danych — cofnij i sprawdź punkty lub tabliczkę.' })); ok = false }
-    else {
-      const d = r.dims, dimTxt = r.shape === 'rect' ? 'góra ' + Math.round(d.lTop) + '×' + Math.round(d.wTop) + ' cm · dół ' + Math.round(d.lBottom) + '×' + Math.round(d.wBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' : 'Ø góra ' + Math.round(d.dTop) + ' cm · Ø dół ' + Math.round(d.dBottom) + ' cm · wys. ' + Math.round(d.h) + ' cm' + (d.e ? ' · owal ' + Math.round(d.e * 100) + '%' : '');
-      box.append(el('div', { class: 'calc-main', text: (r.mode === 'ref' ? 'Zmierzone: wchodzi ≈ ' : 'Wchodzi ≈ ') + fmt(r.real) + ' m³' }));
-      if (r.onlyPlate) box.append(el('div', { class: 'error', text: 'ℹ️ To jest wartość z tabliczki — zdjęcie bez przedmiotu odniesienia nie mierzy wielkości. Żeby zmierzyć naprawdę: cofnij i wybierz „Zmierz (przedmiot na zdjęciu)” albo zaznacz linię betonu.' }));
-      else box.append(el('div', { class: 'calc-range', text: 'realnie od ' + fmt(r.lo) + ' do ' + fmt(r.hi) + ' m³' }));
-      if (r.mode === 'ref' && r.nominal > 0) box.append(el('div', { class: 'muted', text: 'Tabliczka mówi ' + fmt(r.nominal) + ' m³ → realnie ' + Math.round(r.real / r.nominal * 100) + '% tego' }));
-      box.append(el('div', { class: 'muted', text: 'Do samej krawędzi: ' + fmt(r.rim) + ' m³' + (r.fillFrac < 1 ? ' · beton ok. ' + Math.round(r.belowRim) + ' cm pod krawędzią' : '') }));
-      box.append(el('div', { class: 'muted', text: 'Wymiary (szacunek): ' + dimTxt }));
-      if (r.mode === 'typ') box.append(el('div', { class: 'muted', text: 'Wielkość wybrana „na oko” — kształt i podziałka są ze zdjęć.' }));
-      if (r.real > 5 || r.real < .02) { box.append(el('div', { class: 'error', text: '⚠️ Wynik wygląda nierealnie — sprawdź punkty.' })); ok = false }
-    }
-  }
-  $('pcStep').textContent = txt; $('pcNext').disabled = !ok;
+  $('pcFillTxt').textContent = pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy samej krawędzi';
+  document.querySelectorAll('[data-pcshape]').forEach(b => b.classList.toggle('on', b.dataset.pcshape === pc.shape));
+  const box = $('pcResult'); box.replaceChildren();
+  if (r) {
+    const u = r.useRef ? .15 : (r.levels >= 3 ? .05 : .08);
+    box.append(el('div', { class: 'calc-main', text: 'Realnie wchodzi ≈ ' + fmt(r.real) + ' m³' }));
+    box.append(el('div', { class: 'calc-range', text: 'od ' + fmt(r.real * (1 - u)) + ' do ' + fmt(r.real * (1 + u)) + ' m³' }));
+    box.append(el('div', { class: 'muted', text: (r.nominal ? 'Kosz ' + fmt(r.nominal) + ' m³ do krawędzi' : 'Do krawędzi ≈ ' + fmt(r.rim) + ' m³') + (r.fillCm ? ' · beton ' + r.fillCm + ' cm niżej = ' + Math.round(r.real / r.rim * 100) + '%' : '') }));
+    box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + (r.levels >= 3 ? ' · z lejkiem' : '') }));
+    const m = bucketModel({ shape: 'profile', dims: r.dims, capacity: r.real }, r.real);
+    box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
+  } else if (n >= 4) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
+  $('pcSave').disabled = !r;
   pcDraw();
 }
 function pcDraw() {
-  if (!canvasStep()) return; const ph = pc.step === 'top' ? pc.top : pc.side; if (!ph.img) return;
-  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(220, window.innerHeight - 330);
-  const k = Math.min(maxW / ph.img.width, maxH / ph.img.height); pc.k = k;
-  const w = Math.round(ph.img.width * k), h = Math.round(ph.img.height * k);
+  if (!pc.img) return;
+  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(240, window.innerHeight * .5);
+  const k = Math.min(maxW / pc.img.width, maxH / pc.img.height); pc.k = k;
+  const w = Math.round(pc.img.width * k), h = Math.round(pc.img.height * k);
   cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = w * dpr; cv.height = h * dpr;
-  const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(ph.img, 0, 0);
-  const lw = 3 / k, r = 11 / k;
-  const dot = (p, label, color) => { g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fillStyle = color; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#14112e'; g.stroke(); if (label) { g.fillStyle = '#14112e'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, p.x, p.y) } };
-  if (ph === pc.side) {
-    const P = pc.side.pts, PO = orderCorners(P);
-    if (P.length) { g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.16)'; g.beginPath(); PO.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (P.length === 4) { g.closePath(); g.fill() } g.stroke() }
-    if (pc.fill && P.length === 4) {
-      const [TL, TR, BR, BL] = PO, mT = mid(TL, TR), mB = mid(BL, BR); const vx = mT.x - mB.x, vy = mT.y - mB.y; let f = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); f = Math.min(1, Math.max(0, f));
-      const L = { x: BL.x + (TL.x - BL.x) * f, y: BL.y + (TL.y - BL.y) * f }, R = { x: BR.x + (TR.x - BR.x) * f, y: BR.y + (TR.y - BR.y) * f };
-      g.fillStyle = 'rgba(155,163,179,.55)'; g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.lineTo(BR.x, BR.y); g.lineTo(BL.x, BL.y); g.closePath(); g.fill();
-      g.lineWidth = lw * 1.3; g.strokeStyle = '#ffffff'; g.setLineDash([10 / k, 6 / k]); g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.stroke(); g.setLineDash([]);
-      dot(pc.fill, 'B', '#ffffff');
-    }
-    P.forEach((p, i) => dot(p, String(i + 1), '#8BD1E0'));
-    if (pc.step === 'scale' && pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ffd17e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => dot(p, '', '#ffd17e')) }
-  } else {
-    const T = pc.top.pts; g.lineWidth = lw;
-    if (T.length >= 2) { g.strokeStyle = '#8BD1E0'; g.beginPath(); g.moveTo(T[0].x, T[0].y); g.lineTo(T[1].x, T[1].y); g.stroke() }
-    if (T.length === 4) { g.strokeStyle = '#9B4CD3'; g.beginPath(); g.moveTo(T[2].x, T[2].y); g.lineTo(T[3].x, T[3].y); g.stroke() }
-    T.forEach((p, i) => dot(p, String(i + 1), i < 2 ? '#8BD1E0' : '#c39bf0'));
+  const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
+  const lw = 3 / k, rad = 12 / k;
+  const lv = pcLevels();
+  if (lv) {
+    g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
+    lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
+    if (pc.fill) { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; let L = top.l, R = top.r; for (let i = 1; i < lv.length; i++) if (y >= lv[i].y) { const t = (y - lv[i - 1].y) / (lv[i].y - lv[i - 1].y); L = lv[i - 1].l + (lv[i].l - lv[i - 1].l) * t; R = lv[i - 1].r + (lv[i].r - lv[i - 1].r) * t; break } g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]) } }
   }
+  pc.pts.forEach((p, i) => {
+    const label = i < 2 ? 'G' : i < 4 ? 'W' : 'L';
+    g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = label === 'L' ? '#ffd17e' : '#8BD1E0'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
+    g.fillStyle = '#0b1118'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, p.x, p.y);
+  });
+  if (pc.ref.length) { g.lineWidth = lw; g.strokeStyle = '#ff3b4e'; g.beginPath(); g.moveTo(pc.ref[0].x, pc.ref[0].y); if (pc.ref[1]) g.lineTo(pc.ref[1].x, pc.ref[1].y); g.stroke(); pc.ref.forEach(p => { g.beginPath(); g.arc(p.x, p.y, rad * .8, 0, Math.PI * 2); g.fillStyle = '#ff3b4e'; g.fill() }) }
 }
 (function pcInput() {
   const cv = $('pcCanvas');
   const pos = e => { const b = cv.getBoundingClientRect(); return { x: (e.clientX - b.left) / pc.k, y: (e.clientY - b.top) / pc.k } };
-  const target = () => pc.step === 'side' ? [pc.side.pts, 4] : pc.step === 'top' ? [pc.top.pts, 4] : pc.step === 'scale' ? [pc.ref, 2] : null;
   cv.addEventListener('pointerdown', e => {
     e.preventDefault(); cv.setPointerCapture(e.pointerId); const p = pos(e);
-    if (pc.step === 'fill') { pc.fill = p; pc.drag = 99; pcUI(); return }
-    const t = target(); if (!t) return; const [L, max] = t;
-    let best = -1, bd = 30 / pc.k; L.forEach((q, i) => { const d = dist(p, q); if (d < bd) { bd = d; best = i } });
-    if (best >= 0) pc.drag = best; else if (L.length < max) { L.push(p); pc.drag = L.length - 1 } else pc.drag = -1;
+    const all = [...pc.pts.map((q, i) => ['p', i, q]), ...pc.ref.map((q, i) => ['r', i, q])];
+    let best = null, bd = 28 / pc.k; for (const it of all) { const d = dist(p, it[2]); if (d < bd) { bd = d; best = it } }
+    if (best) pc.drag = best;
+    else if (pc.pts.length >= 4 && pc.other === 'ref' && pc.ref.length < 2) { pc.ref.push(p); pc.drag = ['r', pc.ref.length - 1] }
+    else if (pc.pts.length < 6) { pc.pts.push(p); pc.drag = ['p', pc.pts.length - 1] }
+    else pc.drag = null;
     pcUI();
   });
-  cv.addEventListener('pointermove', e => { if (pc.drag < 0) return; const p = pos(e); if (pc.step === 'fill') pc.fill = p; else { const t = target(); if (t && t[0][pc.drag]) t[0][pc.drag] = p } pcDraw() });
-  const up = () => { if (pc.drag >= 0) { pc.drag = -1; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointermove', e => { if (!pc.drag) return; const p = pos(e); (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw() });
+  const up = () => { if (pc.drag) { pc.drag = null; pcUI() } }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   window.addEventListener('resize', () => { if (!$('pc').classList.contains('hide')) pcDraw() });
 })();
-const loadImg = f => new Promise((res, rej) => { const rd = new FileReader(); rd.onerror = rej; rd.onload = () => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = rd.result }; rd.readAsDataURL(f) });
-async function pcFilePicked(e) {
-  const files = [...(e.target.files || [])].slice(0, 2); e.target.value = ''; if (!files.length) return;
-  try {
-    const ph = pcPhoto(), first = await loadImg(files[0]);
-    Object.assign(ph, { img: first, file: files[0], pts: [] });
-    if (ph === pc.side && files[1]) { Object.assign(pc.top, { img: await loadImg(files[1]), file: files[1], pts: [] }); announce('2 zdjęcia: pierwsze = bok, drugie = góra') }
-    pc.step = ph === pc.top ? 'top' : 'side'; pcUI();
-  } catch (err) { announce('Nie mogę otworzyć zdjęcia') }
+function pcOpen() {
+  Object.assign(pc, { img: null, file: null, pts: [], ref: [], nominal: number($('bPlate').value) || .75, other: false, fill: 0, shape: $('bShape').value === 'rect' ? 'rect' : 'round', drag: null });
+  $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
+  $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
+}
+function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow = '' }
+const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
+function pcFilePicked(e) {
+  const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
+  const rd = new FileReader(); rd.onload = () => { const img = new Image(); img.onload = () => { Object.assign(pc, { img, file: f, pts: [], ref: [] }); pcUI() }; img.onerror = () => announce('Nie mogę otworzyć zdjęcia'); img.src = rd.result }; rd.readAsDataURL(f);
 }
 $('pcFile').addEventListener('change', pcFilePicked); $('pcCamera').addEventListener('change', pcFilePicked);
-const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
+$('pcUndoPt').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
+$('pcClear').addEventListener('click', () => { pc.pts = []; pc.ref = []; pcUI() });
+$('pcNewPhoto').addEventListener('click', () => { pc.img = null; pc.pts = []; pc.ref = []; pcUI() });
+$('pcFill').addEventListener('input', () => { pc.fill = Number($('pcFill').value); pcUI() });
+['pcOther', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
-document.querySelectorAll('[data-pcmode]').forEach(b => b.addEventListener('click', () => { pc.mode = b.dataset.pcmode; pc.ref = []; pcUI() }));
-['pcPlate', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI()));
-$('pcRefType').addEventListener('change', () => pcUI());
-const go = st => { pc.step = st; pcUI() };
-$('pcSkip').addEventListener('click', () => { if (pc.step === 'fill') { pc.fill = null; if (pc.top.img) return go('top'); go('top-photo'); pcCameraNow() } else { pc.top = newPhoto(); go('scale') } });
-$('pcBack').addEventListener('click', () => {
-  const st = pc.step;
-  if (st === 'side') { if (pc.side.pts.length) pc.side.pts.pop(); else return go('side-photo') }
-  else if (st === 'fill') { if (pc.fill) pc.fill = null; else return go('side') }
-  else if (st === 'top-photo') return go('fill');
-  else if (st === 'top') { if (pc.top.pts.length) pc.top.pts.pop(); else return go('top-photo') }
-  else if (st === 'scale') { if (pc.mode === 'ref' && pc.ref.length) pc.ref.pop(); else return go(pc.top.img ? 'top' : 'top-photo') }
-  else if (st === 'result') return go('scale');
-  pcUI();
-});
-$('pcNext').addEventListener('click', async () => {
-  const st = pc.step;
-  if (st === 'side') return go('fill');
-  if (st === 'fill') { if (pc.top.img) return go('top'); go('top-photo'); return pcCameraNow() }
-  if (st === 'top') return go('scale');
-  if (st === 'scale') return go('result');
-  if (st !== 'result') return;
+$('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
+$('pcSave').addEventListener('click', async () => {
   const r = pcCompute(); if (!r) return;
-  $('bShape').value = r.shape; dimFields(r.shape, r.dims);
-  $('bPlate').value = r.nominal ? fmt(r.nominal) : '';
-  $('bReal').value = fmt(r.real);
-  formEstimated = true;
-  for (const f of [pc.side.file, pc.top.file]) if (f) try { formPhotos.push(await thumbFromFile(f)) } catch (e) { }
-  formPhotos = formPhotos.slice(-4); thumbsRender(); bucketPreview(); pcClose();
-  $('bName').focus(); announce('Faktycznie ≈ ' + fmt(r.real) + ' m³ — nazwij kosz i zapisz');
+  let photos = formPhotos.slice(); if (pc.file) try { photos.unshift(await thumbFromFile(pc.file)) } catch (e) { }
+  const name = $('pcName').value.trim() || ('Kosz ' + fmt(r.nominal || r.real) + ' m³');
+  const p = { id: editingId || 'bucket-' + Date.now(), name, shape: 'profile', dims: r.dims, estimated: true, plate: r.nominal || null, real: Math.round(r.real * 1000) / 1000, capacity: Math.round(r.real * 1000) / 1000, fillCm: r.fillCm, photos: photos.slice(0, 4).map(data => ({ data })), createdAt: getProfile(editingId)?.createdAt || Date.now() };
+  if (!storeProfile(p)) return;
+  pcClose(); closeBucketForm(); useSavedBucket(p);
 });
-$('pcClose').addEventListener('click', pcClose);
 $('bPhotoCalc').addEventListener('click', () => { pcOpen(); pcCameraNow() });
 
 // ───────────────────────── kolory aplikacji ─────────────────────────
