@@ -628,6 +628,8 @@ const newPhoto = () => ({ img: null, file: null, pts: [] });
 const pc = { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: 'round', mode: 'ref', cap: .75, ref: [], k: 1, drag: -1 };
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+/** 4 rogi w dowolnej kolejności → [lewy górny, prawy górny, prawy dolny, lewy dolny] */
+const orderCorners = P => { if (P.length < 4) return P; const s = P.slice().sort((a, b) => a.y - b.y); const top = s.slice(0, 2).sort((a, b) => a.x - b.x), bot = s.slice(2).sort((a, b) => a.x - b.x); return [top[0], top[1], bot[1], bot[0]] };
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
 function pcOpen() {
   Object.assign(pc, { step: 'side-photo', side: newPhoto(), top: newPhoto(), fill: null, shape: $('bShape').value === 'rect' ? 'rect' : 'round', mode: 'ref', ref: [], drag: -1 });
@@ -638,7 +640,7 @@ function pcClose() { $('pc').classList.add('hide'); document.body.style.overflow
 const pcPhoto = () => ['top-photo', 'top'].includes(pc.step) ? pc.top : pc.side;
 const canvasStep = () => ['side', 'fill', 'top'].includes(pc.step) || (pc.step === 'scale' && pc.mode === 'ref');
 function pcCompute() {
-  const [TL, TR, BR, BL] = pc.side.pts; if (!BL) return null;
+  const [TL, TR, BR, BL] = orderCorners(pc.side.pts); if (!BL) return null;
   const topW = dist(TL, TR), botW = dist(BL, BR), mT = mid(TL, TR), mB = mid(BL, BR), hPx = dist(mT, mB);
   if (!(topW > 5 && botW > 2 && hPx > 5)) return null;
   let fillFrac = 1;
@@ -711,7 +713,7 @@ function pcUI() {
 }
 function pcDraw() {
   if (!canvasStep()) return; const ph = pc.step === 'top' ? pc.top : pc.side; if (!ph.img) return;
-  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(220, window.innerHeight * .5);
+  const cv = $('pcCanvas'), wrap = $('pcWrap'), dpr = window.devicePixelRatio || 1, maxW = (wrap.clientWidth || 340) - 8, maxH = Math.max(220, window.innerHeight - 330);
   const k = Math.min(maxW / ph.img.width, maxH / ph.img.height); pc.k = k;
   const w = Math.round(ph.img.width * k), h = Math.round(ph.img.height * k);
   cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = w * dpr; cv.height = h * dpr;
@@ -719,10 +721,10 @@ function pcDraw() {
   const lw = 3 / k, r = 11 / k;
   const dot = (p, label, color) => { g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.fillStyle = color; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#14112e'; g.stroke(); if (label) { g.fillStyle = '#14112e'; g.font = `900 ${13 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, p.x, p.y) } };
   if (ph === pc.side) {
-    const P = pc.side.pts;
-    if (P.length) { g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.16)'; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (P.length === 4) { g.closePath(); g.fill() } g.stroke() }
+    const P = pc.side.pts, PO = orderCorners(P);
+    if (P.length) { g.lineWidth = lw; g.strokeStyle = '#8BD1E0'; g.fillStyle = 'rgba(139,209,224,.16)'; g.beginPath(); PO.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); if (P.length === 4) { g.closePath(); g.fill() } g.stroke() }
     if (pc.fill && P.length === 4) {
-      const [TL, TR, BR, BL] = P, mT = mid(TL, TR), mB = mid(BL, BR); const vx = mT.x - mB.x, vy = mT.y - mB.y; let f = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); f = Math.min(1, Math.max(0, f));
+      const [TL, TR, BR, BL] = PO, mT = mid(TL, TR), mB = mid(BL, BR); const vx = mT.x - mB.x, vy = mT.y - mB.y; let f = ((pc.fill.x - mB.x) * vx + (pc.fill.y - mB.y) * vy) / (vx * vx + vy * vy); f = Math.min(1, Math.max(0, f));
       const L = { x: BL.x + (TL.x - BL.x) * f, y: BL.y + (TL.y - BL.y) * f }, R = { x: BR.x + (TR.x - BR.x) * f, y: BR.y + (TR.y - BR.y) * f };
       g.fillStyle = 'rgba(155,163,179,.55)'; g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.lineTo(BR.x, BR.y); g.lineTo(BL.x, BL.y); g.closePath(); g.fill();
       g.lineWidth = lw * 1.3; g.strokeStyle = '#ffffff'; g.setLineDash([10 / k, 6 / k]); g.beginPath(); g.moveTo(L.x, L.y); g.lineTo(R.x, R.y); g.stroke(); g.setLineDash([]);
