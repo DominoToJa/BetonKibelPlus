@@ -176,19 +176,31 @@ function refreshKnownSites() { const list = $('knownSites'); list.replaceChildre
 function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
-  const useProfiles = method !== 'taczka';
-  $('presetsLabel').textContent = method === 'taczka' ? 'Taczka' : (method === 'inne' ? 'Osprzęt' : 'Wybierz kosz');
+  const useTiles = method !== 'taczka';
+  $('presetsLabel').textContent = method === 'taczka' ? 'Taczka' : (method === 'inne' ? 'Osprzęt' : 'Kosz');
   $('setupBucketsLink').classList.add('hide');
-  r.className = useProfiles ? 'tiles' : 'chips';
-  if (!useProfiles) { for (const v of opts.taczka) r.append(el('button', { type: 'button', class: 'pill' + (Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { $('portion').value = fmt(v); renderPresets() } })); return }
+  $('bucketPick').classList.toggle('hide', !useTiles); r.classList.toggle('hide', useTiles);
+  if (!useTiles) { r.className = 'chips'; for (const v of opts.taczka) r.append(el('button', { type: 'button', class: 'pill' + (Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { $('portion').value = fmt(v); renderPresets() } })); return }
+  const p = getProfile(chosenProfileId), cap = number($('portion').value);
+  const pic = p?.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : el('span', { class: 'tile-ico', text: '🪣' });
+  $('bucketPick').replaceChildren(el('div', { class: 'tile-pic' }, pic), el('div', { class: 'bp-txt' }, el('strong', { text: p ? p.name : 'Kosz ' + (cap > 0 ? fmt(cap) + ' m³' : '') }), el('small', { text: p ? fmt(p.capacity) + ' m³ · ' + (p.dims ? '📐 dokładna podziałka' : 'zapisany') : 'standardowy · dotknij, żeby wybrać zapisany' })), el('span', { class: 'bp-change', text: 'Zmień ›' }));
+  if (!$('bsheet').classList.contains('hide')) sheetRender();
+}
+function sheetRender() {
+  const r = $('bsheetTiles'); r.replaceChildren();
+  const pick = fn => () => { fn(); closeSheet() };
   for (const p of profiles) {
     const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : el('span', { class: 'tile-ico', text: '🪣' });
-    r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: () => chooseProfile(p.id) },
+    r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(p.id)) },
       el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
-  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
-  for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: () => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() } }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { closeSheet(); bucketReturn = 'setup'; tab('buckets'); openBucketForm() } }, el('b', { text: '📷 ＋ Zmierz nowy kosz' }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
 }
+function openSheet() { sheetRender(); $('bsheet').classList.remove('hide'); document.body.style.overflow = 'hidden' }
+function closeSheet() { $('bsheet').classList.add('hide'); document.body.style.overflow = '' }
+$('bucketPick').addEventListener('click', openSheet); $('bsheetClose').addEventListener('click', closeSheet);
+$('bsheet').addEventListener('click', e => { if (e.target.id === 'bsheet') closeSheet() });
 function restoreSiteBucket() {
   if (method === 'taczka') return;
   const id = siteAssignments[siteKey($('site').value)];

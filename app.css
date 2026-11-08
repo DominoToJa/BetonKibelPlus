@@ -176,3 +176,9 @@ details.fine{margin-top:14px}
 .tile.saved{grid-column:1/-1}
 .tile.add{grid-column:1/-1;min-height:64px;flex-direction:column;background:linear-gradient(120deg,#8BD1E022,#9B4CD333);border:2px dashed #8BD1E0}
 .tile.add b{font-size:18px;color:#fff}.tile.add small{color:#c6c4ea}
+.bucket-pick{width:100%;display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center;text-align:left;padding:10px 12px;border-radius:16px;background:#1a1738;border:1px solid #8BD1E0}
+.bucket-pick .tile-pic{width:56px;height:56px;border-radius:12px;overflow:hidden;background:#201c45;display:grid;place-items:center}
+.bucket-pick .tile-pic img{width:100%;height:100%;object-fit:cover}
+.bp-txt{min-width:0}.bp-txt strong{display:block;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bp-txt small{color:var(--muted);font-size:12px;font-weight:700}
+.bp-change{font-weight:900;color:#0e1030;background:linear-gradient(120deg,#8BD1E0,#9B4CD3);padding:9px 12px;border-radius:12px;font-size:14px}
+#bsheet .pc-sheet{max-height:85dvh}

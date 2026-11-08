@@ -39,7 +39,7 @@
 <label class="label" for="site">Nazwa budowy</label><input id="site" list="knownSites" placeholder="np. Mindelheim — fundamenty" autocomplete="off"><datalist id="knownSites"></datalist><p class="hint" id="autoBucketHint"></p>
 <label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
 <div class="label">Rozładunek</div><div class="grid three"><button class="method on" data-method="kibel" type="button">🏗<br>Kibel</button><button class="method" data-method="taczka" type="button">🛒<br>Taczka</button><button class="method" data-method="inne" type="button">🚜<br>Inne</button></div>
-<div class="label" id="presetsLabel">Kosz</div><div id="presets" class="chips"></div>
+<div class="label" id="presetsLabel">Kosz</div><button type="button" id="bucketPick" class="bucket-pick"></button><div id="presets" class="chips"></div>
 <button type="button" class="link-btn" data-go="buckets" id="setupBucketsLink">🪣 Zmierz / dodaj własny kosz ›</button>
 <label class="label" for="portion">Albo wpisz własną pojemność (m³)</label><input id="portion" inputmode="decimal" value="0,5">
 <div id="cycleFields"><label class="label" for="cycleMin">Czas kursu kosza (minuty)</label><input id="cycleMin" inputmode="decimal" value="2" placeholder="np. 2,5"></div>
@@ -191,6 +191,12 @@
   </div>
   <div id="pcResult" class="calc-box hide" aria-live="polite"></div>
   <div class="row pc-acts"><button type="button" id="pcBack">↶ Cofnij</button><button type="button" id="pcSkip" class="hide">Pomiń</button><button type="button" id="pcNext" class="primary">Dalej ›</button></div>
+ </div>
+</div>
+<div id="bsheet" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="bsheetTitle">
+ <div class="pc-sheet">
+  <div class="pc-top"><strong id="bsheetTitle">🪣 Wybierz kosz</strong><button type="button" id="bsheetClose" class="icon-btn" aria-label="Zamknij">✕</button></div>
+  <div id="bsheetTiles" class="tiles"></div>
  </div>
 </div>
 <div id="toast" role="status"></div>
