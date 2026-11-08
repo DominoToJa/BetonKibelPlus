@@ -418,7 +418,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
     private func say(key: String?, text: String?, force: Bool = false) {
         if !voiceOn && !force { return }
-        if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k.hasPrefix("report")) { return }  // tylko pytanie o kosz + odpowiedzi na pytania
+        var key = key
+        if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("report")) {
+            // tylko pytanie o kosz + odpowiedzi; reakcja na komendę = krótkie potwierdzenie „Przyjęłam”
+            if ["late", "arrived", "undo", "depart", "added"].contains(k) && text == nil { key = "heardOk" } else { return }
+        }
         let t = (text?.isEmpty == false ? text! : pick(key))
         let clip = key.map { hasClip($0) } ?? false
         if t.isEmpty && !clip { return }

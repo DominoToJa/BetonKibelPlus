@@ -45,10 +45,11 @@ const DEFAULT_TEXTS = {
   added_koparka: 'Łyżka wylana.\nKolejna łyżka.\nŁyżka policzona.\nMamy kolejną łyżkę.',
   capacityChanged_koparka: 'Pojemność łyżki ustawiona.\nŁyżka zmieniona.\nUstawione, nowa łyżka.\nZapisałem pojemność łyżki.',
   finish_koparka: 'Koniec betonowania koparką. Dobra robota!\nGotowe, łyżka odstawiona.\nSkończone. Dziękuję operatorowi!\nTo już wszystko. Brawo!',
+  heardOk: 'Przyjęłam.\nOkej.\nJasne.\nZrobione.',
 };
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
-  ['Komendy', [['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
+  ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
   ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania']]],
   ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
   ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
@@ -194,7 +195,7 @@ function speak(key, text) {
   }).catch(() => ttsSpeak(key, text));
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
-const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka']);
+const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk']);
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
   if (settings.askOnly !== false && !ASK_KEYS.has(key) && key !== 'micOn') { const shown = pickVariant(key, text) || SHORT[key] || ''; if (shown) $('botText').textContent = shown; return } // mówi tylko „czy kosz jest?”
@@ -872,14 +873,15 @@ function spokenNumber(t) {
   if (tokens.length >= 2 && tokens[0] === 'zero') return Number('0.' + tokens.slice(1).map(x => dict[x]).join(''));
   if (tokens.length === 1) return dict[tokens[0]]; return NaN;
 }
-function report(key, value) { const text = (pickVariant(key) || 'X').replace(/X/g, String(value)); announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak(key + '_n', text) }
+let reportAt = 0;
+function report(key, value) { reportAt = Date.now(); const text = (pickVariant(key) || 'X').replace(/X/g, String(value)); announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak(key + '_n', text) }
 /* rozpoznany tekst → komenda; szum i pojedyncze słowa ignorujemy po cichu, „nie zrozumiałem” najwyżej co 20 s */
 let lastErrAt = 0;
 function heardText(t) {
   const n = normalise(t); if (n.length < 2) return;
   if (n.split(' ').length > 7) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } // długie zdania = ktoś rozmawia, nie komenda
   const r = command(t);
-  if (r === true) { micDisplay('✓ „' + t + '”'); return }
+  if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300) sayBot('heardOk'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
 }
 function command(utterance) {
