@@ -1168,6 +1168,13 @@ function historyRender() {
 function download(name, blob) { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000) }
 $('export').addEventListener('click', () => { const rows = ['Data;Budowa;Metoda;Załadowano_m3;Wylano_m3;Czas_s', ...archive.map(s => [new Date(s.startedAt).toLocaleString('pl-PL'), s.site, s.method, s.load, s.total, Math.round((s.endedAt - s.startedAt) / 1000)].map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';'))]; download('BetonKibelPlus_historia.csv', new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })) });
 const savedKeys = [KEY, HKEY, PROFILE_KEY, SITE_BUCKET_KEY, SETTINGS_KEY, TEXT_KEY];
+$('appRestart').addEventListener('click', () => location.reload());
+$('appWipe').addEventListener('click', () => {
+  if (!confirm('Na pewno wyczyścić całą aplikację? Historia, kosze, teksty i ustawienia zostaną usunięte.') || !confirm('Ostatnie pytanie: usunąć wszystko?')) return;
+  const keep = { elKey: settings.elKey, elVoice: settings.elVoice, elModel: settings.elModel, el: settings.el };
+  try { NATIVE.cancel?.(); for (const k of Object.keys(localStorage)) if (k.startsWith('beton') || savedKeys.includes(k)) localStorage.removeItem(k); localStorage.setItem(SETTINGS_KEY, JSON.stringify(keep)) } catch (e) { }
+  location.reload();
+});
 $('backupExport').addEventListener('click', () => { const payload = { app: 'BetonKibelPlus', formatVersion: 1, exportedAt: new Date().toISOString(), values: {} }; for (const k of savedKeys) { let v = localStorage.getItem(k); if (v !== null && k === SETTINGS_KEY) { try { const o = JSON.parse(v); delete o.elKey; v = JSON.stringify(o) } catch (e) { } } if (v !== null) payload.values[k] = v } download('BetonKibelPlus_kopia_' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })) });
 $('backupImport').addEventListener('change', async () => {
   const f = $('backupImport').files?.[0]; if (!f) return;
