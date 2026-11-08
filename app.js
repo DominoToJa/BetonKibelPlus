@@ -1169,6 +1169,9 @@ function download(name, blob) { const url = URL.createObjectURL(blob), a = docum
 $('export').addEventListener('click', () => { const rows = ['Data;Budowa;Metoda;Załadowano_m3;Wylano_m3;Czas_s', ...archive.map(s => [new Date(s.startedAt).toLocaleString('pl-PL'), s.site, s.method, s.load, s.total, Math.round((s.endedAt - s.startedAt) / 1000)].map(v => '"' + String(v).replaceAll('"', '""') + '"').join(';'))]; download('BetonKibelPlus_historia.csv', new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' })) });
 const savedKeys = [KEY, HKEY, PROFILE_KEY, SITE_BUCKET_KEY, SETTINGS_KEY, TEXT_KEY];
 $('appRestart').addEventListener('click', () => location.reload());
+if (window.BKP_TEST) { $('testBar').classList.remove('hide'); document.body.classList.add('test-on'); $('testMode').textContent = '✖ Wyjdź z trybu testowego'; }
+const toggleTest = () => { try { if (window.BKP_TEST) localStorage.removeItem('bkp_testmode'); else { if (!confirm('Włączyć tryb testowy? Aplikacja wystartuje czysta, a Twoje dane poczekają.')) return; localStorage.setItem('bkp_testmode', '1') } } catch (e) { } NATIVE.cancel?.(); location.reload() };
+$('testMode').addEventListener('click', toggleTest); $('testExit').addEventListener('click', toggleTest);
 $('appWipe').addEventListener('click', () => {
   if (!confirm('Na pewno wyczyścić całą aplikację? Historia, kosze, teksty i ustawienia zostaną usunięte.') || !confirm('Ostatnie pytanie: usunąć wszystko?')) return;
   const keep = { elKey: settings.elKey, elVoice: settings.elVoice, elModel: settings.elModel, el: settings.el };
