@@ -164,13 +164,19 @@ const elDb = () => elDbP ||= new Promise((ok, no) => { try { const r = indexedDB
 const idb = async (mode, fn) => { const db = await elDb(); return new Promise((ok, no) => { const tx = db.transaction('clips', mode), st = tx.objectStore('clips'), r = fn(st); tx.oncomplete = () => ok(r?.result); tx.onerror = () => no(tx.error) }) };
 async function elLoadNames() { try { elNames = new Set(nativeVoice ? await NV.listVoice() : await idb('readonly', st => st.getAllKeys())) } catch (e) { elNames = new Set() } }
 async function elFetch(text) {
-  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(settings.elVoice.trim()) + '?output_format=mp3_44100_128', { method: 'POST', headers: { 'xi-api-key': settings.elKey.trim(), 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, body: JSON.stringify({ text: String(text).trim(), model_id: settings.elModel || 'eleven_multilingual_v2', language_code: 'pl', voice_settings: { stability: Number(settings.elStab), similarity_boost: Number(settings.elSim), speed: elSpeed() } }) });
+  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + encodeURIComponent(settings.elVoice.trim()) + '?output_format=mp3_44100_128', { method: 'POST', headers: { 'xi-api-key': settings.elKey.trim(), 'Content-Type': 'application/json', Accept: 'audio/mpeg' }, body: JSON.stringify({ text: String(text).trim(), model_id: settings.elModel || 'eleven_multilingual_v2', ...(/(turbo|flash)_v2_5/.test(settings.elModel || '') ? { language_code: 'pl' } : {}), voice_settings: { stability: Number(settings.elStab), similarity_boost: Number(settings.elSim), speed: elSpeed() } }) });
   if (!r.ok) { let msg = 'błąd ' + r.status; try { const j = await r.json(); msg = j.detail?.message || j.detail?.status || msg } catch (e) { } throw new Error(msg) }
   return await r.blob();
 }
 const blobB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1]); fr.onerror = no; fr.readAsDataURL(b) });
+/* iPhone: pobiera i zapisuje natywnie (bez CORS); przeglądarka: fetch + IndexedDB */
+async function elFetchStore(text) {
+  const n = elName(text);
+  if (nativeVoice && NV.elFetch) { await NV.elFetch({ key: settings.elKey.trim(), voice: settings.elVoice.trim(), model: settings.elModel || 'eleven_multilingual_v2', text: String(text).trim(), name: n, stab: Number(settings.elStab), sim: Number(settings.elSim), speed: elSpeed() }); elNames.add(n); return true }
+  const b = await elFetch(text); await elStore(text, b); return b;
+}
 async function elStore(text, blob) { const n = elName(text); if (nativeVoice) await NV.saveVoice(n, await blobB64(blob)); else await idb('readwrite', st => st.put(blob, n)); elNames.add(n) }
-async function elGet(text) { const n = elName(text); if (!elNames.has(n)) { if (!navigator.onLine) return null; const b = await elFetch(text); await elStore(text, b); return nativeVoice ? true : b } return nativeVoice ? true : await idb('readonly', st => st.get(n)) }
+async function elGet(text) { const n = elName(text); if (!elNames.has(n)) { if (!navigator.onLine) return null; const b = await elFetchStore(text); return nativeVoice ? true : b } return nativeVoice ? true : await idb('readonly', st => st.get(n)) }
 function ttsSpeak(key, text) {
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
@@ -1382,7 +1388,7 @@ let elBusy = false;
 $('elDownload').addEventListener('click', async () => {
   elSave(); if (!elReady() || elBusy) return elReady() || announce('Włącz lektora i wpisz klucz oraz ID głosu');
   elBusy = true; const all = elAllLines().filter(t => !elNames.has(elName(t))); let done = 0, err = '';
-  for (const t of all) { $('elState').textContent = 'Pobieram ' + (++done) + ' z ' + all.length + '…'; try { await elStore(t, await elFetch(t)) } catch (e) { err = e.message; break } }
+  for (const t of all) { $('elState').textContent = 'Pobieram ' + (++done) + ' z ' + all.length + '…'; try { await elFetchStore(t) } catch (e) { err = e?.message || String(e); break } }
   elBusy = false; elUI(); if (err) $('elState').textContent = '❌ ' + err + ' (pobrano ' + (done - 1) + '). Kliknij jeszcze raz, żeby dokończyć.'; else announce('Głos pobrany ✓');
 });
 $('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć pobrany głos z telefonu?', 'Usuń', true))) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });

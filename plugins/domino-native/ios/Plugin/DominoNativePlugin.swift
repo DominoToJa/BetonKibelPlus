@@ -33,7 +33,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "saveVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "elFetch", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -579,6 +580,37 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         guard let name = call.getString("name"), let b64 = call.getString("data"), let data = Data(base64Encoded: b64) else { call.reject("Brak danych"); return }
         let safe = safeKey(name)
         do { try data.write(to: voiceDir().appendingPathComponent(safe + ".mp3")); call.resolve() } catch { call.reject("Nie zapisano") }
+    }
+    /// Pobranie tekstu głosem ElevenLabs bezpośrednio z iPhone'a (bez ograniczeń przeglądarki/CORS) i zapis do pliku
+    @objc func elFetch(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), !key.isEmpty, let voice = call.getString("voice"), !voice.isEmpty,
+              let text = call.getString("text"), let name = call.getString("name") else { call.reject("Brak klucza, ID głosu albo tekstu"); return }
+        let model = call.getString("model") ?? "eleven_multilingual_v2"
+        let v = voice.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? voice
+        guard let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(v)?output_format=mp3_44100_128") else { call.reject("Złe ID głosu"); return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"; req.timeoutInterval = 40
+        req.setValue(key, forHTTPHeaderField: "xi-api-key")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        var body: [String: Any] = ["text": text, "model_id": model,
+                                   "voice_settings": ["stability": call.getDouble("stab") ?? 0.5, "similarity_boost": call.getDouble("sim") ?? 0.75, "speed": call.getDouble("speed") ?? 1.0]]
+        if model.contains("turbo_v2_5") || model.contains("flash_v2_5") { body["language_code"] = "pl" }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: req) { data, resp, err in
+            if let err = err { call.reject("Brak połączenia z ElevenLabs: \(err.localizedDescription)"); return }
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            guard code == 200, let d = data, d.count > 300 else {
+                var msg = "ElevenLabs błąd \(code)"
+                if let d = data, let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] {
+                    if let det = j["detail"] as? [String: Any] { msg += ": " + ((det["message"] as? String) ?? (det["status"] as? String) ?? "") }
+                    else if let det = j["detail"] as? String { msg += ": " + det }
+                }
+                call.reject(msg); return
+            }
+            do { try d.write(to: self.voiceDir().appendingPathComponent(self.safeKey(name) + ".mp3")); call.resolve(["ok": true, "bytes": d.count]) }
+            catch { call.reject("Nie udało się zapisać pliku głosu") }
+        }.resume()
     }
     @objc func listVoice(_ call: CAPPluginCall) {
         let files = (try? FileManager.default.contentsOfDirectory(atPath: voiceDir().path)) ?? []
