@@ -8,36 +8,45 @@ const nativeVoice = !!(NATIVE.isNative && NV.available);
 
 // ───────────────────────── teksty lektora ─────────────────────────
 const DEFAULT_TEXTS = {
-  start: 'No i chuj zaś na tego pomarańczowego chuja',
-  depart: 'Poszli w pizdu, waszmość!',
-  ask: 'czy powrócił ten stożkowaty fiut?',
-  arrived: 'I zaś trza lać kurwa mać',
-  late: 'Pośpisz sie kurwysynie !',
-  remind: 'Mości panie, czy nie przybywszy ta kurwa?',
-  added: 'jee zaliczona szmata , waszmość!',
-  undo: 'Cofnięto, jako waść rozkazał!',
-  low: 'Hhaha Chuju już prawie koniec!',
-  finish: 'Yupji auuuuuuuuuuuutomatycznie spierdalamy od tego chujostwa',
-  error: 'Nie dosłyszałem, mości panie!',
-  left3: 'Jeszcze 3 Kubiki tego gówna',
-  left15: 'połóweczka połóweczk haha',
-  left05: 'jeszcze bombka i wyjazd',
-  capacityChanged: 'Kosz ustawiony, waszmość!',
-  fullBucket: 'Pełen kibel, jazda, ogień!',
-  halfBucket: 'Pół kibelka, panie!',
-  micOn: 'Mikrofon włączony!',
-  reportLeftPrefix: 'Zostało',
-  reportPouredPrefix: 'Wylano',
-  reportTimePrefix: 'Betonowanie trwa',
+  start: 'Zaczynamy betonowanie. Powodzenia!\nRuszamy z betonowaniem.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!',
+  depart: 'Kosz w drodze.\nKosz pojechał.\nPrzyjąłem, kosz w trasie.\nDobra, kosz jedzie.',
+  ask: 'Czy kosz już wrócił?\nKosz jest już na miejscu?\nPrzyjechał już kosz?\nJest kosz?',
+  arrived: 'Dobrze, lejemy dalej.\nŚwietnie, można lać.\nSuper, zalewamy.\nPrzyjąłem, lejemy.',
+  late: 'W porządku, zapytam za kilka chwil.\nDobrze, poczekam.\nJasne, odezwę się za moment.\nRozumiem, zapytam ponownie.',
+  remind: 'Kosz już jest?\nHalo, czy kosz wrócił?\nDaj znać, czy kosz jest.\nCzekam na informację o koszu.',
+  added: 'Kosz zalany.\nZalane, policzone.\nDodane.\nMamy kolejny kosz.',
+  undo: 'Cofnięte.\nOstatni kosz usunięty.\nGotowe, cofnąłem.\nUsunięte z licznika.',
+  reportLeft: 'Zostało jeszcze X metra sześciennego.\nDo końca X metra sześciennego.\nPozostało X metra sześciennego.\nJeszcze X metra sześciennego do wylania.',
+  reportPoured: 'Wylano już X metra sześciennego.\nNa razie X metra sześciennego.\nMamy wylane X metra sześciennego.\nDo tej pory X metra sześciennego.',
+  reportTime: 'Betonowanie trwa X minut.\nPracujemy już X minut.\nOd startu minęło X minut.\nBetonujemy od X minut.',
+  capacityChanged: 'Pojemność kosza ustawiona.\nKosz zmieniony.\nUstawione, nowy kosz.\nZapisałem pojemność kosza.',
+  doseSet: 'Ilość do kosza ustawiona.\nZapisane, tyle lejemy.\nIlość zmieniona.\nGotowe, ustawione.',
+  fullBucket: 'Pełny kosz.\nLejemy do pełna.\nCały kosz.\nUstawione na pełny.',
+  halfBucket: 'Pół kosza.\nLejemy połowę.\nPołowa kosza.\nUstawione na pół.',
+  error: 'Nie zrozumiałem, powtórz proszę.\nMożesz powtórzyć?\nNie dosłyszałem.\nSłucham? Powtórz jeszcze raz.',
+  left75: 'Zostały trzy czwarte betonu.\nĆwiartka za nami, jedziemy dalej.\nPierwsza ćwiartka wylana.\nZostało jeszcze trzy czwarte.',
+  left50: 'Połowa betonu wylana.\nJesteśmy w połowie.\nPół za nami, pół przed nami.\nZostało jeszcze pół betonu.',
+  left3: 'Zostały jeszcze trzy metry sześcienne.\nJeszcze trzy kubiki.\nDo końca trzy metry.\nTrzy metry sześcienne do końca.',
+  left15: 'Zostało półtora metra sześciennego.\nJeszcze półtora kubika.\nPółtora metra do końca.\nZostało półtora, dajemy radę.',
+  left05: 'Zostało pół metra. Ostatni kosz.\nJeszcze pół kubika.\nOstatnie pół metra.\nKońcówka, zostało pół metra.',
+  low: 'Uwaga, beton się kończy.\nBetonu zostało niewiele.\nZbliżamy się do końca.\nUwaga, końcówka betonu.',
+  finish: 'Koniec betonowania. Dobra robota!\nGotowe, beton wylany.\nSkończone. Dziękuję za pracę!\nTo już wszystko. Brawo!',
+  micOn: 'Mikrofon włączony.\nSłucham.\nJestem gotowy.\nMikrofon działa, słucham.',
 };
 const TEXT_GROUPS = [
-  ['Betonowanie', [['start', 'Start betonowania'], ['added', 'Naliczono porcję'], ['undo', 'Cofnięcie'], ['low', 'Mało betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['finish', 'Koniec betonowania']]],
-  ['Kurs kosza', [['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
-  ['Inne', [['capacityChanged', 'Zmiana kosza'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['micOn', 'Mikrofon włączony'], ['error', 'Nie zrozumiał komendy']]],
-  ['Odpowiedzi z liczbami (początek zdania)', [['reportLeftPrefix', '„… X m³” — ile zostało'], ['reportPouredPrefix', '„… X m³” — ile wylano'], ['reportTimePrefix', '„… X minut” — czas']]],
+  ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
+  ['Komendy', [['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
+  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania']]],
+  ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
 ];
-const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy kosz wrócił?', arrived: 'Kosz jest', late: 'Kosza jeszcze nie ma', remind: 'Sprawdź powrót kosza', added: 'Naliczono porcję', undo: 'Cofnięto porcję', low: 'Kończy się beton', finish: 'Koniec betonowania', error: 'Nie rozpoznano komendy', left3: 'Zostały 3 m³', left15: 'Zostało 1,5 m³', left05: 'Zostało 0,5 m³', capacityChanged: 'Kosz zmieniony', fullBucket: 'Pełny kosz', halfBucket: 'Pół kosza', micOn: 'Mikrofon włączony' };
-const TEXT_KEY = 'beton_texts_v1', SETTINGS_KEY = 'beton_settings_v2';
+const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy kosz wrócił?', arrived: 'Kosz jest', late: 'Kosza jeszcze nie ma', remind: 'Sprawdź powrót kosza', added: 'Naliczono kosz', undo: 'Cofnięto', low: 'Kończy się beton', finish: 'Koniec betonowania', error: 'Nie rozpoznano komendy', left75: 'Zostało 75% betonu', left50: 'Zostało 50% betonu', left3: 'Zostały 3 m³', left15: 'Zostało 1,5 m³', left05: 'Zostało 0,5 m³', capacityChanged: 'Kosz zmieniony', doseSet: 'Ilość ustawiona', fullBucket: 'Pełny kosz', halfBucket: 'Pół kosza', micOn: 'Mikrofon włączony' };
+const TEXT_KEY = 'beton_texts_v2', SETTINGS_KEY = 'beton_settings_v2';
+/** losowy wariant (każda linia = wariant), bez powtórzenia poprzedniego */
+const lastPick = {};
+function pickVariant(key, txt) {
+  const lines = String(txt ?? TEXTS[key] ?? '').split('\n').map(x => x.trim()).filter(Boolean); if (!lines.length) return '';
+  let i = Math.floor(Math.random() * lines.length); if (lines.length > 1 && i === lastPick[key]) i = (i + 1) % lines.length; lastPick[key] = i; return lines[i];
+}
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
 let settings = { mode: 'full', voice: '', rate: 0.47, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'green', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: '3d' };
@@ -135,7 +144,7 @@ function speak(key, text) {
   } catch (e) { }
 }
 function sayBot(key, text) {
-  const full = text ?? TEXTS[key] ?? '', short = SHORT[key] || full;
+  const full = pickVariant(key, text), short = SHORT[key] || full;
   const shown = settings.mode === 'full' ? (full || short) : short;
   if (shown) $('botText').textContent = shown;
   if (settings.mode === 'full') { if (full || clipKeys.has(key)) speak(key, full) }
@@ -371,7 +380,7 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   }
   session.entries.push({ amount, at, prevState, prevMilestones });
   const remaining = left(); session.milestonesFired = session.milestonesFired || {};
-  const reached = [{ t: 3, key: 'left3' }, { t: 1.5, key: 'left15' }, { t: .5, key: 'left05' }].filter(m => before > m.t + 1e-5 && remaining > 0 && remaining <= m.t + 1e-5 && !session.milestonesFired[m.key]);
+  const reached = [{ t: session.load * .75, key: 'left75' }, { t: session.load * .5, key: 'left50' }, { t: 3, key: 'left3' }, { t: 1.5, key: 'left15' }, { t: .5, key: 'left05' }].sort((a, b) => b.t - a.t).filter(m => before > m.t + 1e-5 && remaining > 0 && remaining <= m.t + 1e-5 && !session.milestonesFired[m.key]);
   for (const m of reached) session.milestonesFired[m.key] = true;
   let lowNow = false;
   if (!reached.length && remaining > 0 && remaining <= Math.max(.5, session.load * .15) && !session.milestonesFired.low) { session.milestonesFired.low = true; lowNow = true }
@@ -593,7 +602,7 @@ function tick() {
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
-const COMMANDS = [['„Dodaj kibel”', 'nalicza porcję'], ['„Cofnij”', 'cofa ostatnią'], ['„Kosz wyjechał”', 'start kursu'], ['„Tak, jest”', 'kosz wrócił'], ['„Jeszcze nie”', 'pytanie za 30 s'], ['„Ile zostało?”', 'pozostałe m³'], ['„Ile wylano?”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Ustaw porcję 0,35”', 'ile wlano'], ['„Pełny kosz” / „Pół kosza”', 'szybka porcja']];
+const COMMANDS = [['„Dodaj kibel” · „Zalane” · „Kolejny”', 'nalicza kosz'], ['„Cofnij” · „Pomyłka”', 'cofa ostatni'], ['„Kosz wyjechał” · „Jazda”', 'start kursu'], ['„Tak” · „Jest” · „Mamy”', 'kosz wrócił'], ['„Nie ma” · „Jeszcze jedzie”', 'pytanie za 30 s'], ['„Ile zostało?” · „Ile jeszcze?”', 'pozostałe m³'], ['„Ile wylano?” · „Licznik”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Lej 0,35”', 'ile wlać do kosza'], ['„Pełny kosz” / „Pół kosza”', 'szybka ilość']];
 $('cmdList').append(...COMMANDS.flatMap(([a, b]) => [el('span', { text: a }), el('small', { text: b })]));
 function normalise(t) { return t.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d)[,.](\d)/g, '$1.$2').replace(/[^a-z0-9.\s]/g, ' ').replace(/\s+/g, ' ').trim() }
 function spokenNumber(t) {
@@ -605,21 +614,22 @@ function spokenNumber(t) {
   if (tokens.length >= 2 && tokens[0] === 'zero') return Number('0.' + tokens.slice(1).map(x => dict[x]).join(''));
   if (tokens.length === 1) return dict[tokens[0]]; return NaN;
 }
-function report(prefixKey, value, unit) { const text = (TEXTS[prefixKey] || '') + ' ' + value + ' ' + unit; announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak('', text) }
+function report(key, value) { const text = (pickVariant(key) || 'X').replace(/X/g, String(value)); announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak(key + '_n', text) }
 function command(utterance) {
   const t = normalise(utterance); if (!t) return false;
-  if (/\b(nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie jest)\b/.test(t)) { delay(); return true }
-  if (/\b(ile zostalo|ile betonu zostalo|stan betonu)\b/.test(t)) { report('reportLeftPrefix', fmt(left()), 'metra sześciennego'); return true }
-  if (/\b(ile wylano|ile juz wylano|ile nalano)\b/.test(t)) { report('reportPouredPrefix', fmt(entriesSum()), 'metra sześciennego'); return true }
-  if (/\b(ile czasu|czas betonowania|jak dlugo)\b/.test(t)) { report('reportTimePrefix', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000), 'minut'); return true }
-  if (/\b(pelny kosz|pelny kibel|do pelna)\b/.test(t)) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
-  if (/\b(pol kosza|pol kibla|polowa kosza|polowa kibla|pol taczki)\b/.test(t)) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
-  if (/\b(ustaw kosz|zmien kosz|kosz [0-9]|kibel [0-9]|pojemnosc)\b/.test(t)) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } return false }
-  if (/\b(ustaw porcje|zmien porcje|leje|wlewam|ustaw ile|porcja [0-9])\b/.test(t)) { const n = spokenNumber(t); if (n >= 0) { changeDose(n); return true } return false }
-  if (/\b(tak|juz jest|kosz jest|kibel jest|wrocil|przyjechal)\b/.test(t)) { returned(); return true }
-  if (/\b(cofnij|anuluj|usun ostatni)\b/.test(t)) { undo(); return true }
-  if (/\b(wyjechal|ruszyl|pojechal)\b/.test(t)) { depart(); return true }
-  if (/\b(dodaj|nalicz|dolej|zalicz)\b/.test(t)) { add(session?.dose); return true }
+  const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
+  if (has('nie|nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|jedzie|w drodze|czekaj|zaraz|moment|chwila|nie widac')) { delay(); return true }
+  if (has('ile zostalo|ile betonu zostalo|stan betonu|ile jeszcze|ile do konca|ile brakuje|ile pozostalo|ile mamy jeszcze|ile kubikow zostalo|ile metrow zostalo|jaki stan|ile w gruszce')) { report('reportLeft', fmt(left())); return true }
+  if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik')) { report('reportPoured', fmt(entriesSum())); return true }
+  if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta|czas')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
+  if (!has('dodaj|zalany|zalane') && has('ustaw kosz|zmien kosz|kosz|kibel|pojemnosc kosza|pojemnosc|kosz ma|nowy kosz|kosz na|ustaw kibel|zmien kibel')) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } }
+  if (has('lej|leje|wlewam|wlej|zmien ilosc|ustaw ilosc|ilosc|lejemy|zalewam|do kosza|wlewamy|ustaw porcje|porcja')) { const n = spokenNumber(t); if (n >= 0 && n <= 5 && !isNaN(n)) { changeDose(n, true); sayBot('doseSet'); return true } }
+  if (has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
+  if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowka|polowe|polowa|pol')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
+  if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
+  if (has('kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|start|jazda|leci|polecial')) { depart(); return true }
+  if (has('dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|wlane|poszlo|kolejny')) { add(session?.dose); return true }
+  if (has('tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|no|jest|ja|jo|mamy|dobra|okej|ok|gotowe')) { returned(); return true }
   return false;
 }
 function micDisplay(t) { $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
@@ -1038,15 +1048,15 @@ async function loadVoices() {
 async function settingsRender() {
   loadVoices();
   if (nativeVoice) clipKeys = new Set(await NV.listClips().catch(() => []));
-  $('clipsHint').textContent = nativeVoice ? 'Wpisz, co ma mówić lektor. 🎙 nagrywa Twój głos — nagranie ma pierwszeństwo przed lektorem. Puste pole = cisza.' : 'Wpisz, co ma mówić lektor. Puste pole = cisza. (Nagrywanie działa w aplikacji na iPhonie.)';
+  $('clipsHint').textContent = nativeVoice ? 'Każda linia = osobny wariant, bot losuje jeden. X = liczba. 🎙 nagrywa Twój głos — nagranie ma pierwszeństwo przed lektorem. Puste pole = cisza.' : 'Każda linia = osobny wariant, bot losuje jeden. X = liczba. Puste pole = cisza. (Nagrywanie działa w aplikacji na iPhonie.)';
   const box = $('botDictionary'); box.replaceChildren();
   for (const [group, items] of TEXT_GROUPS) {
     box.append(el('h3', { class: 'dict-group', text: group }));
     for (const [key, label] of items) {
-      const isPrefix = key.endsWith('Prefix');
-      const ta = el('textarea', { rows: '2', 'aria-label': label }); ta.value = TEXTS[key] ?? '';
+      const isPrefix = key.startsWith('report');
+      const ta = el('textarea', { rows: '4', 'aria-label': label }); ta.value = TEXTS[key] ?? '';
       let tmr; ta.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(() => { TEXTS[key] = ta.value.trim(); saveTexts() }, 400) });
-      const acts = el('div', { class: 'dict-acts' }, el('button', { type: 'button', text: '▶', 'aria-label': 'Odsłuchaj', onclick: () => speak(isPrefix ? '' : key, isPrefix ? ta.value + ' 2,5 metra sześciennego' : ta.value) }));
+      const acts = el('div', { class: 'dict-acts' }, el('button', { type: 'button', text: '▶', 'aria-label': 'Odsłuchaj', onclick: () => speak(isPrefix ? '' : key, pickVariant(key, ta.value).replace(/X/g, '2,5')) }));
       if (nativeVoice && !isPrefix) {
         const rec = el('button', { type: 'button', class: 'rec' + (recordingKey === key ? ' live' : ''), text: recordingKey === key ? '⏹ Stop' : (clipKeys.has(key) ? '🎙 Nagraj ponownie' : '🎙 Nagraj') });
         rec.addEventListener('click', async () => {

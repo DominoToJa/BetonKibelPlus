@@ -70,7 +70,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var dose: Double = 0.5
     private var leftM3: Double = 0
     private var poured: Double = 0
-    private var load: Double = 0
+    private var loadM3: Double = 0
     private var fired: Set<String> = []
     private var askTimer: Timer?
     private var reminders = 0
@@ -309,11 +309,27 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
     private func say(key: String?, text: String?, force: Bool = false) {
         if !voiceOn && !force { return }
-        let t = (text?.isEmpty == false ? text! : (key.flatMap { texts[$0] } ?? ""))
+        let t = (text?.isEmpty == false ? text! : pick(key))
         let clip = key.map { hasClip($0) } ?? false
         if t.isEmpty && !clip { return }
         sayQueue.append((key, t))
         if !isSpeaking { nextSay() }
+    }
+
+    private var lastPick: [String: Int] = [:]
+    /// Każda linia tekstu = osobny wariant; losuje bez powtórzenia poprzedniego.
+    private func pick(_ key: String?) -> String {
+        guard let k = key, let raw = texts[k] else { return "" }
+        let lines = raw.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        if lines.isEmpty { return "" }
+        var i = Int.random(in: 0..<lines.count)
+        if lines.count > 1 && i == lastPick[k] { i = (i + 1) % lines.count }
+        lastPick[k] = i
+        return lines[i]
+    }
+    private func report(_ key: String, _ value: String, _ fallback: String) {
+        let base = pick(key)
+        say(key: key + "_n", text: (base.isEmpty ? fallback : base).replacingOccurrences(of: "X", with: value))
     }
 
     private func nextSay() {
@@ -461,7 +477,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.dose = call.getDouble("dose") ?? 0.5
             self.leftM3 = call.getDouble("left") ?? 0
             self.poured = call.getDouble("poured") ?? 0
-            self.load = call.getDouble("load") ?? 0
+            self.loadM3 = call.getDouble("load") ?? 0
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
             call.resolve()
@@ -521,32 +537,26 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let t = norm(raw)
         let now = nowMs()
         guard active else { return }
-        if has(t, ["nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie jest"]) {
+        if has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
             phase = "late"; deadline = now + 30000
             pending.append(["type": "delay", "at": now])
             say(key: "late", text: nil)
             scheduleAsk()
-        } else if has(t, ["tak", "juz jest", "kosz jest", "kibel jest", "wrocil", "przyjechal", "jest"]) {
-            guard method != "taczka" else { return }
-            phase = "returned"; deadline = 0; departed = 0; reminders = 0
-            askTimer?.invalidate()
-            pending.append(["type": "returned", "at": now])
-            say(key: "arrived", text: nil)
-        } else if has(t, ["cofnij", "anuluj", "usun ostatni"]) {
+        } else if has(t, ["cofnij", "anuluj", "usun ostatni", "usun", "cofnij ostatni", "wycofaj", "odejmij", "minus jeden", "pomylka", "blad", "skasuj", "skasuj ostatni"]) {
             pending.append(["type": "undo", "at": now])
             say(key: "undo", text: nil)
-        } else if has(t, ["ile zostalo", "ile betonu", "stan betonu"]) {
-            say(key: "reportLeft", text: (texts["reportLeftPrefix"] ?? "Zostało") + " " + fmt(leftM3) + " metra sześciennego")
-        } else if has(t, ["ile wylano", "ile nalano"]) {
-            say(key: "reportPoured", text: (texts["reportPouredPrefix"] ?? "Wylano") + " " + fmt(poured) + " metra sześciennego")
-        } else if has(t, ["wyjechal", "ruszyl", "pojechal"]) {
+        } else if has(t, ["ile zostalo", "ile betonu zostalo", "stan betonu", "ile jeszcze", "ile do konca", "ile brakuje", "ile pozostalo", "ile mamy jeszcze", "ile kubikow zostalo", "ile metrow zostalo", "jaki stan", "ile w gruszce"]) {
+            report("reportLeft", fmt(leftM3), "Zostało X metra sześciennego.")
+        } else if has(t, ["ile wylano", "ile juz wylano", "ile nalano", "ile poszlo", "ile wylalismy", "ile zalalismy", "ile zalane", "ile kubikow poszlo", "ile metrow wylano", "ile mamy wylane", "ile zrobione", "licznik"]) {
+            report("reportPoured", fmt(poured), "Wylano X metra sześciennego.")
+        } else if has(t, ["kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal", "start", "jazda", "leci", "polecial"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
             pending.append(["type": "depart", "at": now])
             say(key: "depart", text: nil)
             scheduleAsk()
-        } else if has(t, ["dodaj", "nalicz", "dolej", "zalicz"]) {
+        } else if has(t, ["dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
             guard leftM3 > 0.0001 else { return }
             let before = leftM3
             let amount = min(dose, leftM3)
@@ -554,17 +564,25 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             poured += amount
             pending.append(["type": "add", "at": now, "amount": amount])
             say(key: "added", text: nil)
-            for (thr, key) in [(3.0, "left3"), (1.5, "left15"), (0.5, "left05")] {
+            var note: String? = nil
+            for (thr, key) in [(loadM3 * 0.75, "left75"), (loadM3 * 0.5, "left50"), (3.0, "left3"), (1.5, "left15"), (0.5, "left05")].sorted(by: { $0.0 > $1.0 }) {
                 if before > thr + 0.00001 && leftM3 > 0 && leftM3 <= thr + 0.00001 && !fired.contains(key) {
-                    fired.insert(key); say(key: key, text: nil)
+                    fired.insert(key); note = key
                 }
             }
+            if let n = note { say(key: n, text: nil) }
             if leftM3 <= 0.0001 {
                 phase = "ready"; askTimer?.invalidate()
             } else if method != "taczka" {
                 departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
                 scheduleAsk()
             }
+        } else if has(t, ["tak", "jest", "juz jest", "kosz jest", "kibel jest", "wrocil", "juz wrocil", "przyjechal", "przybyl", "dojechal", "no", "no jest", "ja", "jo", "mamy", "dobra", "okej", "ok", "gotowe"]) {
+            guard method != "taczka" else { return }
+            phase = "returned"; deadline = 0; departed = 0; reminders = 0
+            askTimer?.invalidate()
+            pending.append(["type": "returned", "at": now])
+            say(key: "arrived", text: nil)
         } else {
             say(key: "error", text: nil)
         }
