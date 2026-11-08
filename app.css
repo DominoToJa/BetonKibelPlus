@@ -649,3 +649,20 @@ details.set-cat[open]>summary{border-bottom:1px solid color-mix(in srgb,var(--c1
 .pc-missing{display:grid;gap:6px;margin:8px 0;padding:12px 14px;border-radius:14px;background:#3a2a0a;border:1px solid #ffb703;color:#ffe3a3}
 .pc-missing b{color:#ffd166;font-size:14.5px}.pc-missing span{font-size:13px;line-height:1.45}
 .pc-missing .row{gap:8px;margin-top:4px}.pc-missing button{padding:11px 8px;font-size:13.5px}
+
+/* intro pod „Betonowy głos” (~24 s): wolny dojazd, zderzenie ~11 s, logo, hasła, wyciszenie */
+.go-r,.go-l{animation-duration:12.5s!important}
+.intro-scene{animation:sceneIn 1.2s ease-out both,sceneOut .9s 11.2s ease-in forwards!important}
+.intro-boom b{animation-delay:10.95s!important}
+.intro-boom span{animation-delay:11s!important}
+.intro-boom i{animation-delay:calc(11s + var(--d) * .3)!important}
+#intro .intro-logo{animation:shake .4s 11s ease-out,introBreath 4s 14s ease-in-out infinite!important}
+@keyframes introBreath{50%{transform:scale(1.04)}}
+.intro-ring{animation-delay:11.2s!important;animation-duration:1.8s!important}
+.intro-bk{animation-delay:11.9s!important;animation-duration:.9s!important}
+.intro-domino{animation-delay:12.5s!important;animation-duration:.9s!important}
+.intro-title{animation-delay:13s!important;animation-duration:.9s!important}
+.intro-tags{position:relative;z-index:3;display:grid;gap:8px;text-align:center;margin-top:4px}
+.intro-tags span{opacity:0;font-size:15px;font-weight:850;letter-spacing:.06em;color:#cfe9f1;animation:fadeUp .8s ease-out forwards}
+.intro-tags span:nth-child(1){animation-delay:15s}.intro-tags span:nth-child(2){animation-delay:17.2s;color:var(--c1)}.intro-tags span:nth-child(3){animation-delay:19.4s}
+#intro.out{transition:opacity .9s}

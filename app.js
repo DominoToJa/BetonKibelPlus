@@ -236,20 +236,21 @@ function playBoom() {
   const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .45); e.gain.setValueAtTime(vol, t); e.gain.exponentialRampToValueAtTime(.001, t + .5); o.connect(e); e.connect(ctx.destination); o.start(t); o.stop(t + .55);
 }
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
-let introJinglePending = false, voicePending = false;
+let introJinglePending = false, voicePending = false, soundUnlockedAt = 0;
 /* „Betonowy głos” — głos w intro (przycisza muzykę, gdy mówi) */
+function stopIntroVoice() { const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
 function playIntroVoice() {
   try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
     voiceEl.onplay = () => bgmUpdate(); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
     voiceEl.play().catch(() => { voicePending = true }) } catch (e) { }
 }
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
-const BGM_TABS = new Set(['home', 'history', 'drum', 'settings', 'theme']);
-let bgm = null, bgmTimer = 0, introPlaying = false;
+const BGM_TABS = { has: t => t !== 'work' };
+let bgm = null, bgmTimer = 0, introPlaying = !!document.getElementById('intro');
 let voiceEl = null; const voiceBusy = () => !!(voiceEl && !voiceEl.paused && !voiceEl.ended);
 const bgmTarget = () => Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))) * (voiceBusy() ? .22 : .5);
 const songBusy = () => !!(songEl && !songEl.paused && !songEl.ended);
-const bgmWanted = () => !songBusy() && settings.music && settings.bgm !== false && !document.hidden && (introPlaying || ((BGM_TABS.has(TAB_OF[currentTab]) || BGM_TABS.has(currentTab)) && !(typeof micWanted !== 'undefined' && micWanted)));
+const bgmWanted = () => !songBusy() && !introPlaying && settings.music && settings.bgm !== false && !document.hidden && ((TAB_OF[currentTab] !== 'work' && currentTab !== 'work' && !(typeof micWanted !== 'undefined' && micWanted)));
 function bgmFade(to, done) {
   clearInterval(bgmTimer); if (!bgm) return done?.();
   bgmTimer = setInterval(() => { const v = bgm.volume, d = to - v, st = Math.sign(d) * Math.min(Math.abs(d), .04); bgm.volume = Math.min(1, Math.max(0, v + st)); if (Math.abs(to - bgm.volume) < .005) { clearInterval(bgmTimer); bgm.volume = to; done?.() } }, 40);
@@ -273,8 +274,8 @@ function bgmWatch() {
     const iv = setInterval(() => { const k = Math.min(1, (performance.now() - t0) / (BGM_XF * 1000)); nxt.volume = to * Math.sin(k * Math.PI / 2); old.volume = v0 * Math.cos(k * Math.PI / 2); if (k >= 1) { clearInterval(iv); old.pause(); bgmXfading = false; bgmUpdate() } }, 40);
   }, 200);
 }
-document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none'; window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
-document.addEventListener('pointerdown', () => { getAC(); if (voicePending) { voicePending = false; playIntroVoice() } if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
+document.addEventListener('visibilitychange', bgmUpdate); window.BKP_bgmState = () => (bgm ? (bgm.paused ? 'paused' : 'playing ' + bgm.volume.toFixed(2) + ' @' + bgm.currentTime.toFixed(1)) : 'none') + ' | glos: ' + (voiceBusy() ? 'gra' : 'cisza'); window.BKP_bgmSeek = t => { if (bgm) bgm.currentTime = t };
+document.addEventListener('pointerdown', () => { getAC(); if (voicePending) { voicePending = false; soundUnlockedAt = Date.now(); if (TAB_OF[currentTab] !== 'work') playIntroVoice() } if (introJinglePending) { introJinglePending = false; bgmUpdate() } }, { once: true, capture: true });
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
@@ -340,6 +341,7 @@ function tab(name) {
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB_OF[name]));
   if (name === 'work') { if (!session) { tab('setup'); announce('Najpierw rozpocznij betonowanie'); return } render(); tick() }
   if (name === 'history') historyRender();
+  if (TAB_OF[name] === 'work' && voiceEl) stopIntroVoice();
   bgmUpdate();
   if (name === 'home') homeRender();
   if (name === 'buckets') bucketListRender();
@@ -490,7 +492,7 @@ async function start() {
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
-  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (voiceEl) { voiceEl.pause(); voiceEl = null } if (settings.music) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
+  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (voiceEl) { voiceEl.pause(); voiceEl = null } if (false) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
 }
 $('start').addEventListener('click', start);
 $('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
@@ -498,7 +500,7 @@ function finishCurrent(showNotice = true) {
   if (!session) return;
   archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
-  NATIVE.cancel?.(); syncNative(); if (showNotice) { if (settings.music) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
+  NATIVE.cancel?.(); syncNative(); if (showNotice) { if (false) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
 }
 $('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return; finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
@@ -1464,9 +1466,9 @@ drainNative();
 
 (function intro() {
   const box = $('intro'); if (!box) return;
-  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', close); setTimeout(close, 10000);
-  if (settings.music) { introPlaying = true; bgmUpdate(); setTimeout(() => { if (!done) playBoom() }, 4500) }
-  if (settings.introVoice !== false) playIntroVoice();
+  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); setTimeout(bgmUpdate, 500); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
+  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 24000);
+  introPlaying = true;
+  if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
   if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
 })();
