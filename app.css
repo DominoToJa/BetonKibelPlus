@@ -826,3 +826,19 @@ body.one-hand .vslider{height:auto!important;min-height:0;align-self:stretch}
 .bucket-group[open]>summary::after{transform:rotate(180deg)}
 .bucket-group .bucket-row{margin:8px}
 .bucket-group .bucket-info{min-width:0}.bucket-group .bucket-info strong{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;word-break:break-word}.bucket-group .bucket-thumb{width:48px!important;height:48px!important}
+
+/* 3.6.9 — kalibracja i gotowe modele */
+.form-card{max-height:88vh;overflow:auto}
+.form-card h3{margin:0 0 8px;font-size:18px}
+.form-card input{width:100%}
+.ask-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.calib-out{font-weight:900;font-size:18px;color:var(--c1);margin:10px 0 0}
+.tpl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.tpl{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px!important;min-height:0!important;border-radius:14px}
+.tpl.on{border:2px solid var(--c1)!important;background:color-mix(in srgb,var(--c1) 18%,transparent)!important}
+.tpl b{font-size:13px}.tpl small{font-size:10px;opacity:.75;text-align:center;line-height:1.2}
+.tpl-ico{width:52px;height:52px}
+.tpl-caps{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.tile.tpl-add{grid-column:1/-1;min-height:58px!important;border:2px dashed var(--c1)!important}
+.tile.tpl-add b{font-size:16px}
+.form-card p.hint{font-size:13px!important;font-weight:600!important;line-height:1.35;margin:0 0 6px}

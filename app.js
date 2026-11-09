@@ -360,7 +360,7 @@ function remember() {
 function syncNative() {
   if (!nativeVoice) return;
   const s = session;
-  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
+  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
 let modelCache = { key: '', model: null }, customOpen = false;
@@ -453,6 +453,68 @@ async function deleteProfile(p, after) {
 }
 const byRecent = list => list.slice().sort((a, b) => (b.usedAt || b.created || 0) - (a.usedAt || a.created || 0));
 let pickAll = false;
+
+/* ───── okno z polami (kalibracja, gotowe modele) ───── */
+function formModal(title, body, okText = 'Zapisz') {
+  return new Promise(res => {
+    const box = el('div', { class: 'ask-back', role: 'dialog', 'aria-modal': 'true' }), card = el('div', { class: 'ask-card form-card' });
+    const done = v => { box.remove(); res(v) };
+    card.append(el('h3', { text: title }), body, el('div', { class: 'ask-row' }, el('button', { type: 'button', text: 'Anuluj', onclick: () => done(false) }), el('button', { type: 'button', class: 'primary', text: okText, onclick: () => done(true) })));
+    box.append(card); box.addEventListener('click', e => { if (e.target === box) done(false) }); document.body.append(box);
+  });
+}
+/* ───── kalibracja z gruszki: ile m³ wylano / ile pełnych koszy wyszło ───── */
+function applyCalib(p, cap, info) {
+  cap = Math.round(cap * 1000) / 1000; if (!(cap > 0.02 && cap <= 5)) return announce('Wyszło ' + fmt(cap) + ' m³ — to nie wygląda na kosz, sprawdź liczby');
+  const old = p.capacity; p.capacity = cap; p.real = cap; p.calib = { ...info, old, at: Date.now() }; saveProfiles();
+  if (chosenProfileId === p.id || session?.bucketProfile?.id === p.id) chooseProfile(p.id);
+  announce('⚖️ ' + p.name + ': ' + fmt(old) + ' → ' + fmt(cap) + ' m³ (skalibrowany)'); bucketListRender?.();
+}
+async function calibrateProfile(p) {
+  const m3 = el('input', { inputmode: 'decimal', placeholder: 'np. 1', value: '' }), n = el('input', { inputmode: 'decimal', placeholder: 'np. 1,5', value: '' }), out = el('p', { class: 'calib-out', text: '' });
+  const upd = () => { const a = number(m3.value), b = number(n.value); out.textContent = a > 0 && b > 0 ? 'Pełny kosz = ' + fmt(Math.round(a / b * 1000) / 1000) + ' m³ (teraz ' + fmt(p.capacity) + ')' : 'Teraz: ' + fmt(p.capacity) + ' m³' }; upd();
+  m3.addEventListener('input', upd); n.addEventListener('input', upd);
+  const body = el('div', { class: 'calib' }, el('p', { class: 'hint', text: 'Wlej z gruszki znaną ilość (np. 1 m³ z licznika gruszki) i policz, ile PEŁNYCH koszy (do krawędzi) z tego wyszło. Może być z przecinkiem, np. 1,5.' }),
+    el('label', { class: 'label', text: 'Z gruszki wylano (m³)' }), m3, el('label', { class: 'label', text: 'Ile pełnych koszy wyszło' }), n, out);
+  if (!(await formModal('⚖️ Kalibracja „' + p.name + '”', body, '⚖️ Zapisz'))) return;
+  const a = number(m3.value), b = number(n.value); if (!(a > 0 && b > 0)) return announce('Wpisz obie liczby');
+  applyCalib(p, a / b, { poured: a, buckets: b });
+}
+/* ───── gotowe modele koszy (bez zdjęć) ───── */
+const TEMPLATES = [
+  ['lej', 'Lejowy', 'najczęstszy, zwęża się w dół', 'cone', { dTop: 110, dBottom: 55, h: 100 }],
+  ['lejek', 'Prosty + lejek', 'proste ścianki, na dole lejek', 'cylcone', { d: 110, hCyl: 55, hCone: 45, dOut: 30 }],
+  ['waski', 'Wąski wysoki', 'smukły, mocno zwężany', 'cone', { dTop: 90, dBottom: 40, h: 130 }],
+  ['plaski', 'Szeroki niski', 'płaski, szeroki wlew', 'cone', { dTop: 140, dBottom: 80, h: 70 }],
+  ['walec', 'Walec', 'proste ścianki', 'cylinder', { d: 90, h: 90 }],
+  ['skrzynia', 'Prostokątny', 'kanciasty / skrzynia', 'rect', { lTop: 120, wTop: 80, lBottom: 80, wBottom: 40, h: 90 }],
+];
+function tplSvg(shape, d) {
+  let pts; // [y, półszerokość] od góry
+  if (shape === 'cone') pts = [[0, d.dTop / 2], [d.h, d.dBottom / 2]];
+  else if (shape === 'cylcone') pts = [[0, d.d / 2], [d.hCyl, d.d / 2], [d.hCyl + d.hCone, d.dOut / 2]];
+  else if (shape === 'cylinder') pts = [[0, d.d / 2], [d.h, d.d / 2]];
+  else pts = [[0, d.lTop / 2], [d.h, d.lBottom / 2]];
+  const H = pts.at(-1)[0], W = Math.max(...pts.map(p => p[1])) * 2, k = 52 / Math.max(H, W), ox = 32, oy = 6 + (52 - H * k) / 2;
+  const P = [...pts.map(([y, w]) => [ox - w * k, oy + y * k]), ...pts.slice().reverse().map(([y, w]) => [ox + w * k, oy + y * k])].map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'tpl-ico');
+  svg.innerHTML = `<polygon points="${P}" fill="color-mix(in srgb,var(--c1) 35%,transparent)" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round"/>`; return svg;
+}
+async function templatePick() {
+  let tpl = TEMPLATES[0], cap = .75;
+  const grid = el('div', { class: 'tpl-grid' }), caps = el('div', { class: 'chips tpl-caps' }), other = el('input', { inputmode: 'decimal', placeholder: 'inna, np. 0,8' }), name = el('input', { placeholder: 'Nazwa (np. Kosz Pawła)' });
+  const draw = () => {
+    grid.replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t === tpl ? ' on' : ''), onclick: () => { tpl = t; draw() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] }), el('small', { text: t[2] }))));
+    caps.replaceChildren(...[.5, .75, 1, 1.25, 1.5, 2].map(v => el('button', { type: 'button', class: 'pill' + (Math.abs(v - cap) < 1e-4 && !other.value ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { cap = v; other.value = ''; draw() } })));
+  };
+  other.addEventListener('input', () => { const v = number(other.value); if (v > 0) cap = v; draw() }); draw();
+  const body = el('div', { class: 'tpl-body' }, el('p', { class: 'hint', text: 'Wybierz kształt i pojemność z tabliczki — podziałka policzy się sama, bez zdjęć. Potem możesz dokalibrować z gruszki ⚖️.' }), grid, el('label', { class: 'label', text: 'Pojemność (tabliczka)' }), caps, other, el('label', { class: 'label', text: 'Nazwa' }), name);
+  if (!(await formModal('⚡ Gotowy model kosza', body, '✓ Zapisz kosz'))) return null;
+  if (!(cap > 0 && cap <= 5)) { announce('Pojemność od 0,05 do 5 m³'); return null }
+  const [, label, , shape, base] = tpl, k = Math.cbrt(cap / geoCapacity(shape, base)), dims = Object.fromEntries(Object.entries(base).map(([a, v]) => [a, Math.round(v * k * 10) / 10]));
+  const p = { id: 'bucket-' + Date.now(), kind: 'kosz', name: name.value.trim() || label + ' ' + fmt(cap) + ' m³', shape, dims, plate: cap, capacity: cap, template: tpl[0], created: Date.now(), photos: [] };
+  profiles.push(p); saveProfiles(); announce('Zapisano: ' + p.name); return p;
+}
 function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p && applyLive !== 'silent') { p.usedAt = Date.now(); try { saveProfiles() } catch (e) { } } if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
@@ -479,6 +541,7 @@ function sheetRender() {
       x, el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
   if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
+  if (method !== 'taczka') r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
   r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Zmierz nowy kosz') }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
@@ -554,7 +617,12 @@ function finishCurrent(showNotice = true) {
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
   NATIVE.cancel?.(); syncNative(); if (showNotice) { if (false) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
 }
-$('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return; finishCurrent(); tab('history') });
+$('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return;
+  const bp = session.method !== 'taczka' && session.bucketProfile?.id ? getProfile(session.bucketProfile.id) : null, sum = entriesSum(), load = Number(session.load) || 0;
+  if (bp && load > 0 && session.entries.length >= 2 && sum > 0) { const r = load / sum; if (Math.abs(r - 1) > .03 && Math.abs(r - 1) < .4) {
+    const nc = bp.capacity * r, v = await askChoice('⚖️ Licznik policzył ' + fmt(Math.round(sum * 100) / 100) + ' m³, a gruszka miała ' + fmt(load) + ' m³. Jeśli wylałeś CAŁĄ gruszkę, poprawię kosz „' + bp.name + '”: ' + fmt(bp.capacity) + ' → ' + fmt(Math.round(nc * 1000) / 1000) + ' m³, żeby następnym razem się zgadzało.', [['⚖️ Tak, popraw kosz', 'yes', 'primary', 'wylałem całą gruszkę'], ['Nie — zostało albo zabrakło betonu', 'no', '']]);
+    if (v === 'yes') applyCalib(bp, nc, { poured: load, counted: sum, auto: true }) } }
+  finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
 
 // ───────────────────────── kurs kosza ─────────────────────────
@@ -1003,6 +1071,7 @@ async function drainNative() {
       else if (e.type === 'delay') delay({ at: e.at, silent: true });
       else if (e.type === 'depart') depart({ at: e.at, silent: true });
       else if (e.type === 'undo') undo({ silent: true });
+      else if (e.type === 'dose') { session.dose = Math.min(session.capacity, Number(e.amount) || session.dose) }
       else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + 30000; deadline = nextReminder }
     }
     remember(); render(); tick();
@@ -1105,9 +1174,10 @@ function bucketListRender() {
     det.append(el('summary', {}, el('span', { text: ico + ' ' + ({ kosz: 'Kosze', taczka: 'Taczki', lyzka: 'Łyżki / osprzęt' }[kind] || label) }), el('b', { text: String(list.length) })));
     for (const p of list) {
       const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb', loading: 'lazy' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kibelIcon()); return d })();
-      const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
+      const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.calib ? ' · ⚖️ skalibrowany' : p.template ? ' · gotowy model' : p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
       const acts = el('div', { class: 'bucket-acts' });
       if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { const w = KINDS[kindOf(p)][2]; if (method !== w && !(w === 'kibel' && method === 'inne')) selectMethod(w); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
+      if (kind !== 'taczka') acts.append(el('button', { type: 'button', text: '⚖️', 'aria-label': 'Kalibruj z gruszki', title: 'Kalibruj z gruszki', onclick: () => calibrateProfile(p) }));
       acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
       acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: () => deleteProfile(p, bucketListRender) }));
       det.append(el('div', { class: 'bucket-row' }, img, info, acts));

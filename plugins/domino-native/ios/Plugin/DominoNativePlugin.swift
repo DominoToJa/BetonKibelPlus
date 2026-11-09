@@ -5,6 +5,7 @@ import Speech
 import MediaPlayer
 import UserNotifications
 import Capacitor
+import CallKit
 
 /// BetonKibelPlus DOMINO — moduł natywny:
 /// - ciągłe rozpoznawanie mowy (działa też na zablokowanym ekranie dzięki trybowi audio w tle),
@@ -12,7 +13,7 @@ import Capacitor
 /// - gdy aplikacja jest w tle: sam pyta o kosz, obsługuje odpowiedzi i zapisuje zdarzenia
 ///   do kolejki, którą JS odbiera po powrocie (drainEvents).
 @objc(DominoNativePlugin)
-public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
+public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate, CXCallObserverDelegate {
     public let identifier = "DominoNativePlugin"
     public let jsName = "DominoNative"
     public let pluginMethods: [CAPPluginMethod] = [
@@ -87,6 +88,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var departed: Double = 0
     private var meanTripSec: Double = 120
     private var dose: Double = 0.5
+    private var capacity: Double = 0.5
     private var leftM3: Double = 0
     private var poured: Double = 0
     private var loadM3: Double = 0
@@ -94,6 +96,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var askTimer: Timer?
     private var reminders = 0
     private var pending: [[String: Any]] = []
+    private let callObserver = CXCallObserver()
+    private var inCall = false
 
     override public func load() {
         synth.delegate = self
@@ -107,6 +111,36 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         nc.addObserver(self, selector: #selector(onRouteChange(_:)), name: AVAudioSession.routeChangeNotification, object: nil)
         nc.addObserver(self, selector: #selector(onBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         nc.addObserver(self, selector: #selector(onForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
+        callObserver.setDelegate(self, queue: DispatchQueue.main)
+        inCall = callObserver.calls.contains { !$0.hasEnded }
+    }
+
+    // MARK: - Rozmowa telefoniczna / WhatsApp / Messenger: lektor i mikrofon czekają, potem same wracają
+    public func callObserver(_ callObserver: CXCallObserver, callChanged call: CXCall) {
+        let busy = callObserver.calls.contains { !$0.hasEnded }
+        if busy && !inCall {
+            inCall = true
+            pauseForCall()
+            notifyListeners("status", data: ["text": "📞 Rozmowa — lektor i komendy wstrzymane"])
+        } else if !busy && inCall {
+            inCall = false
+            notifyListeners("status", data: ["text": "📞 Koniec rozmowy — wracam do słuchania"])
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self = self, !self.inCall else { return }
+                self.resumeAfterBreak()
+                if self.active { self.scheduleAsk() }
+            }
+        }
+    }
+    private func pauseForCall() {
+        if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+        player?.stop(); player = nil
+        generation += 1
+        silenceTimer?.invalidate(); silenceTimer = nil
+        restartTimer?.invalidate(); restartTimer = nil
+        request?.endAudio(); task?.cancel(); task = nil; request = nil
+        if engine.isRunning { engine.stop() }
+        if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
     }
 
     // MARK: - Uprawnienia
@@ -140,6 +174,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                 call.reject("Rozpoznawanie mowy jest teraz niedostępne"); return
             }
             self.recognizer = rec
+            if self.inCall { self.listening = true; call.resolve(["onDevice": rec.supportsOnDeviceRecognition, "paused": true]); return } // ruszy po rozmowie
             do {
                 try self.configureSession()
                 self.listening = true
@@ -269,7 +304,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         DispatchQueue.main.async {
-            if type == .ended { self.resumeAfterBreak() }
+            if type == .began { self.pauseForCall() }
+            else if type == .ended { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.resumeAfterBreak() } }
         }
     }
     @objc private func onMediaReset(_ n: Notification) {
@@ -285,12 +321,21 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     // MARK: - Przyciski słuchawki (play/pauza = dodaj kibel, następny = dodaj, poprzedni = cofnij)
     private func setupRemote() {
         let rc = MPRemoteCommandCenter.shared()
-        let cmds = [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand, rc.previousTrackCommand]
+        let cmds: [MPRemoteCommand] = [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand, rc.previousTrackCommand, rc.changePlaybackPositionCommand]
         if !remoteReady && headsetButtons {
             for c in [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand] {
                 c.addTarget { [weak self] _ in self?.heard("dodaj kibel"); return .success }
             }
             rc.previousTrackCommand.addTarget { [weak self] _ in self?.heard("cofnij"); return .success }
+            // pasek przewijania na ekranie blokady = poziom betonu w koszu
+            rc.changePlaybackPositionCommand.addTarget { [weak self] e in
+                guard let self = self, let ev = e as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+                let v = max(0.01, min(self.capacity, ev.positionTime.rounded() / 100))
+                self.dose = v
+                self.pending.append(["type": "dose", "at": self.nowMs(), "amount": v])
+                self.updateNowPlaying()
+                return .success
+            }
             remoteReady = true
         }
         for c in cmds { c.isEnabled = headsetButtons }
@@ -299,11 +344,42 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
     private func updateNowPlaying() {
         guard headsetButtons else { return }
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: active ? "Zostało \(fmt(leftM3)) m³" : "BetonKibelPlus",
-            MPMediaItemPropertyArtist: "BetonKibelPlus · przycisk = dodaj kibel",
-            MPNowPlayingInfoPropertyPlaybackRate: 1.0
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: active ? "Zostało \(fmt(leftM3)) m³ · w koszu \(fmt(dose))" : "BetonKibelPlus",
+            MPMediaItemPropertyArtist: active ? "▶ dodaj kosz · ⏮ cofnij · pasek = poziom betonu" : "BetonKibelPlus · przycisk = dodaj kosz",
+            MPMediaItemPropertyPlaybackDuration: max(1.0, capacity * 100),
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, min(capacity, dose)) * 100,
+            MPNowPlayingInfoPropertyPlaybackRate: 0.0
         ]
+        if active { info[MPMediaItemPropertyArtwork] = lockArtwork() }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+    /// obrazek kosza z poziomem betonu na ekran blokady
+    private func lockArtwork() -> MPMediaItemArtwork {
+        let size = CGSize(width: 600, height: 600)
+        let left = leftM3, d = dose, cap = capacity
+        let img = UIGraphicsImageRenderer(size: size).image { ctx in
+            let g = ctx.cgContext
+            UIColor(red: 0.03, green: 0.08, blue: 0.12, alpha: 1).setFill(); g.fill(CGRect(origin: .zero, size: size))
+            let cyan = UIColor(red: 0.13, green: 0.83, blue: 0.93, alpha: 1)
+            let top: CGFloat = 170, bot: CGFloat = 540
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: 90, y: top)); path.addLine(to: CGPoint(x: 510, y: top))
+            path.addLine(to: CGPoint(x: 390, y: bot)); path.addLine(to: CGPoint(x: 210, y: bot)); path.close()
+            UIColor(white: 0.18, alpha: 1).setFill(); path.fill()
+            let f = CGFloat(cap > 0 ? max(0, min(1, d / cap)) : 0)
+            let fy = bot - (bot - top) * f
+            g.saveGState(); path.addClip()
+            cyan.withAlphaComponent(0.85).setFill(); g.fill(CGRect(x: 0, y: fy, width: size.width, height: bot - fy))
+            g.restoreGState()
+            cyan.setStroke(); path.lineWidth = 10; path.stroke()
+            let para = NSMutableParagraphStyle(); para.alignment = .center
+            let a1: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 66, weight: .black), .foregroundColor: UIColor.white, .paragraphStyle: para]
+            let a2: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 96, weight: .black), .foregroundColor: UIColor.white, .paragraphStyle: para]
+            ("Zostało \(self.fmt(left)) m³" as NSString).draw(in: CGRect(x: 0, y: 40, width: size.width, height: 90), withAttributes: a1)
+            (self.fmt(d) as NSString).draw(in: CGRect(x: 0, y: 290, width: size.width, height: 120), withAttributes: a2)
+        }
+        return MPMediaItemArtwork(boundsSize: size) { _ in img }
     }
     // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
     @objc private func onBackground() { DispatchQueue.main.async { self.postStatus() } }
@@ -345,7 +421,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         DispatchQueue.main.async { self.resumeAfterBreak() }
     }
     private func resumeAfterBreak() {
-        guard listening else { return }
+        guard listening, !inCall else { return }
         do {
             try configureSession()
             try startEngine()
@@ -425,6 +501,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
     private func say(key: String?, text: String?, force: Bool = false) {
+        if inCall { return } // podczas rozmowy lektor milczy
         if !voiceOn && !force { return }
         var key = key
         if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("added") || k.hasPrefix("report")) {
@@ -691,6 +768,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.departed = call.getDouble("departed") ?? 0
             self.meanTripSec = max(10, call.getDouble("meanTripSec") ?? 120)
             self.dose = call.getDouble("dose") ?? 0.5
+            self.capacity = max(0.05, call.getDouble("capacity") ?? self.dose)
             self.leftM3 = call.getDouble("left") ?? 0
             self.poured = call.getDouble("poured") ?? 0
             self.loadM3 = call.getDouble("load") ?? 0
