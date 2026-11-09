@@ -403,6 +403,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if #available(iOS 15.0, *) { c.interruptionLevel = .passive; c.relevanceScore = 1 }
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "bkp-status", content: c, trigger: nil))
     }
+    /// seria przypomnień „Czy kosz już jest?” (powiadomienia 2101…2112) — kasujemy, gdy kosz zaznaczony w tle
+    private func cancelAskChain() {
+        let ids = (0..<12).map { String(2101 + $0) }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+    }
     private func clearStatus() {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["bkp-status"])
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["bkp-status"])
@@ -806,7 +812,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let first = phase == "away"
         phase = "late"
         reminders += 1
-        deadline = nowMs() + 30000
+        deadline = nowMs() + 20000
         pending.append(["type": "alarm", "at": nowMs()])
         say(key: first ? "ask" : "remind", text: nil)
         if reminders < 40 { scheduleAsk() }
@@ -869,7 +875,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
-            pending.append(["type": "depart", "at": now]); postStatus()
+            cancelAskChain(); pending.append(["type": "depart", "at": now]); postStatus()
             say(key: "depart", text: nil)
             scheduleAsk()
         } else if has(t, ["dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
@@ -879,7 +885,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             let amount = min((spoken ?? 0) > 0 && (spoken ?? 0) <= 5 ? spoken! : dose, leftM3)
             leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
             poured += amount
-            pending.append(["type": "add", "at": now, "amount": amount])
+            cancelAskChain(); pending.append(["type": "add", "at": now, "amount": amount])
             updateNowPlaying(); postStatus()
             say(key: "added", text: nil)
             var note: String? = nil
@@ -899,7 +905,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             guard method != "taczka" else { return }
             phase = "returned"; deadline = 0; departed = 0; reminders = 0
             askTimer?.invalidate()
-            pending.append(["type": "returned", "at": now]); postStatus()
+            cancelAskChain(); pending.append(["type": "returned", "at": now]); postStatus()
             say(key: "arrived", text: nil)
         }  // nierozpoznane: cisza (szum z budowy nie ma wywoływać „nie zrozumiałem”)
     }

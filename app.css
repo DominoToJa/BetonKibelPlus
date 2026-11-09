@@ -852,3 +852,17 @@ body.one-hand .vslider .vs-tick::before{left:-4px!important;width:22px!important
 body.one-hand .vslider .vs-thumb{width:40px;height:40px;margin-left:-20px;margin-bottom:-20px}
 body.one-hand .vslider .vs-thumb span{display:block!important;left:50%!important;top:-30px!important;transform:translateX(-50%)!important;font-size:14px!important}
 body.one-hand #bucketSvgWrap svg{max-height:calc(100dvh - 250px)!important}
+/* 3.7.2 — mocne pytanie „Czy kosz już jest?”: pełny ekran, pulsuje, duże przyciski */
+body.alarm-on #alert:not(.hide){position:fixed;inset:0;z-index:350;margin:0!important;border-radius:0!important;display:flex!important;flex-direction:column;justify-content:center;align-items:stretch;gap:14px;padding:max(24px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom))!important;background:radial-gradient(circle at 50% 30%,#3a2a00 0,#0b0f16 70%)!important;border:0!important;animation:alarmBg 1.2s ease-in-out infinite}
+body.alarm-on #alert .alert-bell{font-size:84px;text-align:center;animation:bellRing 1s ease-in-out infinite;transform-origin:50% 10%}
+body.alarm-on #alert h3{font-size:clamp(34px,10vw,48px)!important;font-weight:900;text-align:center;margin:0;color:#fff;line-height:1.05}
+body.alarm-on #alert .alert-late{text-align:center;font-size:16px;font-weight:800;color:#ffd17e;margin:0}
+body.alarm-on #alert .actions{display:grid!important;grid-template-columns:1fr!important;gap:14px;margin-top:10px}
+body.alarm-on #alert .actions button{min-height:96px!important;font-size:28px!important;font-weight:900!important;border-radius:22px!important}
+body.alarm-on #alert #arrived{order:-1;background:linear-gradient(120deg,#16a34a,#22c55e)!important;color:#fff!important;border:0!important;box-shadow:0 0 30px #22c55e88}
+body.alarm-on #alert #late{background:#1f2937!important;color:#fff!important;border:2px solid #475569!important;min-height:72px!important;font-size:22px!important}
+#alert .alert-bell,#alert .alert-late{display:none}
+body.alarm-on #alert .alert-bell,body.alarm-on #alert .alert-late{display:block}
+@keyframes alarmBg{0%,100%{box-shadow:inset 0 0 0 0 #ffb70300}50%{box-shadow:inset 0 0 0 10px #ffb703cc}}
+@keyframes bellRing{0%,100%{transform:rotate(0)}15%{transform:rotate(18deg)}30%{transform:rotate(-16deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(2deg)}}
+@media (prefers-reduced-motion:reduce){body.alarm-on #alert,body.alarm-on #alert .alert-bell{animation:none}}

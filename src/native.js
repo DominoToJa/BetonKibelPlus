@@ -11,14 +11,17 @@ async function permission() {
   try { const state = await LocalNotifications.requestPermissions(); allowed = state.display === 'granted'; return allowed }
   catch (e) { console.warn('Notifications permissions', e); return false }
 }
+/* przypomnienie „Czy kosz już jest?” — seria powiadomień co 20 s (z dźwiękiem i wibracją), aż zaznaczysz */
+const CHAIN = 12, GAP = 20000;
 async function schedule(at, body) {
   if (!isNative) return; if (!(await permission())) return;
   try {
-    await LocalNotifications.cancel({ notifications: [{ id: ID }] });
-    await LocalNotifications.schedule({ notifications: [{ id: ID, title: 'BetonKibelPlus', body: body || 'Czy kosz już jest?', schedule: { at: new Date(Math.max(Date.now() + 1000, at)), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', extra: { kind: 'bucket' } }] });
+    await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) });
+    const t0 = Math.max(Date.now() + 1000, at);
+    await LocalNotifications.schedule({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i, title: i ? '🔔 KOSZ WRÓCIŁ? (' + (i + 1) + ')' : '🔔 Czy kosz już jest?', body: (i ? 'Nie zaznaczyłeś powrotu kosza. ' : '') + 'Przytrzymaj i wybierz: Kosz jest / Jeszcze nie', schedule: { at: new Date(t0 + i * GAP), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', extra: { kind: 'bucket' } })) });
   } catch (e) { console.warn('Schedule notification', e) }
 }
-async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: [{ id: ID }] }) } catch (e) { console.warn('Cancel notification', e) } }
+async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) }) } catch (e) { console.warn('Cancel notification', e) } }
 
 const safe = (fn, fallback) => async (...args) => { if (!isNative) return fallback; try { return await fn(...args) } catch (e) { console.warn('DOMINO native', e); throw e } };
 
@@ -53,6 +56,6 @@ window.BKPnative = { schedule, cancel, isNative, voice };
 if (isNative) {
   LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: 'Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }] }] }).catch(e => console.warn('Actions', e));
   LocalNotifications.addListener('localNotificationActionPerformed', event => {
-    if (event.notification?.id === ID) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
+    if (event.notification?.id >= ID && event.notification?.id < ID + CHAIN) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
   }).catch(e => console.warn('Notification listener', e));
 }

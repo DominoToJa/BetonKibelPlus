@@ -348,11 +348,15 @@ const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1],
 // ───────────────────────── stan ─────────────────────────
 let session = null, archive = [], method = 'kibel', chosenProfileId = '';
 let phase = 'ready', departed = 0, deadline = 0, alarmVisible = false, nextReminder = 0;
+const REMIND_MS = 20000; // co ile przypominać „Czy kosz już jest?”
+let alarmSince = 0;
+/** mocne przypomnienie: dźwięk + wibracja + głos */
+function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
 let micWanted = false, micLive = false, recognition = null, voiceRetry = null, lastAddAt = 0;
 const entriesSum = () => session ? session.entries.reduce((s, x) => s + Number(x.amount || 0), 0) : 0;
 const left = () => session ? Math.max(0, Math.round((session.load - entriesSum()) * 100) / 100) : 0;
 function meanTrip() { const arr = (session?.trips || []).filter(x => Number(x.seconds) > 0); if (!arr.length) return session?.cycle || 120; return arr.slice(-5).reduce((s, v) => s + Number(v.seconds), 0) / Math.min(arr.length, 5) }
-function resetTrip() { phase = 'ready'; departed = 0; deadline = 0; alarmVisible = false; nextReminder = 0 }
+function resetTrip() { phase = 'ready'; departed = 0; deadline = 0; alarmVisible = false; nextReminder = 0; alarmSince = 0 }
 function remember() {
   if (session) { Object.assign(session, { tripPhase: phase, departed, deadline, alarmVisible, nextReminder }); try { localStorage.setItem(KEY, JSON.stringify(session)) } catch (err) { announce('Nie udało się zapisać') } }
   syncNative();
@@ -640,7 +644,7 @@ function returned({ at = Date.now(), silent = false } = {}) {
 }
 function delay({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
-  phase = 'late'; alarmVisible = true; nextReminder = at + 30000; deadline = nextReminder;
+  phase = 'late'; alarmVisible = true; nextReminder = at + REMIND_MS; deadline = nextReminder;
   remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind); if (!silent) sayBot('late');
 }
 window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
@@ -730,8 +734,8 @@ $('more').addEventListener('click', () => { if (session) changeDose(Math.min(ses
 
 function triggerAlarm(force = false) {
   if (!session || session.method === 'taczka') return; if (alarmVisible && !force) return;
-  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + 30000; deadline = nextReminder;
-  remember(); render(); if (settings.alarm) beep(); sayBot('ask');
+  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + REMIND_MS; deadline = nextReminder;
+  remember(); render(); alarmKick('ask'); NATIVE.schedule?.(nextReminder, SHORT.remind);
 }
 $('testAlarm').addEventListener('click', () => { if (!session) return announce('Najpierw rozpocznij betonowanie'); triggerAlarm(true) });
 
@@ -950,7 +954,7 @@ function render() {
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
   renderLevel(model);
-  $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
+  $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible); document.body.classList.toggle('alarm-on', !!alarmVisible); if (!alarmVisible) alarmSince = 0;
   $('touchText').textContent = (settings.holdAdd ? 'DOTKNIJ = POZIOM BETONU · PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
   $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
   $('ohTrip').classList.toggle('hide', s.method === 'taczka'); $('ohTrip').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał'; $('ohTrip').classList.toggle('good', phase === 'away' || phase === 'late');
@@ -981,9 +985,10 @@ function tick() {
   const secs = count === 0 ? 0 : (phase === 'away' && deadline > now ? (deadline - now) / 1000 : avg) + (count - 1) * avg;
   $('eta').textContent = rem === 0 ? 'Zrobione' : new Date(now + secs * 1000).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   }
+  if (alarmVisible) { const t = Math.floor((Date.now() - (alarmSince || Date.now())) / 1000); $('alertLate').textContent = t > 2 ? 'Pytam od ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') + ' — zaznacz, żeby licznik się zgadzał' : 'Zaznacz, czy kosz wrócił' }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
-  else if (s.method !== 'taczka' && phase === 'late' && alarmVisible && now >= nextReminder) { nextReminder = now + 30000; deadline = nextReminder; remember(); if (settings.alarm) beep(); sayBot('remind') }
+  else if (s.method !== 'taczka' && phase === 'late' && alarmVisible && now >= nextReminder) { nextReminder = now + REMIND_MS; deadline = nextReminder; remember(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
@@ -1072,7 +1077,7 @@ async function drainNative() {
       else if (e.type === 'depart') depart({ at: e.at, silent: true });
       else if (e.type === 'undo') undo({ silent: true });
       else if (e.type === 'dose') { session.dose = Math.min(session.capacity, Number(e.amount) || session.dose) }
-      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + 30000; deadline = nextReminder }
+      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + REMIND_MS; deadline = nextReminder }
     }
     remember(); render(); tick();
     announce('Z zablokowanego ekranu: ' + evs.length + ' zdarzeń');
