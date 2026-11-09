@@ -784,3 +784,5 @@ body.app-in main>*:nth-child(1){animation-delay:.2s}body.app-in main>*:nth-child
 @keyframes addGlow{0%,100%{box-shadow:0 0 0 1px color-mix(in srgb,var(--c1) 40%,transparent),0 6px 18px color-mix(in srgb,var(--c1) 25%,transparent)}50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--c1) 55%,transparent),0 6px 30px color-mix(in srgb,var(--c1) 55%,transparent)}}
 @keyframes addShine{0%,55%{left:-60%}100%{left:130%}}
 @media (prefers-reduced-motion:reduce){.tile.add,.tile.add::after{animation:none}}
+
+#pcEditFill.on{background:#ffd17e!important;color:#06121a!important;border-color:#ffd17e!important}

@@ -233,7 +233,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.6.3 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.6.4 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
@@ -250,7 +250,7 @@
   <div id="pcAssign" class="chips pc-assign hide"></div>
   <div id="pcCount" class="pc-count hide" aria-live="polite"></div>
   <div id="pcStrip" class="pc-strip hide"></div>
-  <div id="pcEditBar" class="pc-editbar hide"><button type="button" id="pcEditX" aria-label="Wyjdź bez zmian">✕</button><button type="button" id="pcZoomOut" aria-label="Pomniejsz">－</button><b id="pcZoomVal">1×</b><button type="button" id="pcZoomIn" aria-label="Powiększ">＋</button><button type="button" id="pcEditUndo">↶</button><button type="button" id="pcEditOk" class="primary">✓ Gotowe</button><small id="pcEditHint">Stuknij = punkt · przeciągnij punkt = popraw · przesuń palcem = przewiń</small></div>
+  <div id="pcEditBar" class="pc-editbar hide"><button type="button" id="pcEditX" aria-label="Wyjdź bez zmian">✕</button><button type="button" id="pcZoomOut" aria-label="Pomniejsz">－</button><b id="pcZoomVal">1×</b><button type="button" id="pcZoomIn" aria-label="Powiększ">＋</button><button type="button" id="pcEditUndo">↶</button><button type="button" id="pcEditFill" class="hide">🟧 Beton</button><button type="button" id="pcEditOk" class="primary">✓ Gotowe</button><small id="pcEditHint">Stuknij = punkt · przeciągnij punkt = popraw · przesuń palcem = przewiń</small></div>
   <div class="pc-canvas-wrap hide" id="pcWrap"><canvas id="pcCanvas"></canvas><span class="pc-tapzoom">🔍 Dotknij zdjęcia, żeby zaznaczać</span></div>
   <div id="pcTools" class="hide">
    <div class="row pc-mini"><button type="button" id="pcUndoPt">↶ Cofnij punkt</button><button type="button" id="pcClear">🗑 Od nowa</button><button type="button" id="pcRotate" title="Obróć zdjęcie, żeby wlew był na górze">⟳ Obróć</button><label class="pc-add">📸 Dodaj zdjęcie<input id="pcAddCam" type="file" accept="image/*" capture="environment" hidden></label><label class="pc-add">🖼 + Galeria<input id="pcAddGal" type="file" accept="image/*" multiple hidden></label></div>
@@ -264,7 +264,7 @@
      <input id="pcRefCustom" class="hide" inputmode="decimal" placeholder="ile cm?" style="margin-top:8px">
     </div>
     <label class="label" for="pcFill">Beton kończy się <b id="pcFillTxt">przy krawędzi</b></label>
-    <div class="pc-fill-row"><input id="pcFill" type="range" min="0" max="60" step="1" value="0"><button type="button" id="pcFillTap" class="pc-filltap">📍 Zaznacz na zdjęciu</button></div>
+    <div class="pc-fill-row"><input id="pcFill" type="range" min="0" max="120" step="1" value="0"><button type="button" id="pcFillTap" class="pc-filltap">📍 Zaznacz na zdjęciu</button></div>
     <div class="chips pc-shape"><button type="button" class="pill" data-pcshape="round">⭕ Okrągły</button><button type="button" class="pill" data-pcshape="rect">⬛ Kanciasty</button></div>
     <div id="pcResult" class="calc-box" aria-live="polite"></div>
     <label class="label" for="pcName">Nazwa kosza</label><input id="pcName" placeholder="np. Żółty Eichinger 0,75">

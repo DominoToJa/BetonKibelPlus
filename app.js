@@ -1096,6 +1096,12 @@ function isOutline(pts) {
   for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { if (j === i + 1 || (i === 0 && j === n - 1)) continue; if (segX(pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n])) return false }
   return true;
 }
+/** punkty ułożone w obrys bez skrzyżowań: kolejność klikania, jeśli jest dobra, inaczej dookoła środka */
+function orderPts(pts) {
+  if (pts.length < 3 || isOutline(pts)) return pts;
+  const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length, cy = pts.reduce((a, p) => a + p.y, 0) / pts.length;
+  return pts.slice().sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+}
 function levelsOutline(pts) {
   const ysV = pts.map(p => p.y), yt = Math.min(...ysV), yb = Math.max(...ysV); if (!(yb - yt > 10)) return null;
   const at = y => { const xs = []; for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; if ((a.y - y) * (b.y - y) <= 0 && a.y !== b.y) xs.push(a.x + (b.x - a.x) * (y - a.y) / (b.y - a.y)) } return xs.length >= 2 ? { l: Math.min(...xs), r: Math.max(...xs) } : null };
@@ -1105,7 +1111,7 @@ function levelsOutline(pts) {
   return out.length >= 2 ? out : null;
 }
 function levelsFor(pts) {
-  if (pts.length >= 4 && isOutline(pts)) { const o = levelsOutline(pts); if (o) return o }
+  if (pts.length >= 4) { const o = levelsOutline(orderPts(pts)); if (o) return o }
   const sd = sidesFor(pts); if (!sd || sd.L.length < PT_MIN_SIDE || sd.R.length < PT_MIN_SIDE) return null;
   const yt = (sd.L[0].y + sd.R[0].y) / 2, yb = (sd.L.at(-1).y + sd.R.at(-1).y) / 2; if (!(yb - yt > 10)) return null;
   const ys = new Set([yt, yb]); for (const p of [...sd.L, ...sd.R]) if (p.y > yt && p.y < yb) ys.add(p.y);
@@ -1161,7 +1167,7 @@ function pcCompute() {
   let c, nominal = 0;
   if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
-  const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .6), real = volumeUpTo('profile', dims, dims.h - fillCm);
+  const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .9), real = volumeUpTo('profile', dims, dims.h - fillCm);
   return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: mv === 'top' ? 'tylko góra — kształt przybliżony' : lvS ? 'przód + bok' : lvT ? (mv === 'side' ? 'bok + góra' : 'przód + góra') : mv === 'side' ? 'tylko bok' : 'tylko przód' };
 }
 function pcUI() {
@@ -1186,10 +1192,10 @@ function pcUI() {
   else if (pc.view === 'top' && pcMainView() === 'top') t = 'Z góry gotowe ✓ — liczę z przybliżonego kształtu. Dodaj przód albo bok, żeby było dokładniej (nie trzeba).';
   else if (pc.view === 'top') t = !pcMainView() ? 'Z góry gotowe ✓ — teraz dodaj zdjęcie z PRZODU (cały kosz w kadrze), bez niego nie policzę wysokości.' : 'Z góry gotowe ✓ — liczę głębokość kosza z proporcji wlewu.' + (pc.useSide ? ' (Masz też bok — bok ma pierwszeństwo.)' : '');
   else if (pc.view === 'side' && !pcLevels()) t = 'BOK 90° · obrysuj kosz widziany z boku (przy koszu L — całe „L”), od krawędzi wlewu do dołu.';
-  else if (!pcLevels()) t = 'Obrysuj kosz: klikaj po kolei DOOKOŁA krawędzi (np. lewy górny róg → w dół → wylew → w górę prawą stroną) albo osobno lewa i prawa strona.';
+  else if (!pcLevels()) t = 'Obrysuj kosz: stukaj punkty na krawędzi kosza (rogi, załamania, wylew) — w dowolnej kolejności, apka sama połączy je w obrys. Min. 4 punkty.';
   else t = 'Dokładaj punkty tam, gdzie kształt się zmienia (początek lejka, załamania). Punkty możesz przeciągać.';
   const cnt = $('pcCount');
-  if (has) { cnt.classList.remove('hide'); cnt.replaceChildren(el('b', { text: pc.pts.length + ' / ' + PT_MAX }), el('span', { text: ' punktów · zostało ' + (PT_MAX - pc.pts.length) }), ...(isOutline(pc.pts) ? [el('span', { class: 'pc-cnt-side ok', text: 'obrys dookoła ✓' })] : [el('span', { class: 'pc-cnt-side' + (nl >= PT_MIN_SIDE ? ' ok' : ''), text: 'lewa: ' + nl }), el('span', { class: 'pc-cnt-side' + (nr >= PT_MIN_SIDE ? ' ok' : ''), text: 'prawa: ' + nr })]), el('small', { text: pcLevels() ? '✓ można liczyć' : 'min. ' + PT_MIN_SIDE + ' na stronę' })) } else cnt.classList.add('hide');
+  if (has) { cnt.classList.remove('hide'); cnt.replaceChildren(el('b', { text: pc.pts.length + ' / ' + PT_MAX }), el('span', { text: ' punktów · zostało ' + (PT_MAX - pc.pts.length) }), ...(pc.pts.length >= 4 ? [el('span', { class: 'pc-cnt-side ok', text: 'obrys ✓ (łączę sam)' })] : [el('span', { class: 'pc-cnt-side' + (nl >= PT_MIN_SIDE ? ' ok' : ''), text: 'lewa: ' + nl }), el('span', { class: 'pc-cnt-side' + (nr >= PT_MIN_SIDE ? ' ok' : ''), text: 'prawa: ' + nr })]), el('small', { text: pcLevels() ? '✓ można liczyć' : 'min. ' + PT_MIN_SIDE + ' na stronę' })) } else cnt.classList.add('hide');
   $('pcStep').textContent = t;
   const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
     el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
@@ -1210,7 +1216,8 @@ function pcUI() {
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
   } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
   $('pcSave').disabled = !r;
-  if (pc.edit) $('pcEditHint').textContent = (pc.fillTap ? '👆 Stuknij, gdzie kończy się beton' : pc.other === 'ref' && pcLevels() && pc.ref.length < 2 ? '📏 Stuknij oba końce wzorca' : 'Punkty: ' + pc.pts.length + ' / ' + PT_MAX + ' · stuknij = punkt · przeciągnij punkt = popraw · przesuń palcem = przewiń');
+  if (pc.edit) { $('pcEditFill').classList.toggle('on', !!pc.fillTap); $('pcEditFill').classList.toggle('hide', !(pcCompute() && pcMainView() && pcMainView() !== 'top')) }
+  if (pc.edit) $('pcEditHint').textContent = (pc.fillTap ? '👆 Stuknij albo przeciągnij, gdzie kończy się beton' : pc.other === 'ref' && pcLevels() && pc.ref.length < 2 ? '📏 Stuknij oba końce wzorca' : 'Punkty: ' + pc.pts.length + ' / ' + PT_MAX + ' · stuknij = punkt · przeciągnij punkt = popraw' + (pcFillLineY() != null ? ' · przeciągnij białą linię = beton' : '') + ' · przesuń palcem = przewiń');
   const miss = $('pcMissing'); const anyDone = ['front', 'side', 'top'].some(v => levelsFor(viewData(v).pts || []));
   miss.classList.toggle('hide', !!pcMainView() || !anyDone || !has);
   miss.replaceChildren(el('b', { text: '⚠ Brakuje zdjęcia z PRZODU albo z BOKU' }), el('span', { text: 'Z samej góry nie policzę wysokości kosza. Dodaj zdjęcie kosza od przodu (cały kosz w kadrze) i obrysuj go — wtedy „Zapisz” się odblokuje.' }),
@@ -1228,13 +1235,13 @@ function pcDraw() {
   const g = cv.getContext('2d'); g.setTransform(dpr * k, 0, 0, dpr * k, 0, 0); g.drawImage(pc.img, 0, 0);
   const lw = 3 / k, rad = 12 / k;
   const lv = pcLevels(), sd = pcSides();
-  if (lv && isOutline(pc.pts)) {
-    g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); pc.pts.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, w.l, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
+  if (lv && pc.pts.length >= 4) {
+    g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath(); orderPts(pc.pts).forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.closePath(); g.fill(); g.stroke();
+    if (pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h, y = bot.y + (top.y - bot.y) * f, w = lv.reduce((m, l) => Math.abs(l.y - y) < Math.abs(m.y - y) ? l : m, lv[0]); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(w.l, y); g.lineTo(w.r, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, w.l, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (lv) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271'; g.fillStyle = 'rgba(47,210,113,.16)'; g.beginPath();
     lv.forEach((l, i) => i ? g.lineTo(l.l, l.y) : g.moveTo(l.l, l.y)); lv.slice().reverse().forEach(l => g.lineTo(l.r, l.y)); g.closePath(); g.fill(); g.stroke();
-    if ((pc.fill || pc.fillTap) && pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, L, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
+    if (pc.view === pcMainView() && pc.view !== 'top') { const r = pcCompute(); if (r) { const top = lv.at(-1), bot = lv[0], f = 1 - r.fillCm / r.dims.h; const y = bot.y + (top.y - bot.y) * f; const L = edgeX(sd.L, y), R = edgeX(sd.R, y); g.setLineDash([10 / k, 6 / k]); g.strokeStyle = '#fff'; g.lineWidth = lw * 1.2; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); g.setLineDash([]); pcLabel(g, k, L, y, 'BETON −' + Math.round(r.fillCm) + ' cm', '#ffffff', '#06121a') } }
   } else if (sd) {
     g.lineWidth = lw; g.strokeStyle = '#2FD271';
     for (const E of [sd.L, sd.R]) if (E.length > 1) { g.beginPath(); E.forEach((p, i) => i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)); g.stroke() }
@@ -1243,7 +1250,7 @@ function pcDraw() {
     const tag = (txt, x, y, col) => { g.font = `900 ${fs}px sans-serif`; const tw = g.measureText(txt).width + 12 / k; g.fillStyle = col; g.fillRect(x - tw / 2, y - fs, tw, fs * 1.5); g.fillStyle = '#06121a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, x, y - fs * .25) };
     tag(pc.view === 'top' ? 'TYŁ' : '▲ GÓRA · WLEW', cx, tY - 10 / k, '#2FD271'); tag(pc.view === 'top' ? 'PRZÓD' : '▼ DÓŁ · WYLEW', cxb, bY + 22 / k, '#ffd17e') }
   pc.pts.forEach((p, i) => {
-    const left = isOutline(pc.pts) ? true : sd && p.x < sd.cx;
+    const left = pc.pts.length >= 4 ? true : sd && p.x < sd.cx;
     g.beginPath(); g.arc(p.x, p.y, rad, 0, Math.PI * 2); g.fillStyle = left ? '#8BD1E0' : '#ffd17e'; g.fill(); g.lineWidth = 2 / k; g.strokeStyle = '#0b1118'; g.stroke();
     g.fillStyle = '#0b1118'; g.font = `900 ${12 / k}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(i + 1), p.x, p.y);
   });
@@ -1264,18 +1271,21 @@ function pcDraw() {
     if (pc.fillTap) { pcFillFromY(st.p.y); pc.drag = ['f']; return }
     const all = [...pc.pts.map((q, i) => ['p', i, q]), ...pc.ref.map((q, i) => ['r', i, q])];
     let best = null, bd = 22 / pc.k; for (const it of all) { const d = dist(st.p, it[2]); if (d < bd) { bd = d; best = it } }
+    const fy = pcFillLineY(); if (!best && fy != null && Math.abs(st.p.y - fy) < 26 / pc.k) { pc.drag = ['F']; return }
     pc.drag = best;
   });
   cv.addEventListener('pointermove', e => {
     if (!st || e.pointerId !== st.id) return;
     const dx = e.clientX - st.cx, dy = e.clientY - st.cy; if (Math.hypot(dx, dy) > 8) st.moved = true;
     if (!pc.edit) return;
-    if (pc.drag) { const p = pos(e); if (pc.drag[0] === 'f') { pcFillFromY(p.y); return } (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw(); return }
+    if (pc.drag) { const p = pos(e); if (pc.drag[0] === 'f' || pc.drag[0] === 'F') { pcFillFromY(p.y); return } (pc.drag[0] === 'p' ? pc.pts : pc.ref)[pc.drag[1]] = p; pcDraw(); return }
     if (st.moved) { wrap.scrollLeft = st.sl - dx; wrap.scrollTop = st.stp - dy } // przesuwanie powiększonego zdjęcia
   });
   const up = e => {
     if (!st || (e && e.pointerId !== st.id)) return; const s0 = st; st = null;
     if (!pc.edit) { if (!s0.moved && pc.img) pcEditOpen(); return }
+    if (pc.drag && pc.drag[0] === 'F') { pc.drag = null; pc.moreAsked[pc.view] = true; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')); pcUI(); return }
+    if (pc.drag && pc.drag[0] === 'f' && pc.fillStay) { pc.drag = null; pc.fillTap = false; pc.fillStay = false; pc.moreAsked[pc.view] = true; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')); pcUI(); return }
     if (pc.drag) { if (pc.drag[0] === 'f') { pc.fillTap = false; pc.drag = null; announce('Poziom betonu: ' + (pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy krawędzi')); pc.moreAsked[pc.view] = true; pcEditClose(true); return } pc.drag = null; pcUI(); return }
     if (s0.moved) return;
     const p = s0.p;
@@ -1302,7 +1312,7 @@ function pcEditOpen() {
 }
 function pcEditClose(keep) {
   if (!keep && pc.backup) { pc.pts = pc.backup.pts; pc.ref = pc.backup.ref; pc.fill = pc.backup.fill }
-  pc.edit = false; pc.backup = null; pc.fillTap = false; $('pcWrap').classList.remove('editing'); $('pcEditBar').classList.add('hide'); pcUI();
+  pc.edit = false; pc.backup = null; pc.fillTap = false; pc.fillStay = false; $('pcWrap').classList.remove('editing'); $('pcEditBar').classList.add('hide'); pcUI();
   pc.moreAsked = pc.moreAsked || {};
   if (keep && !pc.moreAsked[pc.view] && levelsFor(pc.pts) && pc.pts.length >= 4 && pc.photos.length < 6) {
     const free = ['front', 'side', 'top'].filter(v => v !== pc.view && !levelsFor(viewData(v).pts || []));
@@ -1315,7 +1325,7 @@ function pcOpen() {
   $('pcFill').value = '0'; $('pcName').value = $('bName').value || '';
   $('pc').classList.remove('hide'); document.body.style.overflow = 'hidden'; pcUI();
 }
-$('pcEditOk').addEventListener('click', () => pcEditClose(true)); $('pcEditX').addEventListener('click', () => pcEditClose(false));
+$('pcEditOk').addEventListener('click', () => pcEditClose(true)); $('pcEditFill').addEventListener('click', () => { if (pc.fillTap) { pc.fillTap = false; return pcUI() } if (!pcCompute()) return announce('Najpierw obrysuj kosz (min. 4 punkty) i wybierz jego wielkość'); const mv = pcMainView(); if (!mv || mv === 'top') return announce('Poziom betonu zaznaczysz na zdjęciu z przodu albo z boku'); if (pc.view !== mv) pcSwitch(mv); pc.fillTap = true; pc.fillStay = true; pcUI() }); $('pcEditX').addEventListener('click', () => pcEditClose(false));
 $('pcZoomIn').addEventListener('click', () => pcZoom(.5)); $('pcZoomOut').addEventListener('click', () => pcZoom(-.5)); $('pcEditUndo').addEventListener('click', () => { if (pc.other === 'ref' && pc.ref.length) pc.ref.pop(); else pc.pts.pop(); pcUI() });
 function pcClose() { if (pc.edit) pcEditClose(true); $('pc').classList.add('hide'); document.body.style.overflow = '' }
 const pcCameraNow = () => { try { $('pcCamera').click() } catch (e) { } };
@@ -1387,11 +1397,15 @@ $('pcRotate').addEventListener('click', async () => {
   pc.pts = rot(pc.pts); pc.ref = rot(pc.ref); Object.assign(ph, { img, url, file: blob }); pc.img = img; pc.file = blob; pcUI();
 });
 $('pcFill').addEventListener('input', () => { pc.fill = Number($('pcFill').value); pcUI() });
+function pcFillLineY() {
+  if (pc.view !== pcMainView() || pc.view === 'top') return null; const lv = pcLevels(), r = pcCompute(); if (!lv || !r) return null;
+  const top = lv.at(-1).y, bot = lv[0].y; return bot + (top - bot) * (1 - Math.min(pc.fill, r.dims.h * .9) / r.dims.h);
+}
 /** stuknięcie na zdjęciu → ile cm pod krawędzią (wg profilu) */
 function pcFillFromY(y) {
   const lv = pcLevels(), r = pcCompute(); if (!lv || !r) return;
-  const yt = lv.at(-1).y, yb = lv[0].y, f = Math.min(1, Math.max(.4, (yb - y) / (yb - yt)));
-  pc.fill = Math.max(0, Math.min(60, Math.round(r.dims.h * (1 - f)))); $('pcFill').value = String(pc.fill); pcUI();
+  const yt = lv.at(-1).y, yb = lv[0].y, f = Math.min(1, Math.max(.1, (yb - y) / (yb - yt)));
+  pc.fill = Math.max(0, Math.round(r.dims.h * (1 - f))); $('pcFill').max = String(Math.round(r.dims.h * .9)); $('pcFill').value = String(pc.fill); pcUI();
 }
 $('pcFillTap').addEventListener('click', () => {
   if (!pcCompute()) return announce('Najpierw zaznacz kosz i wybierz wielkość');
