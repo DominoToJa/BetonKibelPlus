@@ -1300,7 +1300,8 @@ function pcDraw() {
 /* powiększone zdjęcie do zaznaczania: ✓ zachowaj · ✕ wyjdź bez zmian */
 /* „Nie wiem — zmierz”: zaznacz na zdjęciu przedmiot o znanej długości (człowiek, paleta, drzwi) */
 function pcRefStart() {
-  const mv = pcMainView(); if (!mv || mv === 'top') return announce('Najpierw obrysuj kosz na zdjęciu z przodu albo z boku');
+  const mv = pcMainView();
+  if (!mv || mv === 'top') return askChoice(mv === 'top' ? 'Do „Nie wiem — zmierz” potrzebne jest zdjęcie kosza z PRZODU albo z BOKU, z czymś obok do porównania (człowiek, paleta, drzwi). Z góry nie da się zmierzyć wysokości.' : 'Najpierw obrysuj kosz na zdjęciu z przodu albo z boku (min. 4 punkty), potem zaznaczysz wzorzec.', [['📷 Dodaj zdjęcie z przodu / boku', 'add', 'primary'], ['Zamknij', 'no', '']], v => { if (v === 'add') $('pcAddBtn').click() });
   if (pc.view !== mv) pcSwitch(mv);
   pc.other = 'ref'; pc.ref = []; pc.moreAsked = pc.moreAsked || {}; pc.moreAsked[pc.view] = true; pcUI();
   askChoice('Co jest na zdjęciu obok kosza? (do porównania wielkości)', [...$('pcRefType').options].map(o => [o.textContent, o.value, o.value === $('pcRefType').value ? 'primary' : '']), v => { $('pcRefType').value = v; $('pcRefType').dispatchEvent(new Event('change')) })
