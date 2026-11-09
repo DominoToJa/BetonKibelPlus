@@ -1049,8 +1049,8 @@ function command(utterance) {
   if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowe kosza|lej pol|pol lyzki')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
   if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|jazda z koszem')) { depart(); return true }
-  if (has('dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
-    const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : session?.dose); return true }
+  if (has('dodac|dodam|dodaje|dodajcie|do daj|dodaj kosza|dodaj kibla|dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
+    const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : (session?.dose > 0 ? session.dose : session?.capacity)); return true }
   if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe')) { if (waiting) { returned(); return true } return 'ignore' }
   return false;
 }

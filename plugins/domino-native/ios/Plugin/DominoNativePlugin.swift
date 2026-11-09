@@ -246,7 +246,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         req.shouldReportPartialResults = true
         if rec.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
-        req.contextualStrings = ["dodaj kibel", "tak jest", "kosz jest", "nie ma", "jeszcze nie", "cofnij",
+        req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "kosz zalany", "wlano", "tak jest", "kosz jest", "nie ma", "jeszcze nie", "cofnij",
                                  "kosz wyjechał", "ile zostało", "ile wylano", "pełny kosz", "pół kosza"]
         request = req
         lastPartial = ""
@@ -284,10 +284,15 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         generation += 1
         request?.endAudio(); task?.cancel(); task = nil; request = nil
         lastPartial = ""
-        let loudEnough = utterPeakDb >= micGateDb
+        // słuchawka BT ma cichszy mikrofon — próg o 12 dB niżej
+        let btIn = AVAudioSession.sharedInstance().currentRoute.inputs.contains { $0.portType == .bluetoothHFP }
+        let loudEnough = utterPeakDb >= micGateDb - (btIn ? 12 : 0)
+        let peak = utterPeakDb
         utterPeakDb = -120
         if text.count >= 2 && loudEnough && !isSpeaking && Date() > speakingUntil {
             heard(text)
+        } else if text.count >= 2 && !loudEnough && UIApplication.shared.applicationState == .active {
+            notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
         }
         if listening {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.startTask() }
@@ -912,7 +917,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             cancelAskChain(); pending.append(["type": "depart", "at": now]); postStatus()
             say(key: "depart", text: nil)
             scheduleAsk()
-        } else if has(t, ["dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
+        } else if has(t, ["dodac", "dodam", "dodaje", "dodajcie", "do daj", "dodaj kosza", "dodaj kibla", "dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
             guard leftM3 > 0.0001 else { return }
             let before = leftM3
             let spoken = spokenAmount(raw)
