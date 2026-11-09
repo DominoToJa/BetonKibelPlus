@@ -709,3 +709,24 @@ main{padding-top:calc(14px + env(safe-area-inset-top))!important;padding-bottom:
 .pc-editbar #pcEditOk{margin-left:auto;font-size:15px}
 .pc-editbar b{min-width:34px;text-align:center;color:var(--c1)}
 .pc-editbar small{flex-basis:100%;text-align:center;color:#c9d5e2;font-size:12px;font-weight:700}
+/* 3.5.5 — rock intro 18 s, zderzenie ~8 s, mocniejszy „bum” */
+.go-r,.go-l{animation-duration:9.1s!important}
+.intro-scene{animation:sceneIn .8s ease-out both,sceneOut .6s 8.25s ease-in forwards!important}
+.intro-boom b{width:220px;height:220px;left:-110px;top:-110px;background:radial-gradient(circle,#fff 0,#fff 18%,color-mix(in srgb,var(--c1) 85%,#fff) 38%,color-mix(in srgb,#ffb703 50%,transparent) 55%,transparent 72%);animation:flashBig 1.3s 7.95s ease-out forwards!important}
+.intro-boom span{border-width:6px;animation:waveBig 1.2s 8s ease-out forwards!important}
+.intro-boom span::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:4px solid #ffb703;opacity:0;animation:waveBig 1.4s .18s ease-out forwards}
+.intro-boom i{width:14px;height:14px;left:-7px;top:-7px;animation:sparkBig 1.3s calc(8s + var(--d) * .12) ease-out forwards!important}
+.intro-boom i:nth-child(odd){background:#ffb703;width:10px;height:10px}
+#intro::after{content:'';position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;animation:introFlash .7s 7.98s ease-out forwards;z-index:5}
+#intro .intro-logo{animation:shake .5s 8.1s ease-out,introBreath 3s 11s ease-in-out infinite!important}
+.intro-ring{animation-delay:8.3s!important;animation-duration:1.3s!important}
+.intro-bk{animation-delay:8.9s!important;animation-duration:.7s!important}
+.intro-domino{animation-delay:9.4s!important;animation-duration:.7s!important}
+.intro-title{animation-delay:9.8s!important;animation-duration:.7s!important}
+.intro-tags span:nth-child(1){animation-delay:11s!important}.intro-tags span:nth-child(2){animation-delay:12.5s!important}.intro-tags span:nth-child(3){animation-delay:14s!important}
+#intro.boom-hit{animation:introShake .7s ease-out}
+@keyframes flashBig{0%{opacity:0;transform:scale(.2)}12%{opacity:1;transform:scale(1.8)}100%{opacity:0;transform:scale(4.2)}}
+@keyframes waveBig{0%{opacity:1;transform:scale(.3)}100%{opacity:0;transform:scale(7)}}
+@keyframes sparkBig{0%{opacity:1;transform:rotate(var(--a)) translateX(0) scale(1.3)}100%{opacity:0;transform:rotate(var(--a)) translateX(min(48vw,240px)) scale(.3)}}
+@keyframes introFlash{0%{opacity:0}15%{opacity:.85}100%{opacity:0}}
+@keyframes introShake{0%,100%{transform:translate(0,0)}10%{transform:translate(-12px,6px)}20%{transform:translate(11px,-8px)}30%{transform:translate(-9px,-5px)}40%{transform:translate(8px,7px)}55%{transform:translate(-5px,3px)}70%{transform:translate(3px,-2px)}85%{transform:translate(-1px,1px)}}

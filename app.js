@@ -65,16 +65,16 @@ function pickVariant(key, txt) {
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.95, pitch: 1.02, lektor: 'zosia', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'low', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.95, pitch: 1.02, lektor: 'ewa', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'low', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
 const LEKTORS = [
-  ['zosia', 'Zosia — spokojna', 'Ciepły, równy głos. Najprzyjemniejszy na co dzień.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], 0.5, 1],
-  ['zosia_pogodna', 'Zosia — pogodna', 'Trochę jaśniej i żywiej, nie męczy.', 'f', [/zosia/i, /zofia/i, /google/i, ...F], 0.53, 1.03],
-  ['google', 'Google — naturalna', 'Głos Google polski w zwykłym tempie.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], 0.5, 1],
-  ['google_szybka', 'Google — szybka i konkretna', 'Krótko i na temat, gdy leje się szybko.', 'f', [/google/i, /zofia/i, /zosia/i, ...F], 0.55, 1],
-  ['asystentka', 'Asystentka — miękka', 'Wolniej i łagodnie, dobra przy hałasie w tle.', 'f', [/zofia/i, /zosia/i, /paulina/i, /google/i, ...F], 0.47, 0.98],
+  ['ewa', 'Ewa — miękka', 'Najprzyjemniejszy głos iPhone’a (Ewa / Premium), spokojnie i ciepło.', 'f', [/ewa/i, /premium/i, /enhanced|ulepsz/i, /google/i, /zofia/i, ...F], 0.48, 1],
+  ['ewa_pogodna', 'Ewa — pogodna', 'Odrobinę żywiej, dalej łagodnie.', 'f', [/ewa/i, /premium/i, /enhanced|ulepsz/i, /google/i, ...F], 0.51, 1.02],
+  ['google', 'Google — naturalna', 'Głos Google polski w zwykłym tempie.', 'f', [/google/i, /ewa/i, /zofia/i, ...F], 0.5, 1],
+  ['asystentka', 'Asystentka — cicha', 'Wolniej i łagodnie, dobra przy hałasie w tle.', 'f', [/ewa/i, /paulina/i, /google/i, ...F], 0.46, 0.98],
+  ['zosia', 'Zosia — klasyczna', 'Stary głos iPhone’a.', 'f', [/zosia/i, /zofia/i, ...F], 0.5, 1],
   ['krzysztof', 'Krzysztof — spokojny', 'Męski, spokojny i wyraźny.', 'm', [/krzysztof/i, /marek/i, ...M], 0.5, 1],
   ['krzysztof_radio', 'Krzysztof — radiowy', 'Jak prezenter: płynnie i czytelnie.', 'm', [/krzysztof/i, /marek/i, ...M], 0.52, 1],
   ['majster', 'Majster — niski', 'Niższy męski głos, bez pośpiechu.', 'm', [/marek/i, /krzysztof/i, ...M], 0.48, 0.97],
@@ -95,6 +95,8 @@ try {
 } catch (e) { }
 /* jednorazowo: naturalniejszy lektor — bez skrajnej wysokości i tempa, które „rozjeżdżały” głos */
 if (!settings.lektorFixV1) { const L0 = LEKTORS.find(x => x[0] === settings.lektor) || LEKTORS[0]; settings.rate = L0[5]; settings.pitch = L0[6]; settings.tempo = .95; settings.lektorFixV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
+/* jednorazowo: zamiast Zosi przyjemniejszy głos (Ewa / Premium), ElevenLabs włącza się sam po wklejeniu klucza */
+if (!settings.voiceV2) { if (/^zosia/.test(settings.lektor || 'zosia')) { settings.lektor = 'ewa'; settings.voice = ''; settings.rate = .48; settings.pitch = 1 } if (settings.elKey) settings.el = true; settings.voiceV2 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 /* jednorazowo: styl Panel HUD + kolory Hopper (cyjan) */
 if (!settings.hopperV1) { settings.ui = 'hud'; settings.theme = 'hopper'; settings.hopperV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 const LAYOUTS = [['classic', 'Klasyczny', 4], ['tiles', 'Kafelki 2×2', 5], ['compact', 'Kompaktowy', 5], ['big', 'Wielkie przyciski', 3]];
@@ -197,14 +199,15 @@ function speak(key, text) {
   }).catch(() => ttsSpeak(key, text));
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
-const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk']);
+const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka']);
+let lastBotAt = 0;
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
   if (settings.askOnly !== false && !ASK_KEYS.has(key) && key !== 'micOn') { const shown = pickVariant(key, text) || SHORT[key] || ''; if (shown) $('botText').textContent = shown; return } // mówi tylko „czy kosz jest?”
   const full = pickVariant(key, text), short = SHORT[key] || full;
   const shown = settings.mode === 'full' ? (full || short) : short;
   if (shown) $('botText').textContent = shown;
-  if (settings.mode === 'full') { if (full || clipKeys.has(key)) speak(key, full) }
+  if (settings.mode === 'full') { if (full || clipKeys.has(key)) { lastBotAt = Date.now(); speak(key, full) } }
   else beep();
 }
 function beep() { try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ctx = new AC(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = 700; g.gain.setValueAtTime(.06, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .22); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .22); setTimeout(() => ctx.close(), 700) } catch (err) { } }
@@ -241,10 +244,17 @@ function playSong(kind) {
   try { songEl?.pause(); songEl = new Audio('sounds/' + kind + '.mp3'); songEl.onended = () => setTimeout(bgmUpdate, 300); if (bgm && !bgm.paused) bgmFade(0, () => bgm.pause()); songEl.volume = Math.min(1, Math.max(.05, Number(settings.musicVol ?? .6))); return songEl.play().then(() => { bgmUpdate(); return true }, () => false) } catch (e) { return Promise.resolve(false) }
 }
 function playBoom() {
-  if (!settings.music) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return; const t = ctx.currentTime + .02, vol = .5 * Number(settings.musicVol ?? .6);
-  const len = Math.floor(ctx.sampleRate * .7), buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2.5;
-  const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); n.buffer = buf; f.type = 'lowpass'; f.frequency.setValueAtTime(2400, t); f.frequency.exponentialRampToValueAtTime(180, t + .6); g.gain.value = vol * .8; n.connect(f); f.connect(g); g.connect(ctx.destination); n.start(t);
-  const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(38, t + .45); e.gain.setValueAtTime(vol, t); e.gain.exponentialRampToValueAtTime(.001, t + .5); o.connect(e); e.connect(ctx.destination); o.start(t); o.stop(t + .55);
+  if (!settings.music) return; const ctx = getAC(); if (!ctx || ctx.state !== 'running') return; const t = ctx.currentTime + .02, vol = Math.min(1, .9 * Number(settings.musicVol ?? .6) + .25);
+  const out = ctx.createDynamicsCompressor(); out.threshold.value = -10; out.ratio.value = 4; out.connect(ctx.destination);
+  const noise = (dur, pow) => { const len = Math.floor(ctx.sampleRate * dur), buf = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** pow } const n = ctx.createBufferSource(); n.buffer = buf; return n };
+  // trzask metalu (krótki, jasny)
+  const c1 = noise(.25, 3), hp = ctx.createBiquadFilter(), g1 = ctx.createGain(); hp.type = 'highpass'; hp.frequency.value = 1800; g1.gain.value = vol * .7; c1.connect(hp); hp.connect(g1); g1.connect(out); c1.start(t);
+  // wybuch (długi, zamykający się filtr)
+  const c2 = noise(1.6, 2.2), lp = ctx.createBiquadFilter(), g2 = ctx.createGain(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(5000, t); lp.frequency.exponentialRampToValueAtTime(120, t + 1.4); g2.gain.value = vol * 1.1; c2.connect(lp); lp.connect(g2); g2.connect(out); c2.start(t);
+  // uderzenie basu + sub
+  for (const [f0, f1, dur, k] of [[120, 32, .9, 1.1], [60, 24, 1.4, .9]]) { const o = ctx.createOscillator(), e = ctx.createGain(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur * .8); e.gain.setValueAtTime(vol * k, t); e.gain.exponentialRampToValueAtTime(.001, t + dur); o.connect(e); e.connect(out); o.start(t); o.stop(t + dur + .05) }
+  // echo dudnienia
+  const c3 = noise(.9, 2), lp3 = ctx.createBiquadFilter(), g3 = ctx.createGain(); lp3.type = 'lowpass'; lp3.frequency.value = 400; g3.gain.value = vol * .45; c3.connect(lp3); lp3.connect(g3); g3.connect(out); c3.start(t + .32);
 }
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false, voicePending = false, soundUnlockedAt = 0;
@@ -883,7 +893,7 @@ function heardText(t) {
   const n = normalise(t); if (n.length < 2) return;
   if (n.split(' ').length > 7) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } // długie zdania = ktoś rozmawia, nie komenda
   const r = command(t);
-  if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300) sayBot('heardOk'); return }
+  if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300 && Date.now() - lastBotAt > 400) sayBot('heardOk'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
 }
 function command(utterance) {
@@ -1444,7 +1454,7 @@ function elUI() {
   $('elState').textContent = settings.elVoice ? 'Pobrane teksty: ' + have + ' z ' + all.length + (have < all.length ? ' — kliknij „Pobierz głos”, żeby działało bez internetu.' : ' ✓ gotowe, działa bez internetu.') : 'Wklej klucz API i ID głosu z ElevenLabs.';
 }
 const elAllLines = () => [...new Set(Object.keys(TEXTS).flatMap(k => String(TEXTS[k] || '').split('\n').map(x => x.trim()).filter(x => x && !/\bX\b/.test(x))))];
-const elSave = () => { settings.el = $('elOn').checked; settings.elKey = $('elKey').value.trim(); settings.elVoice = $('elVoice').value.trim(); settings.elModel = $('elModel').value; saveSettings(); configureNative(); elUI() };
+const elSave = e => { const hadKey = !!settings.elKey; settings.el = $('elOn').checked; settings.elKey = $('elKey').value.trim(); if (e?.target?.id === 'elKey' && settings.elKey && !hadKey) { settings.el = true; $('elOn').checked = true } settings.elVoice = $('elVoice').value.trim(); settings.elModel = $('elModel').value; saveSettings(); configureNative(); elUI() };
 for (const id of ['elOn', 'elKey', 'elVoice', 'elModel']) $(id).addEventListener('change', elSave);
 $('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu Dasia. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });
 let elBusy = false;
@@ -1582,8 +1592,8 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
-  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 11000);
+  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 18500); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 8000);
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
-  if (!settings.themeChosen) { themeReturn = 'home'; tab('theme') }
+  if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
 })();

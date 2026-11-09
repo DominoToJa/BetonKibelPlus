@@ -426,9 +426,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func say(key: String?, text: String?, force: Bool = false) {
         if !voiceOn && !force { return }
         var key = key
-        if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("report")) {
+        if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("added") || k.hasPrefix("report")) {
             // tylko pytanie o kosz + odpowiedzi; reakcja na komendę = krótkie potwierdzenie „Przyjęłam”
-            if ["late", "arrived", "undo", "depart", "added"].contains(k) && text == nil { key = "heardOk" } else { return }
+            if ["late", "arrived", "undo", "depart"].contains(k) && text == nil { key = "heardOk" } else { return }
         }
         let t = (text?.isEmpty == false ? text! : pick(key))
         let clip = key.map { hasClip($0) } ?? false
