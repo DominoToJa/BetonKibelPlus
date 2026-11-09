@@ -18,6 +18,7 @@ const DEFAULT_TEXTS = {
   undo: 'Cofnięte.\nOstatni kosz usunięty.\nGotowe, cofnąłem.\nUsunięte z licznika.',
   reportLeft: 'Zostało jeszcze X metra sześciennego.\nDo końca X metra sześciennego.\nPozostało X metra sześciennego.\nJeszcze X metra sześciennego do wylania.',
   reportPoured: 'Wylano już X metra sześciennego.\nNa razie X metra sześciennego.\nMamy wylane X metra sześciennego.\nDo tej pory X metra sześciennego.',
+  reportBuckets: 'Zostało jeszcze X.\nDo końca X.\nPrzed nami X.\nJeszcze X.',
   reportTime: 'Betonowanie trwa X minut.\nPracujemy już X minut.\nOd startu minęło X minut.\nBetonujemy od X minut.',
   capacityChanged: 'Pojemność kosza ustawiona.\nKosz zmieniony.\nUstawione, nowy kosz.\nZapisałem pojemność kosza.',
   doseSet: 'Ilość do kosza ustawiona.\nZapisane, tyle lejemy.\nIlość zmieniona.\nGotowe, ustawione.',
@@ -50,7 +51,7 @@ const DEFAULT_TEXTS = {
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
-  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania']]],
+  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania']]],
   ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
   ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
   ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
@@ -259,7 +260,8 @@ function playBoom() {
 /* iPhone pozwala grać dopiero po pierwszym dotknięciu — wtedy dogrywamy powitanie */
 let introJinglePending = false, voicePending = false, soundUnlockedAt = 0;
 /* „Betonowy głos” — głos w intro (przycisza muzykę, gdy mówi) */
-function stopIntroVoice() { const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
+let nativeIntro = false;
+function stopIntroVoice() { if (nativeIntro) { nativeIntro = false; NV.stopIntro?.() } const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
 function playIntroVoice() {
   try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
     voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => window.__introStart?.(), { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
@@ -354,6 +356,20 @@ let alarmSince = 0;
 function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
 let micWanted = false, micLive = false, recognition = null, voiceRetry = null, lastAddAt = 0;
 const entriesSum = () => session ? session.entries.reduce((s, x) => s + Number(x.amount || 0), 0) : 0;
+/** liczenie kursów: ile wysłano, ile pełnych zostało i ile w ostatnim */
+const plural = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14)) ? few : many;
+const unitWords = m => m === 'taczka' ? ['taczka', 'taczki', 'taczek'] : m === 'inne' ? ['łyżka', 'łyżki', 'łyżek'] : ['kosz', 'kosze', 'koszy'];
+function bucketPlan() {
+  if (!session) return null; const dose = Math.max(.01, Number(session.dose || session.capacity) || .5), rest = left();
+  const full = Math.floor(rest / dose + 1e-6), last = Math.round((rest - full * dose) * 100) / 100, partial = last >= .01 ? 1 : 0;
+  return { sent: session.entries.length, full, last: partial ? last : 0, total: full + partial, dose };
+}
+function bucketPlanText(p, spoken) {
+  const [a, b, c] = unitWords(session?.method); if (!p || p.total === 0) return 'nic — koniec betonu';
+  const fw = p.full + ' ' + plural(p.full, a, b, c);
+  if (!p.last) return fw + (spoken ? ' po ' + fmt(p.dose) + ' metra' : ' po ' + fmt(p.dose) + ' m³');
+  return (p.full ? fw + ' i ' : '') + (p.full ? 'ostatni ' : 'ostatni ') + fmt(p.last) + (spoken ? ' metra' : ' m³');
+}
 const left = () => session ? Math.max(0, Math.round((session.load - entriesSum()) * 100) / 100) : 0;
 function meanTrip() { const arr = (session?.trips || []).filter(x => Number(x.seconds) > 0); if (!arr.length) return session?.cycle || 120; return arr.slice(-5).reduce((s, v) => s + Number(v.seconds), 0) / Math.min(arr.length, 5) }
 function resetTrip() { phase = 'ready'; departed = 0; deadline = 0; alarmVisible = false; nextReminder = 0; alarmSince = 0 }
@@ -948,6 +964,9 @@ function render() {
   const model = currentModel();
   $('siteName').textContent = s.site; $('modeLabel').textContent = { kibel: 'KOSZ', taczka: 'TACZKA', inne: 'INNE' }[s.method]; document.querySelectorAll('[data-wm]').forEach(b => b.classList.toggle('on', b.dataset.wm === s.method));
   $('loaded').textContent = fmt(s.load); $('poured').textContent = fmt(entriesSum()); $('left').textContent = fmt(left());
+  { const bp = bucketPlan(), [a, b, c] = unitWords(s.method); $('kSent').textContent = bp.sent; $('kSentL').textContent = 'wysłano ' + plural(bp.sent, a, b, c);
+    $('kLeft').textContent = bp.total; $('kLeftL').textContent = 'zostało ' + plural(bp.total, a, b, c); $('kLast').textContent = bp.last ? fmt(bp.last) + ' m³' : bp.total ? 'pełny' : '—';
+    $('ohK').textContent = bp.sent + ' ' + plural(bp.sent, a, b, c) + ' za nami · zostało ' + bucketPlanText(bp) }
   $('progress').style.width = Math.min(100, 100 * entriesSum() / s.load) + '%';
   $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
@@ -1021,6 +1040,7 @@ function command(utterance) {
   const waiting = phase === 'away' || phase === 'late';
   if (has('nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|w drodze|nie widac|nie') && !/\bile\b/.test(t)) { if (waiting) { delay(); return true } return 'ignore' }
   if (has('ile zostalo|ile betonu zostalo|stan betonu|ile jeszcze|ile do konca|ile brakuje|ile pozostalo|ile mamy jeszcze|ile kubikow zostalo|ile metrow zostalo|jaki stan|ile w gruszce')) { report('reportLeft', fmt(left())); return true }
+  if (has('ile koszy|ile kursow|ile jeszcze koszy|ile koszy zostalo|ile kibli|ile taczek|ile lyzek|ile razy jeszcze')) { report('reportBuckets', bucketPlanText(bucketPlan(), true)); return true }
   if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik')) { report('reportPoured', fmt(entriesSum())); return true }
   if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
   if (!has('dodaj|zalany|zalane') && has('ustaw kosz|zmien kosz|kosz|kibel|pojemnosc kosza|pojemnosc|kosz ma|nowy kosz|kosz na|ustaw kibel|zmien kibel')) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } }
@@ -1802,7 +1822,11 @@ drainNative();
   const start = () => { if (started || done) return; started = true; box.classList.remove('wait'); setTimeout(close, 17000); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 2950) };
   window.__introStart = start; setTimeout(start, 2500);
   introPlaying = true;
-  if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) } else start();
+  const webIntro = () => { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) };
+  if (settings.music && settings.introVoice !== false) {
+    if (NATIVE.isNative && NV.playIntro) NV.playIntro({ volume: Math.min(1, .3 + Number(settings.musicVol ?? .7)) }).then(r => { if (r?.ok) { nativeIntro = true; start(); setTimeout(close, (r.duration || 16) * 1000 + 300) } else webIntro() }).catch(webIntro); // iPhone: gra od razu z apki
+    else webIntro();
+  } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 })();

@@ -36,7 +36,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "elFetch", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "elApi", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "elApi", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playIntro", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopIntro", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -57,6 +59,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var speakingUntil = Date.distantPast
     private var sayQueue: [(key: String?, text: String)] = []
     private var player: AVAudioPlayer?
+    private var introPlayer: AVAudioPlayer?
     private var recorder: AVAudioRecorder?
     private var recordingKey: String?
     private var resumeListeningAfterRecording = false
@@ -412,6 +415,37 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func clearStatus() {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["bkp-status"])
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["bkp-status"])
+    }
+
+    /// muzyka intro z paczki aplikacji — gra od razu przy starcie, bez czekania na dotknięcie ekranu
+    @objc func playIntro(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let vol = Float(max(0, min(1, call.getDouble("volume") ?? 0.9)))
+            let url = Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public/sounds")
+                ?? Bundle.main.url(forResource: "intro_voice", withExtension: "mp3")
+            guard let u = url else { call.resolve(["ok": false]); return }
+            do {
+                let ses = AVAudioSession.sharedInstance()
+                if !self.listening { try? ses.setCategory(.playback, mode: .default, options: [.mixWithOthers]) }
+                try? ses.setActive(true, options: [])
+                let p = try AVAudioPlayer(contentsOf: u)
+                p.volume = vol; p.prepareToPlay()
+                guard p.play() else { call.resolve(["ok": false]); return }
+                self.introPlayer = p
+                call.resolve(["ok": true, "duration": p.duration])
+            } catch {
+                call.resolve(["ok": false])
+            }
+        }
+    }
+    @objc func stopIntro(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let p = self.introPlayer {
+                p.setVolume(0, fadeDuration: 0.4)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { p.stop(); if self.introPlayer === p { self.introPlayer = nil } }
+            }
+            call.resolve()
+        }
     }
 
     @objc func haptic(_ call: CAPPluginCall) {

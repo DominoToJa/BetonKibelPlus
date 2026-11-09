@@ -866,3 +866,10 @@ body.alarm-on #alert .alert-bell,body.alarm-on #alert .alert-late{display:block}
 @keyframes alarmBg{0%,100%{box-shadow:inset 0 0 0 0 #ffb70300}50%{box-shadow:inset 0 0 0 10px #ffb703cc}}
 @keyframes bellRing{0%,100%{transform:rotate(0)}15%{transform:rotate(18deg)}30%{transform:rotate(-16deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(2deg)}}
 @media (prefers-reduced-motion:reduce){body.alarm-on #alert,body.alarm-on #alert .alert-bell{animation:none}}
+
+/* 3.7.3 — liczenie kursów */
+.kplan{display:flex;justify-content:space-between;gap:6px;margin-top:10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--c1) 10%,transparent);border:1px solid color-mix(in srgb,var(--c1) 30%,transparent);font-size:14px}
+.kplan b{font-size:20px;color:var(--c1);font-variant-numeric:tabular-nums}.kplan small{opacity:.85;font-weight:700}
+.oh-k{display:none;font-style:normal}
+body.one-hand .oh-k{display:block;width:100%;text-align:center;font-size:13px;font-weight:800;color:#c9d5e2}
+.kplan{font-size:12.5px;padding:8px 10px;align-items:baseline}.kplan span{white-space:nowrap}.kplan b{font-size:18px}
