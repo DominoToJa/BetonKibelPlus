@@ -256,7 +256,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                 guard let self = self, gen == self.generation else { return }
                 if let r = result {
                     let t = r.bestTranscription.formattedString
-                    if t != self.lastPartial { self.lastPartial = t; self.armSilence(gen) }
+                    if t != self.lastPartial { self.lastPartial = t; self.armSilence(gen, after: self.quickDelay(t)) }
                     if r.isFinal { self.finish(gen); return }
                 }
                 if error != nil { self.finish(gen) }
@@ -268,9 +268,22 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
     }
 
-    private func armSilence(_ gen: Int) {
+    /// szybka reakcja: krótkie, pewne komendy kończymy od razu, „dodaj…” czeka chwilę na ewentualną liczbę
+    private func quickDelay(_ text: String) -> TimeInterval {
+        let q = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
+            .lowercased().replacingOccurrences(of: "ł", with: "l").trimmingCharacters(in: .whitespacesAndNewlines)
+        let instant: Set<String> = ["tak", "jest", "tak jest", "kosz jest", "kibel jest", "juz jest", "no jest", "jeszcze nie", "nie ma", "jeszcze go nie ma",
+                                    "cofnij", "cofnij ostatni", "wyjechal", "kosz wyjechal", "kibel wyjechal", "pojechal", "kosz pojechal", "ile zostalo", "ile koszy", "ile wylano"]
+        if instant.contains(q) { return 0.12 }
+        if q.rangeOfCharacter(from: .decimalDigits) != nil { return 0.6 }
+        let last = q.split(separator: " ").last.map(String.init) ?? ""
+        if ["dodaj", "kosz", "kibel", "zalany", "zalane", "taczka", "taczke", "lyzka", "lyzke", "kosza", "kibla"].contains(last) { return 0.45 }
+        return 0.8
+    }
+
+    private func armSilence(_ gen: Int, after: TimeInterval = 0.8) {
         silenceTimer?.invalidate()
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: after, repeats: false) { [weak self] _ in
             self?.finish(gen)
         }
     }
@@ -295,7 +308,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
         }
         if listening {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.startTask() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.startTask() }
         }
     }
 
@@ -589,7 +602,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func nextSay() {
         guard !sayQueue.isEmpty else {
             isSpeaking = false
-            speakingUntil = Date().addingTimeInterval(1.3)
+            speakingUntil = Date().addingTimeInterval(0.5)
             notifyListeners("spoken", data: [:])
             return
         }
