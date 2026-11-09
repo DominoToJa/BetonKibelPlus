@@ -262,7 +262,7 @@ let introJinglePending = false, voicePending = false, soundUnlockedAt = 0;
 function stopIntroVoice() { const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
 function playIntroVoice() {
   try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
-    voiceEl.onplay = () => bgmUpdate(); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
+    voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => window.__introStart?.(), { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
     voiceEl.play().catch(() => { voicePending = true }) } catch (e) { }
 }
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
@@ -1647,9 +1647,13 @@ drainNative();
   const box = $('intro'); if (!box) return;
   document.body.classList.add('pre-intro');
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => box.remove(), 1200); setTimeout(() => document.body.classList.remove('app-in'), 1600) };
-  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 18500); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 8000);
+  box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
+  /* animacja startuje razem z muzyką, żeby zderzenie i „Witaj” wpadły w rytm */
+  box.classList.add('wait'); let started = false;
+  const start = () => { if (started || done) return; started = true; box.classList.remove('wait'); setTimeout(close, 17000); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 2950) };
+  window.__introStart = start; setTimeout(start, 2500);
   introPlaying = true;
-  if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
+  if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja 3.5.8. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 })();
