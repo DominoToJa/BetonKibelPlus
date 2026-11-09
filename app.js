@@ -1050,7 +1050,7 @@ function useSavedBucket(p) {
   announce('Zapisano: ' + p.name + ' · ' + fmt(p.capacity) + ' m³');
   const want = KINDS[kindOf(p)][2];
   if (session && (session.method === want || (want === 'kibel' && session.method === 'inne'))) { changeCapacity(p.capacity, p); tab('work') }
-  else { if (method !== want && !(want === 'kibel' && method === 'inne')) selectMethod(want); chooseProfile(p.id, false); rememberSiteBucket($('site').value, p.id); tab('setup'); announce('Kosz ' + p.name + ' wybrany — wpisz budowę i zacznij') }
+  else { if (method !== want && !(want === 'kibel' && method === 'inne')) selectMethod(want); chooseProfile(p.id, false); rememberSiteBucket($('site').value, p.id); tab('setup'); announce((/^(kosz|taczka|łyżka)/i.test(p.name) ? p.name : 'Kosz ' + p.name) + ' wybrany — wpisz budowę i zacznij') }
 }
 function storeProfile(p) {
   const i = profiles.findIndex(x => x.id === p.id); const backup = profiles.slice();
@@ -1660,6 +1660,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   document.body.classList.add('pre-intro');
+  setTimeout(() => document.body.classList.remove('pre-intro'), 25000);
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => box.remove(), 1200); setTimeout(() => document.body.classList.remove('app-in'), 1600) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
   /* animacja startuje razem z muzyką, żeby zderzenie i „Witaj” wpadły w rytm */

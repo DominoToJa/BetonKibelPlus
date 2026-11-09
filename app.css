@@ -775,3 +775,12 @@ body.app-in main>*:nth-child(1){animation-delay:.2s}body.app-in main>*:nth-child
 .intro-title{animation-delay:4.9s!important;animation-duration:.6s!important}
 .intro-tags span:nth-child(1){animation-delay:6.5s!important}.intro-tags span:nth-child(2){animation-delay:8.5s!important}.intro-tags span:nth-child(3){animation-delay:10.5s!important}
 @keyframes logoPop{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}
+
+/* 3.6.3 — wyeksponowany przycisk „Zmierz nowy kosz” */
+#pickTiles .tile.add,.tile.add{position:relative;overflow:hidden;min-height:78px!important;border:2px solid var(--c1)!important;border-style:solid!important;background:linear-gradient(120deg,color-mix(in srgb,var(--c1) 30%,#0b1a22),color-mix(in srgb,var(--c2) 45%,#0b1a22))!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--c1) 40%,transparent),0 6px 22px color-mix(in srgb,var(--c1) 35%,transparent);animation:addGlow 2.4s ease-in-out infinite}
+.tile.add b{font-size:20px!important;color:#fff!important;text-shadow:0 0 12px color-mix(in srgb,var(--c1) 70%,transparent)}
+.tile.add small{color:#e3f7fc!important;font-weight:700}
+.tile.add::after{content:'';position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent);animation:addShine 3.2s ease-in-out infinite;pointer-events:none}
+@keyframes addGlow{0%,100%{box-shadow:0 0 0 1px color-mix(in srgb,var(--c1) 40%,transparent),0 6px 18px color-mix(in srgb,var(--c1) 25%,transparent)}50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--c1) 55%,transparent),0 6px 30px color-mix(in srgb,var(--c1) 55%,transparent)}}
+@keyframes addShine{0%,55%{left:-60%}100%{left:130%}}
+@media (prefers-reduced-motion:reduce){.tile.add,.tile.add::after{animation:none}}
