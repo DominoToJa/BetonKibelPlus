@@ -426,8 +426,15 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     @objc func playIntro(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             let vol = Float(max(0, min(1, call.getDouble("volume") ?? 0.9)))
-            let url = Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public/sounds")
+            var url = Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public/sounds")
+                ?? Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public")
                 ?? Bundle.main.url(forResource: "intro_voice", withExtension: "mp3")
+            if url == nil, let root = Bundle.main.resourcePath {
+                for rel in ["public/sounds/intro_voice.mp3", "sounds/intro_voice.mp3", "www/sounds/intro_voice.mp3"] {
+                    let path = (root as NSString).appendingPathComponent(rel)
+                    if FileManager.default.fileExists(atPath: path) { url = URL(fileURLWithPath: path); break }
+                }
+            }
             guard let u = url else { call.resolve(["ok": false]); return }
             do {
                 let ses = AVAudioSession.sharedInstance()
