@@ -1645,7 +1645,8 @@ drainNative();
 
 (function intro() {
   const box = $('intro'); if (!box) return;
-  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); setTimeout(() => box.remove(), 450) };
+  document.body.classList.add('pre-intro');
+  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => box.remove(), 1200); setTimeout(() => document.body.classList.remove('app-in'), 1600) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() }); setTimeout(close, 18500); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 8000);
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
