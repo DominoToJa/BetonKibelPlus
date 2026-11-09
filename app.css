@@ -886,3 +886,15 @@ body.one-hand .oh-k{display:block;width:100%;text-align:center;font-size:13px;fo
 #ohMic.live{background:linear-gradient(120deg,#16a34a,#22c55e)!important;color:#fff!important;border-color:#22c55e!important;box-shadow:0 0 18px #22c55e88}
 body.one-hand .oh-micstatus{display:block!important;margin:6px 4px 0;font-size:12px;text-align:center;color:#c9d5e2;min-height:1em}
 .oh-micstatus{display:none}
+
+/* 3.8.0 — płynne przejście intro → aplikacja (logo leci do nagłówka) */
+.intro-bg{position:absolute;inset:0;z-index:0;pointer-events:none;transition:opacity .9s cubic-bezier(.4,0,.2,1)}
+#intro.morph{pointer-events:none;transition:none!important}
+#intro.morph::after{display:none}
+#intro.morph .intro-bg{opacity:0}
+#intro.morph>:not(.intro-logo):not(.intro-bg){opacity:0!important;transition:opacity .35s ease!important}
+#intro.morph .intro-logo{position:relative;z-index:6;transition:transform .82s cubic-bezier(.65,0,.25,1),opacity .2s ease .8s;will-change:transform}
+body.logo-landing header.top .hud-logo,body.logo-landing header.top .brand img{opacity:0}
+.logo-land{animation:logoLand .45s cubic-bezier(.2,.8,.2,1.3)}
+@keyframes logoLand{0%{transform:scale(1.25);filter:drop-shadow(0 0 10px var(--c1))}100%{transform:scale(1);filter:none}}
+body.app-in header.top{animation:none}

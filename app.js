@@ -1822,12 +1822,27 @@ document.addEventListener('visibilitychange', () => {
   if (hiddenAt && Date.now() - hiddenAt > 30000 && !session && !$('intro') && INTRO_TPL && settings.introEvery !== false) { const b = INTRO_TPL.cloneNode(true); document.body.prepend(b); runIntro(b) }
 });
 runIntro($('intro'));
+/* najpłynniejsze przejście: logo BK+ leci w miejsce logo w nagłówku, tło gaśnie, a apka wjeżdża pod spodem */
+function introMorph(box) {
+  const logo = box.querySelector('.intro-logo'), hdr = document.querySelector('header.top'), vis = e => e && e.offsetParent !== null && e.getBoundingClientRect().width > 0;
+  const target = [...document.querySelectorAll('header.top .hud-logo, header.top .brand img, header.top .brand svg')].find(vis) || (vis(hdr) ? document.querySelector('header.top .brand') : null);
+  document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => document.body.classList.remove('app-in'), 1700);
+  if (!logo || !target || matchMedia('(prefers-reduced-motion: reduce)').matches) { box.classList.add('out'); setTimeout(() => box.remove(), 1200); return }
+  const bg = document.createElement('div'); bg.className = 'intro-bg'; bg.style.background = getComputedStyle(box).background; box.prepend(bg); box.style.background = 'transparent';
+  const a = logo.getBoundingClientRect(), b = target.getBoundingClientRect(), sc = Math.max(.05, Math.min(b.width / a.width, b.height / a.height));
+  const dx = (b.left + b.width / 2) - (a.left + a.width / 2), dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+  logo.style.animation = 'none'; logo.style.transform = 'none'; void logo.offsetWidth;
+  box.classList.add('morph'); document.body.classList.add('logo-landing');
+  requestAnimationFrame(() => { logo.style.transform = `translate(${dx}px, ${dy}px) scale(${sc})` });
+  setTimeout(() => { document.body.classList.remove('logo-landing'); target.classList.add('logo-land'); setTimeout(() => target.classList.remove('logo-land'), 500) }, 820);
+  setTimeout(() => box.remove(), 1000);
+}
 function runIntro(box) {
   if (!box) return;
   document.body.classList.add('pre-intro');
   document.documentElement.style.setProperty('--hs', (Number(settings.helloShift) || 0) + 's');
   setTimeout(() => document.body.classList.remove('pre-intro'), 25000);
-  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => box.remove(), 1200); setTimeout(() => document.body.classList.remove('app-in'), 1600) };
+  let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); introMorph(box) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
   /* animacja startuje razem z muzyką, żeby zderzenie i „Witaj” wpadły w rytm */
   box.classList.add('wait'); let started = false;
