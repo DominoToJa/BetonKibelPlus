@@ -711,7 +711,7 @@ function add(value, { at = Date.now(), silent = false } = {}) {
 })();
 $('ohUndo').addEventListener('click', () => undo());
 $('ohTrip').addEventListener('click', () => { if (phase === 'away' || phase === 'late') returned(); else depart() });
-$('ohMic').addEventListener('click', () => $('mic').click());
+$('ohMic').addEventListener('click', () => toggleMic());
 const setOneHand = on => { settings.oneHand = on; saveSettings(); document.body.classList.toggle('one-hand', on); $('oneHandBtn').textContent = on ? '↩ Pełny widok' : '🖐 Duży kosz'; if ($('ohSetting')) $('ohSetting').checked = on; svgKey = ''; window.scrollTo(0, 0); if (session) render(); window.scrollTo({ top: 0 }) };
 $('oneHandBtn').addEventListener('click', () => setOneHand(!settings.oneHand)); $('ohExit').addEventListener('click', () => setOneHand(false));
 document.body.classList.toggle('one-hand', !!settings.oneHand); $('oneHandBtn').textContent = settings.oneHand ? '↩ Pełny widok' : '🖐 Duży kosz'; $('ohSetting').checked = !!settings.oneHand; $('ohSetting').addEventListener('change', () => setOneHand($('ohSetting').checked));
@@ -1054,7 +1054,7 @@ function command(utterance) {
   if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe')) { if (waiting) { returned(); return true } return 'ignore' }
   return false;
 }
-function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted) }
+function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted); const om = $('ohMic'); if (om) { om.textContent = micWanted ? '🟢 Słucham' : '🎙 Mikrofon'; om.classList.toggle('live', micWanted) } if ($('ohMicStatus')) $('ohMicStatus').textContent = t; if (settings.oneHand && /❌|Brak|Nie mogę/.test(t)) announce(t) }
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 async function stopMic() { micWanted = false; micLive = false; clearTimeout(voiceRetry); if (nativeVoice) await NV.stop().catch(() => { }); else try { recognition?.abort() } catch (e) { } micDisplay('Mikrofon wyłączony.') }
 function bootWebRecognition() {
@@ -1068,7 +1068,7 @@ function bootWebRecognition() {
     recognition.start();
   } catch (e) { micDisplay('Nie mogę uruchomić mikrofonu: ' + (e.message || e)); stopMic() }
 }
-$('mic').addEventListener('click', async () => {
+async function toggleMic() {
   if (micWanted) return stopMic();
   if (nativeVoice) {
     micDisplay('Prośba o zgodę…');
@@ -1080,7 +1080,8 @@ $('mic').addEventListener('click', async () => {
   }
   if (!SpeechRec) return micDisplay('❌ Ta przeglądarka nie rozpoznaje mowy. Użyj przycisków.');
   micWanted = true; micDisplay('Prośba o dostęp do mikrofonu…'); bootWebRecognition();
-});
+}
+$('mic').addEventListener('click', toggleMic);
 NV.onHeard?.(t => heardText(t));
 NV.onStatus?.(t => micDisplay(t));
 

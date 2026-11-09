@@ -881,3 +881,8 @@ body.one-hand .oh-k{display:block;width:100%;text-align:center;font-size:13px;fo
 .intro-domino{animation-delay:calc(5.9s + var(--hs,0s))!important}
 .intro-title{animation-delay:calc(6.3s + var(--hs,0s))!important}
 .intro-tags span:nth-child(1){animation-delay:calc(8s + var(--hs,0s))!important}.intro-tags span:nth-child(2){animation-delay:calc(10s + var(--hs,0s))!important}.intro-tags span:nth-child(3){animation-delay:calc(12s + var(--hs,0s))!important}
+
+/* 3.7.7 — mikrofon w trybie jednej ręki */
+#ohMic.live{background:linear-gradient(120deg,#16a34a,#22c55e)!important;color:#fff!important;border-color:#22c55e!important;box-shadow:0 0 18px #22c55e88}
+body.one-hand .oh-micstatus{display:block!important;margin:6px 4px 0;font-size:12px;text-align:center;color:#c9d5e2;min-height:1em}
+.oh-micstatus{display:none}
