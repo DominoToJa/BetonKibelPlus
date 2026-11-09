@@ -445,7 +445,15 @@ function homeEditorRender() {
 
 // ───────────────────────── nowe betonowanie ─────────────────────────
 function refreshKnownSites() { const list = $('knownSites'); list.replaceChildren(); const sites = new Set([...Object.keys(siteAssignments), ...archive.map(s => s.site || '').filter(Boolean)]); for (const s of sites) list.append(el('option', { value: s })) }
-function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
+/** usuń zapisany kosz (z potwierdzeniem) */
+async function deleteProfile(p, after) {
+  if (!(await ask('Usunąć „' + p.name + '” (' + fmt(p.capacity) + ' m³)?', '🗑 Usuń', true))) return;
+  profiles = profiles.filter(x => x.id !== p.id); for (const [k, v] of Object.entries(siteAssignments)) if (v === p.id) delete siteAssignments[k];
+  storeSiteAssignments(); saveProfiles(); if (chosenProfileId === p.id) { chosenProfileId = ''; renderPresets() } announce('Usunięto: ' + p.name); after?.();
+}
+const byRecent = list => list.slice().sort((a, b) => (b.usedAt || b.created || 0) - (a.usedAt || a.created || 0));
+let pickAll = false;
+function chooseProfile(id, applyLive = true) { const p = getProfile(id); chosenProfileId = p ? p.id : ''; if (p && applyLive !== 'silent') { p.usedAt = Date.now(); try { saveProfiles() } catch (e) { } } if (p) $('portion').value = fmt(p.capacity); renderPresets(); if (p && applyLive && session && session.method !== 'taczka' && session.bucketProfile?.id !== p.id) changeCapacity(p.capacity, p) }
 function renderPresets() {
   const r = $('presets'); r.replaceChildren();
   const useTiles = method !== 'taczka';
@@ -462,11 +470,15 @@ function sheetRender() {
   $('pickTitle').textContent = { taczka: 'Wybierz taczkę', inne: 'Wybierz łyżkę / osprzęt' }[method] || 'Wybierz kosz';
   const sw = $('pickMethods'); sw.replaceChildren(...[['kibel', '🏗 Kosz'], ['taczka', '🛒 Taczka'], ['inne', '🚜 Koparka / inne']].map(([m, t]) => el('button', { type: 'button', class: method === m ? 'on' : '', text: t, onclick: () => { if (method !== m) selectMethod(m); sheetRender() } })));
   const pick = fn => () => { fn(); tab('setup') };
-  for (const p of profilesFor(method)) {
-    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '' }) : kibelIcon();
+  const mine = byRecent(profilesFor(method)), SHOW = 3;
+  const visible = pickAll ? mine : mine.filter((p, i) => i < SHOW || p.id === chosenProfileId);
+  for (const p of visible) {
+    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', loading: 'lazy' }) : kibelIcon();
+    const x = el('span', { class: 'tile-del', role: 'button', 'aria-label': 'Usuń ' + p.name, text: '✕', onclick: e => { e.stopPropagation(); deleteProfile(p, sheetRender) } });
     r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(p.id)) },
-      el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
+      x, el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
+  if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
   r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Zmierz nowy kosz') }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
@@ -1079,18 +1091,30 @@ function storeProfile(p) {
   if (session?.bucketProfile?.id === p.id) { session.bucketProfile = snapshot(p); session.capacity = p.capacity; session.dose = Math.min(session.dose, p.capacity); remember() }
   return true;
 }
+let bucketQuery = '';
+const bucketOpen = {};
 function bucketListRender() {
   const box = $('bucketList'); box.replaceChildren();
-  if (!profiles.length) box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' }));
-  for (const p of profiles) {
-    const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kibelIcon()); return d })();
-    const info = el('div', { class: 'bucket-info' }, el('strong', { text: KINDS[kindOf(p)][0] + ' ' + p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
-    const acts = el('div', { class: 'bucket-acts' });
-    if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { const w = KINDS[kindOf(p)][2]; if (method !== w && !(w === 'kibel' && method === 'inne')) selectMethod(w); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
-    acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
-    acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: async () => { if (!(await ask('Usunąć kosz „' + p.name + '”?', 'Usuń', true))) return; profiles = profiles.filter(x => x.id !== p.id); for (const [k, v] of Object.entries(siteAssignments)) if (v === p.id) delete siteAssignments[k]; storeSiteAssignments(); saveProfiles(); if (chosenProfileId === p.id) chosenProfileId = ''; bucketListRender() } }));
-    box.append(el('div', { class: 'bucket-row' }, img, info, acts));
+  if (!profiles.length) { box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' })); return }
+  if (profiles.length > 5) { const q = el('input', { type: 'search', class: 'bucket-search', placeholder: '🔍 Szukaj (nazwa albo m³)', value: bucketQuery }); q.addEventListener('input', () => { bucketQuery = q.value; const pos = q.selectionStart; bucketListRender(); const n = $('bucketList').querySelector('.bucket-search'); n.focus(); try { n.setSelectionRange(pos, pos) } catch (e) { } }); box.append(q) }
+  const ql = bucketQuery.trim().toLowerCase(), match = p => !ql || (p.name || '').toLowerCase().includes(ql) || fmt(p.capacity).includes(ql.replace('.', ','));
+  for (const [kind, [ico, label]] of Object.entries(KINDS)) {
+    const list = byRecent(profiles.filter(p => kindOf(p) === kind && match(p))); if (!list.length) continue;
+    const open = ql ? true : bucketOpen[kind] ?? (profiles.length <= 6);
+    const det = el('details', { class: 'bucket-group' }); det.open = open; det.addEventListener('toggle', () => { bucketOpen[kind] = det.open });
+    det.append(el('summary', {}, el('span', { text: ico + ' ' + ({ kosz: 'Kosze', taczka: 'Taczki', lyzka: 'Łyżki / osprzęt' }[kind] || label) }), el('b', { text: String(list.length) })));
+    for (const p of list) {
+      const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb', loading: 'lazy' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kibelIcon()); return d })();
+      const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
+      const acts = el('div', { class: 'bucket-acts' });
+      if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { const w = KINDS[kindOf(p)][2]; if (method !== w && !(w === 'kibel' && method === 'inne')) selectMethod(w); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
+      acts.append(el('button', { type: 'button', text: '✏️', 'aria-label': 'Edytuj', onclick: () => openBucketForm(p) }));
+      acts.append(el('button', { type: 'button', class: 'warn', text: '🗑', 'aria-label': 'Usuń', onclick: () => deleteProfile(p, bucketListRender) }));
+      det.append(el('div', { class: 'bucket-row' }, img, info, acts));
+    }
+    box.append(det);
   }
+  if (ql && !box.querySelector('.bucket-group')) box.append(el('p', { class: 'hint', text: 'Nic nie pasuje do „' + bucketQuery + '”.' }));
 }
 
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
