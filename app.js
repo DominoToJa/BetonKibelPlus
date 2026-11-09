@@ -264,7 +264,7 @@ let nativeIntro = false;
 function stopIntroVoice() { if (nativeIntro) { nativeIntro = false; NV.stopIntro?.() } const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
 function playIntroVoice() {
   try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
-    voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => window.__introStart?.(), { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
+    voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => { const late = window.__introT0 && introPlaying ? (Date.now() - window.__introT0) / 1000 : 0; window.__introStart?.(); if (late > .3) try { voiceEl.currentTime = late } catch (e) { } }, { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
     voiceEl.play().catch(() => { voicePending = true }) } catch (e) { }
 }
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
@@ -1681,6 +1681,7 @@ $('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
+$('introEvery').checked = settings.introEvery !== false; $('introEvery').addEventListener('change', () => { settings.introEvery = $('introEvery').checked; saveSettings() });
 { const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
 /* ustawienia jak akordeon — otwarta jedna kategoria naraz */
@@ -1812,8 +1813,16 @@ if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if (c
 tab(session && settings.startForm !== false ? 'work' : 'home'); setInterval(tick, 500);
 drainNative();
 
-(function intro() {
-  const box = $('intro'); if (!box) return;
+const INTRO_TPL = $('intro')?.cloneNode(true);
+let hiddenAt = 0;
+/* intro za każdym razem, gdy wracasz do apki (po min. 30 s), o ile nie trwa betonowanie */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return }
+  if (hiddenAt && Date.now() - hiddenAt > 30000 && !session && !$('intro') && INTRO_TPL && settings.introEvery !== false) { const b = INTRO_TPL.cloneNode(true); document.body.prepend(b); runIntro(b) }
+});
+runIntro($('intro'));
+function runIntro(box) {
+  if (!box) return;
   document.body.classList.add('pre-intro');
   document.documentElement.style.setProperty('--hs', (Number(settings.helloShift) || 0) + 's');
   setTimeout(() => document.body.classList.remove('pre-intro'), 25000);
@@ -1821,7 +1830,7 @@ drainNative();
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
   /* animacja startuje razem z muzyką, żeby zderzenie i „Witaj” wpadły w rytm */
   box.classList.add('wait'); let started = false;
-  const start = () => { if (started || done) return; started = true; box.classList.remove('wait'); setTimeout(close, 17000); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 2950) };
+  const start = () => { if (started || done) return; started = true; window.__introT0 = Date.now(); box.classList.remove('wait'); setTimeout(close, 17000); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 2950) };
   window.__introStart = start; setTimeout(start, 2500);
   introPlaying = true;
   const webIntro = () => { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) };
@@ -1831,4 +1840,4 @@ drainNative();
   } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
-})();
+}

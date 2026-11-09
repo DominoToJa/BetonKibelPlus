@@ -875,9 +875,9 @@ body.one-hand .oh-k{display:block;width:100%;text-align:center;font-size:13px;fo
 .kplan{font-size:12.5px;padding:8px 10px;align-items:baseline}.kplan span{white-space:nowrap}.kplan b{font-size:18px}
 
 /* 3.7.5 — „Witaj w” razem ze śpiewem (~4,3 s); przesunięcie --hs z ustawień */
-.intro-hello{animation:helloIn .8s calc(4.3s + var(--hs,0s)) cubic-bezier(.2,.8,.2,1.2) forwards!important}
-.intro-ring{animation-delay:calc(4.6s + var(--hs,0s))!important}
-.intro-bk{animation-delay:calc(5s + var(--hs,0s))!important}
-.intro-domino{animation-delay:calc(5.4s + var(--hs,0s))!important}
-.intro-title{animation-delay:calc(5.8s + var(--hs,0s))!important}
-.intro-tags span:nth-child(1){animation-delay:calc(7.5s + var(--hs,0s))!important}.intro-tags span:nth-child(2){animation-delay:calc(9.5s + var(--hs,0s))!important}.intro-tags span:nth-child(3){animation-delay:calc(11.5s + var(--hs,0s))!important}
+.intro-hello{animation:helloIn .8s calc(4.8s + var(--hs,0s)) cubic-bezier(.2,.8,.2,1.2) forwards!important}
+.intro-ring{animation-delay:calc(5.1s + var(--hs,0s))!important}
+.intro-bk{animation-delay:calc(5.5s + var(--hs,0s))!important}
+.intro-domino{animation-delay:calc(5.9s + var(--hs,0s))!important}
+.intro-title{animation-delay:calc(6.3s + var(--hs,0s))!important}
+.intro-tags span:nth-child(1){animation-delay:calc(8s + var(--hs,0s))!important}.intro-tags span:nth-child(2){animation-delay:calc(10s + var(--hs,0s))!important}.intro-tags span:nth-child(3){animation-delay:calc(12s + var(--hs,0s))!important}
