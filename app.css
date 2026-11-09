@@ -842,3 +842,13 @@ body.one-hand .vslider{height:auto!important;min-height:0;align-self:stretch}
 .tile.tpl-add{grid-column:1/-1;min-height:58px!important;border:2px dashed var(--c1)!important}
 .tile.tpl-add b{font-size:16px}
 .form-card p.hint{font-size:13px!important;font-weight:600!important;line-height:1.35;margin:0 0 6px}
+/* 3.7.1 — Duży kosz: cienki suwak, kosz jeszcze większy */
+body.one-hand #work{margin-left:-8px;margin-right:-8px}
+body.one-hand #bucketPanel{padding:4px!important;border-radius:16px}
+body.one-hand .bucket-stage{grid-template-columns:minmax(0,1fr) 44px!important;gap:2px!important}
+body.one-hand .vslider .vs-track{left:15px!important;width:14px;top:5%!important;bottom:5%!important}
+body.one-hand .vslider .vs-tick{font-size:0!important;padding:0!important;margin:0!important;background:none!important;left:15px!important}
+body.one-hand .vslider .vs-tick::before{left:-4px!important;width:22px!important;height:3px!important;background:color-mix(in srgb,var(--c1) 60%,#fff)!important}
+body.one-hand .vslider .vs-thumb{width:40px;height:40px;margin-left:-20px;margin-bottom:-20px}
+body.one-hand .vslider .vs-thumb span{display:block!important;left:50%!important;top:-30px!important;transform:translateX(-50%)!important;font-size:14px!important}
+body.one-hand #bucketSvgWrap svg{max-height:calc(100dvh - 250px)!important}
