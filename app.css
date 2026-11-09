@@ -752,3 +752,9 @@ body.app-in main>*:nth-child(1){animation-delay:.2s}body.app-in main>*:nth-child
 @keyframes appIn{from{opacity:0}to{opacity:1}}
 @keyframes appInItem{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){body.app-in main,body.app-in main>*{animation:none}}
+
+/* 3.6.0 — napis „Witaj w” w intro */
+.intro-hello{position:relative;z-index:3;font-family:Inter,-apple-system,sans-serif;font-weight:900;font-size:clamp(30px,9vw,46px);letter-spacing:.04em;color:#fff;text-shadow:0 0 18px color-mix(in srgb,var(--c1) 80%,transparent),0 0 42px color-mix(in srgb,var(--c1) 45%,transparent);opacity:0;margin-bottom:-6px;animation:helloIn .9s 8.25s cubic-bezier(.2,.8,.2,1.2) forwards}
+@keyframes helloIn{0%{opacity:0;transform:translateY(-18px) scale(.6);letter-spacing:.5em;filter:blur(6px)}60%{opacity:1;transform:translateY(2px) scale(1.06);filter:blur(0)}100%{opacity:1;transform:none;letter-spacing:.04em}}
+#intro.out .intro-hello{transition:transform 1s cubic-bezier(.4,0,.2,1),opacity .8s;transform:scale(1.35) translateY(-30px);opacity:0}
+@media (prefers-reduced-motion:reduce){.intro-hello{animation:none;opacity:1}}
