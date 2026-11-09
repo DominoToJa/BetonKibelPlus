@@ -12,13 +12,13 @@ async function permission() {
   catch (e) { console.warn('Notifications permissions', e); return false }
 }
 /* przypomnienie „Czy kosz już jest?” — seria powiadomień co 20 s (z dźwiękiem i wibracją), aż zaznaczysz */
-const CHAIN = 12, GAP = 20000;
+const CYCLES = 12, BURST = 3, GAP = 20000, BURST_GAP = 2500, CHAIN = CYCLES * BURST; // każde przypomnienie = 3 mignięcia ekranu z wibracją
 async function schedule(at, body) {
   if (!isNative) return; if (!(await permission())) return;
   try {
     await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) });
     const t0 = Math.max(Date.now() + 1000, at);
-    await LocalNotifications.schedule({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i, title: i ? '🔔 KOSZ WRÓCIŁ? (' + (i + 1) + ')' : '🔔 Czy kosz już jest?', body: (i ? 'Nie zaznaczyłeś powrotu kosza. ' : '') + 'Przytrzymaj i wybierz: Kosz jest / Jeszcze nie', schedule: { at: new Date(t0 + i * GAP), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', extra: { kind: 'bucket' } })) });
+    await LocalNotifications.schedule({ notifications: Array.from({ length: CHAIN }, (_, k) => { const i = Math.floor(k / BURST), j = k % BURST; return { id: ID + k, title: (j === 0 ? '🔔' : j === 1 ? '🚨' : '⚠️') + (i ? ' KOSZ WRÓCIŁ? (' + (i + 1) + ')' : ' Czy kosz już jest?'), body: (i ? 'Nie zaznaczyłeś powrotu kosza. ' : '') + 'Przytrzymaj i wybierz: Kosz jest / Jeszcze nie', schedule: { at: new Date(t0 + i * GAP + j * BURST_GAP), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', threadIdentifier: 'kosz', extra: { kind: 'bucket' } } }) });
   } catch (e) { console.warn('Schedule notification', e) }
 }
 async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) }) } catch (e) { console.warn('Cancel notification', e) } }

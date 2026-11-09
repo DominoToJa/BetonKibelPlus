@@ -4,6 +4,7 @@ import AVFoundation
 import Speech
 import MediaPlayer
 import UserNotifications
+import AudioToolbox
 import Capacitor
 import CallKit
 
@@ -425,8 +426,14 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "bkp-status", content: c, trigger: nil))
     }
     /// seria przypomnień „Czy kosz już jest?” (powiadomienia 2101…2112) — kasujemy, gdy kosz zaznaczony w tle
+    /// mocna wibracja 3× (działa też przy zablokowanym ekranie, gdy apka słucha w tle)
+    private func vibrateBurst() {
+        for i in 0..<3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.7) { AudioServicesPlaySystemSound(kSystemSoundID_Vibrate) }
+        }
+    }
     private func cancelAskChain() {
-        let ids = (0..<12).map { String(2101 + $0) }
+        let ids = (0..<36).map { String(2101 + $0) }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
     }
@@ -874,6 +881,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         deadline = nowMs() + 20000
         pending.append(["type": "alarm", "at": nowMs()])
         say(key: first ? "ask" : "remind", text: nil)
+        vibrateBurst()
         if reminders < 40 { scheduleAsk() }
     }
 
