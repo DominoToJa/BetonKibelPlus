@@ -853,7 +853,7 @@ function ohCrop() {
     if (b.width >= vb[2] * .97 && b.height >= vb[3] * .97) continue; // tło
     x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
   }
-  for (const g of labels) { let b; try { b = g.getBBox() } catch (e) { continue } const cx = b.x + b.width / 2; if (cx < x0 || cx > x1 || b.x + b.width > x1 + 4 || b.x < x0 - 4) g.style.display = 'none' } // etykiety z boku chowamy
+  for (const g of labels) { let b; try { b = g.getBBox() } catch (e) { continue } const m = g.transform?.baseVal?.consolidate?.()?.matrix; if (m) b = { x: b.x + m.e, y: b.y + m.f, width: b.width, height: b.height }; g.style.display = ''; const cx = b.x + b.width / 2; if (cx < x0 || cx > x1 || b.x + b.width > x1 + 4 || b.x < x0 - 4) g.style.display = 'none' } // etykiety z boku chowamy
   if (!(x1 > x0 && y1 > y0)) return; const pd = 6; x0 = Math.max(vb[0], x0 - pd); y0 = Math.max(vb[1], y0 - pd); x1 = Math.min(vb[0] + vb[2], x1 + pd); y1 = Math.min(vb[1] + vb[3], y1 + pd);
   sv.setAttribute('viewBox', [x0, y0, x1 - x0, y1 - y0].map(v => Math.round(v * 10) / 10).join(' '));
 }

@@ -807,3 +807,7 @@ body.one-hand .oh-exit{margin-top:8px;padding:9px;font-size:12px}
 .oh-dose{display:none;font-style:normal}
 body.one-hand .oh-dose{display:block;width:100%;text-align:center;font-size:15px;font-weight:800;color:#e6f6fb}
 body.one-hand .oh-dose b{font-size:22px;color:var(--c1);font-variant-numeric:tabular-nums}
+/* 3.6.7 — w trybie „Duży kosz” wraca suwak-miarka obok kosza */
+body.one-hand #work #bucketPanel .bucket-stage > #vslider{display:block!important}
+body.one-hand .bucket-stage{grid-template-columns:minmax(0,1fr) 80px!important;gap:4px;align-items:stretch}
+body.one-hand .vslider{height:auto!important;min-height:0;align-self:stretch}
