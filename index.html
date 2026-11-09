@@ -164,9 +164,9 @@
 
 <section id="settings" class="hide">
 <div class="panel set-top"><h2>⚙️ Ustawienia</h2>
-<div class="set-nav" id="setNav"><button type="button" data-go="catSound">🔊 Dźwięk</button><button type="button" data-go="catVoice">🗣 Lektor</button><button type="button" data-go="elPanel">🎙 Dasia</button><button type="button" data-go="catUse">✋ Obsługa</button><button type="button" data-go="catHeadset">🎧 Słuchawka</button><button type="button" data-go="catLook">🎨 Wygląd</button><button type="button" data-go="catTexts">💬 Teksty</button><button type="button" data-go="catData">💾 Dane</button></div>
+<div class="set-nav" id="setNav"><button type="button" data-go="catSound">🔊 Dźwięk</button><button type="button" data-go="catVoice">🗣 Lektor</button><button type="button" data-go="elPanel">🎙 ElevenLabs</button><button type="button" data-go="catUse">✋ Obsługa</button><button type="button" data-go="catHeadset">🎧 Słuchawka</button><button type="button" data-go="catLook">🎨 Wygląd</button><button type="button" data-go="catTexts">💬 Teksty</button><button type="button" data-go="catData">💾 Dane</button></div>
 </div>
-<details class="panel set-cat" id="catSound" open><summary><span>🔊 Dźwięk i muzyka</span></summary><div class="set-body">
+<details class="panel set-cat" id="catSound"><summary><span>🔊 Dźwięk i muzyka</span></summary><div class="set-body">
 <label class="label check"><input type="checkbox" id="musicOn" checked> 🎵 Muzyka w aplikacji (główny wyłącznik)</label>
 <label class="label check"><input type="checkbox" id="clicksOn" checked> 🔘 Odgłos klikania przycisków</label>
 <label class="label check"><input type="checkbox" id="introVoiceOn" checked> 🎬 Muzyka intro „Beton Plus”</label>
@@ -177,7 +177,7 @@
 <label class="label check"><input type="checkbox" id="alarmOn" checked> Krótki sygnał przy pytaniu o kosz</label>
 <label class="label check"><input type="checkbox" id="confirmOn" checked> Sygnał po naliczeniu</label>
 </div></details>
-<details class="panel set-cat" id="catVoice" open><summary><span>🗣 Lektor i komunikaty</span></summary><div class="set-body">
+<details class="panel set-cat" id="catVoice"><summary><span>🗣 Lektor i komunikaty</span></summary><div class="set-body">
 <label class="label check"><input type="checkbox" id="askOnly" checked> 🔇 Lektor mówi tylko „Czy kosz już jest?” (reszta komunikatów tylko na ekranie, odpowiedzi na „ile zostało?” dalej na głos)</label>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <div class="label">Lektor</div><div id="lektorList" class="lektor-list"></div>
@@ -191,7 +191,7 @@
 </details>
 <button type="button" id="ttsTest" class="full" style="margin-top:12px">🔊 Sprawdź głos</button>
 </div></details>
-<details class="panel set-cat" id="elPanel"><summary><span>🎙 Lektor ElevenLabs (Dasia i inne głosy)</span></summary><div class="set-body">
+<details class="panel set-cat" id="elPanel"><summary><span>🎙 Lektor ElevenLabs</span></summary><div class="set-body">
 <p class="hint">Głos z ElevenLabs. Teksty pobierają się raz (potrzebny internet), potem lektor mówi bez netu. Liczby („zostało 2,35”) dogrywa, gdy jest internet — bez netu mówi je głos iPhone'a.</p>
 <label class="label check"><input type="checkbox" id="elOn"> Używaj lektora ElevenLabs</label>
 <label class="label" for="elKey">Klucz API ElevenLabs</label><input id="elKey" type="password" autocomplete="off" placeholder="sk_…">
@@ -229,7 +229,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.5.6 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.5.7 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

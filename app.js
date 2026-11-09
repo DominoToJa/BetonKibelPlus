@@ -385,7 +385,7 @@ function tab(name) {
   bgmUpdate();
   if (name === 'home') homeRender();
   if (name === 'buckets') bucketListRender();
-  if (name === 'settings') settingsRender();
+  if (name === 'settings') { settingsRender(); document.querySelectorAll('details.set-cat').forEach(d => d.open = false) }
   if (name === 'setup') { renderPresets(); refreshKnownSites() }
   if (name === 'pickBucket') sheetRender();
   if (name === 'theme') themeRender();
@@ -1514,6 +1514,8 @@ $('startForm').checked = settings.startForm !== false; $('startForm').addEventLi
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
+/* ustawienia jak akordeon — otwarta jedna kategoria naraz */
+document.querySelectorAll('details.set-cat').forEach(d => d.addEventListener('toggle', () => { if (d.open) document.querySelectorAll('details.set-cat').forEach(o => { if (o !== d) o.open = false }) }));
 document.querySelectorAll('#setNav [data-go]').forEach(b => b.addEventListener('click', () => { const d = $(b.dataset.go); if (!d) return; d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }) }));
 $('goData').addEventListener('click', () => { tab('history'); setTimeout(() => $('testMode')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100) });
 $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem('bkp_after_intro', currentTab) } catch (e) { } location.reload() });
