@@ -782,7 +782,7 @@ function makeBucketSvgHud(cap, current, model) {
 <g clip-path="url(#hdClip)">
  <rect x="0" y="${f2(yC)}" width="280" height="${f2(yB - yC + 6)}" fill="url(#hdLiq)"/>
  <rect x="${f2(CX - hR)}" y="${f2(yR)}" width="${f2(hR * 2)}" height="${f2(yB - yR)}" fill="url(#hdShine)"/>
- ${current > 0 ? `<line x1="0" y1="${f2(yC)}" x2="280" y2="${f2(yC)}" style="stroke:var(--c1)" stroke-width="3" filter="url(#hdGlow)"/>` : ''}
+ ${current > 0 ? `<line x1="0" y1="${f2(yC)}" x2="280" y2="${f2(yC)}" style="stroke:var(--c1)" stroke-width="10" opacity=".22"/><line x1="0" y1="${f2(yC)}" x2="280" y2="${f2(yC)}" style="stroke:var(--c1)" stroke-width="3"/>` : ''}
 </g>
 <path d="M${f2(CX - hB)} ${f2(yB)}H${f2(CX + hB)}L${f2(CX + hB * .8)} ${f2(yB + 16)}H${f2(CX - hB * .8)}Z" fill="#1b2430" stroke="#5c6b7c" stroke-width="1.5"/>
 <path d="M${f2(CX - hB * .8)} ${f2(yB + 20)}H${f2(CX + hB * .8)}L${f2(CX + hB * .65)} ${f2(yB + 34)}H${f2(CX - hB * .65)}Z" fill="#1b2430" stroke="#5c6b7c" stroke-width="1.5"/>
@@ -797,10 +797,12 @@ function renderHudPanel(s) {
   const r = $('hudRange'); r.max = String(cap); r.step = '0.01'; if (document.activeElement !== r) r.value = String(dose);
   r.style.setProperty('--p', Math.min(100, dose / cap * 100) + '%');
   const marks = bucketMarks(cap), pick = [0, ...marks.slice(0, -1).filter((_, i, a) => a.length <= 2 || i === Math.floor(a.length / 3) || i === Math.floor(a.length * 2 / 3)), cap];
-  $('hudQuick').replaceChildren(...[...new Set(pick)].map(v => el('button', { type: 'button', class: (v === cap ? 'max' : '') + (Math.abs(v - dose) < 1e-4 ? ' on' : ''), text: v === cap ? 'MAX' : fmt(v), onclick: () => changeDose(v, true) })));
+  const hq = $('hudQuick'), hk = String(cap);
+  if (hq.dataset.k !== hk) { hq.dataset.k = hk; hq.replaceChildren(...[...new Set(pick)].map(v => el('button', { type: 'button', class: v === cap ? 'max' : '', 'data-v': String(v), text: v === cap ? 'MAX' : fmt(v), onclick: () => changeDose(v, true) }))) }
+  for (const b of hq.children) b.classList.toggle('on', Math.abs(Number(b.dataset.v) - dose) < 1e-4);
   $('hudOnline').textContent = '● ' + (phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : 'Gotowy');
 }
-$('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(session.capacity, Number($('hudRange').value)); renderSoon() } });
+$('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(session.capacity, Number($('hudRange').value)); renderLevelSoon() } });
 $('hudRange').addEventListener('change', () => { if (session) changeDose(Number($('hudRange').value), true) });
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
@@ -808,22 +810,34 @@ function renderSlider(model) {
   $('vsFill').style.height = pct(dose);
   $('vsThumb').style.bottom = pct(dose);
   $('vsValue').textContent = fmt(dose);
-  const ticks = $('vsTicks'); ticks.replaceChildren();
+  const ticks = $('vsTicks'), tk = cap + '|' + model.fraction(cap / 2).toFixed(4);
+  if (ticks.dataset.k === tk) { for (const t of ticks.querySelectorAll('.vs-tick.major')) t.classList.toggle('near', Math.abs(model.fraction(Number(t.dataset.v)) - model.fraction(dose)) < .15) }
+  else { ticks.dataset.k = tk; ticks.replaceChildren();
   const marks = bucketMarks(cap), minor = cap <= 1 ? .05 : .1;
   for (let v = minor; v < cap - 1e-6; v += minor) { if (marks.some(m => Math.abs(m - v) < 1e-4)) continue; const t = el('span', { class: 'vs-tick minor' }); t.style.bottom = pct(v); ticks.append(t) }
-  for (const v of marks) { const near = Math.abs(model.fraction(v) - model.fraction(dose)) < .15; const t = el('span', { class: 'vs-tick major' + (near ? ' near' : '') + (v >= cap - 1e-6 ? ' max' : ''), text: fmt(v) }); t.style.bottom = pct(v); ticks.append(t) }
+  for (const v of marks) { const near = Math.abs(model.fraction(v) - model.fraction(dose)) < .15; const t = el('span', { class: 'vs-tick major' + (near ? ' near' : '') + (v >= cap - 1e-6 ? ' max' : ''), text: fmt(v), 'data-v': String(v) }); t.style.bottom = pct(v); ticks.append(t) } }
   const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(cap)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
 }
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false, dirty = false;
-  const fromY = y => { if (!session) return; const r = vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.min(session.capacity, Math.max(0, Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100)); if (v === session.dose) return; session.dose = v; renderSoon(); dirty = true };
-  vs.addEventListener('pointerdown', e => { dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
+  let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.min(session.capacity, Math.max(0, Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100)); if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
+  vs.addEventListener('pointerdown', e => { rect = vs.querySelector('.vs-track').getBoundingClientRect(); dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
-  const end = () => { dragging = false; vs.classList.remove('drag'); if (dirty && session) { dirty = false; changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
+  const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
   vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(session.capacity, session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
-let renderQ = 0;
+let renderQ = 0, levelQ = 0, svgKey = '';
+/* lekki render tylko poziomu (suwak, rysunek kosza) — przy przeciąganiu nie przebudowuje całego ekranu */
+function renderLevel(model) {
+  const s = session; if (!s) return; model = model || currentModel();
+  const key = [s.method, settings.ui, s.capacity, s.dose, s.bucketProfile?.id || s.bucketProfile?.name || ''].join('|');
+  if (key !== svgKey) { svgKey = key; $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); }
+  $('dose').textContent = fmt(s.dose || 0);
+  $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
+  renderSlider(model); renderHudPanel(s);
+}
+function renderLevelSoon() { if (levelQ) return; levelQ = requestAnimationFrame(() => { levelQ = 0; renderLevel() }) }
 function renderSoon() { if (renderQ) return; renderQ = requestAnimationFrame(() => { renderQ = 0; render() }) }
 function render() {
   if (!session) return; const s = session; if (!s.capacity) s.capacity = s.dose || .5;
@@ -835,7 +849,7 @@ function render() {
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
-  $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); renderSlider(model); renderHudPanel(s);
+  renderLevel(model);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible);
   $('touchText').textContent = (settings.holdAdd ? 'DOTKNIJ = POZIOM BETONU · PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
   $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
@@ -1655,5 +1669,5 @@ drainNative();
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
-  try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja 3.5.8. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
+  try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 })();
