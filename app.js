@@ -1602,6 +1602,14 @@ $('appWipe').addEventListener('click', async () => {
   try { NATIVE.cancel?.(); for (const k of Object.keys(localStorage)) if (k.startsWith('beton') || savedKeys.includes(k)) localStorage.removeItem(k); localStorage.setItem(SETTINGS_KEY, JSON.stringify(keep)) } catch (e) { }
   location.reload();
 });
+/* ustawienia fabryczne — tylko ustawienia + teksty (historia i kosze zostają) albo wszystko */
+function factoryReset(all) {
+  const keep = { elKey: settings.elKey, elVoice: settings.elVoice, elVoiceName: settings.elVoiceName, elModel: settings.elModel, el: settings.el };
+  try { NATIVE.cancel?.(); if (all) { for (const k of Object.keys(localStorage)) if (k.startsWith('beton') || savedKeys.includes(k)) localStorage.removeItem(k) } else { localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem(TEXT_KEY) } localStorage.setItem(SETTINGS_KEY, JSON.stringify(keep)); localStorage.setItem('bkp_factory_v358', '1') } catch (e) { }
+  location.reload();
+}
+$('factorySettings').addEventListener('click', async () => { if (await ask('Przywrócić ustawienia fabryczne? Historia budów i kosze zostają.', '🏭 Przywróć', true)) factoryReset(false) });
+$('factoryAll').addEventListener('click', async () => { if ((await ask('Wyczyścić całą aplikację? Historia, kosze, teksty i ustawienia zostaną usunięte.', 'Dalej', true)) && (await ask('Ostatnie pytanie: usunąć wszystko?', '🗑 Usuń wszystko', true))) factoryReset(true) });
 $('backupExport').addEventListener('click', () => { const payload = { app: 'BetonKibelPlus', formatVersion: 1, exportedAt: new Date().toISOString(), values: {} }; for (const k of savedKeys) { let v = localStorage.getItem(k); if (v !== null && k === SETTINGS_KEY) { try { const o = JSON.parse(v); delete o.elKey; v = JSON.stringify(o) } catch (e) { } } if (v !== null) payload.values[k] = v } download('BetonKibelPlus_kopia_' + new Date().toISOString().slice(0, 10) + '.json', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })) });
 $('backupImport').addEventListener('change', async () => {
   const f = $('backupImport').files?.[0]; if (!f) return;
@@ -1642,4 +1650,5 @@ drainNative();
   introPlaying = true;
   if (settings.music && settings.introVoice !== false) { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) }
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
+  try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja 3.5.8. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 })();
