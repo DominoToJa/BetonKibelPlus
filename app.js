@@ -1456,7 +1456,7 @@ function elUI() {
 const elAllLines = () => [...new Set(Object.keys(TEXTS).flatMap(k => String(TEXTS[k] || '').split('\n').map(x => x.trim()).filter(x => x && !/\bX\b/.test(x))))];
 const elSave = e => { const hadKey = !!settings.elKey; settings.el = $('elOn').checked; settings.elKey = $('elKey').value.trim(); if (e?.target?.id === 'elKey' && settings.elKey && !hadKey) { settings.el = true; $('elOn').checked = true } settings.elVoice = $('elVoice').value.trim(); settings.elModel = $('elModel').value; saveSettings(); configureNative(); elUI() };
 for (const id of ['elOn', 'elKey', 'elVoice', 'elModel']) $(id).addEventListener('change', elSave);
-$('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu Dasia. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });
+$('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu ' + ((settings.elVoiceName || 'Dasia').split(/[\s\-–—]/)[0]) + '. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });
 let elBusy = false;
 $('elDownload').addEventListener('click', async () => {
   elSave(); if (!elReady() || elBusy) return elReady() || announce('Włącz lektora i wpisz klucz oraz ID głosu');
@@ -1466,6 +1466,50 @@ $('elDownload').addEventListener('click', async () => {
 });
 $('elClear').addEventListener('click', async () => { if (!(await ask('Usunąć pobrany głos z telefonu?', 'Usuń', true))) return; if (nativeVoice) await NV.clearVoice(); else await idb('readwrite', st => st.clear()).catch(() => { }); elNames = new Set(); elUI() });
 elLoadNames().then(elUI);
+/* biblioteka głosów ElevenLabs — przeglądanie, odsłuch i wybór w apce */
+async function elApi(path, method = 'GET', body) {
+  const key = ($('elKey').value || settings.elKey || '').trim(); if (!key) throw new Error('Najpierw wklej klucz API ElevenLabs');
+  let status, text;
+  if (nativeVoice && NV.elApi) { const r = await NV.elApi({ key, path, method, body: body ? JSON.stringify(body) : undefined }); status = r?.status; text = r?.body || '' }
+  else { const r = await fetch('https://api.elevenlabs.io' + path, { method, headers: { 'xi-api-key': key, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined }); status = r.status; text = await r.text() }
+  let j = {}; try { j = JSON.parse(text || '{}') } catch (e) { }
+  if (status < 200 || status >= 300) { const d = j.detail; throw new Error('ElevenLabs ' + status + (d ? ': ' + (typeof d === 'string' ? d : d.message || d.status || '') : '')) }
+  return j;
+}
+const elLib = { page: 0, list: [], audio: null, playing: '' };
+const PL = { female: 'damski', male: 'męski', neutral: 'neutralny', young: 'młody', middle_aged: 'w średnim wieku', old: 'starszy' };
+function elLibStop() { try { elLib.audio?.pause() } catch (e) { } elLib.audio = null; elLib.playing = '' }
+function elLibRender() {
+  const box = $('elLibList'); box.replaceChildren();
+  for (const v of elLib.list) {
+    const id = v.voice_id, on = settings.elVoice === id || settings.elVoiceSrc === id, play = elLib.playing === id;
+    const info = [PL[v.gender] || v.gender, PL[v.age] || v.age, v.descriptive, v.use_case].filter(Boolean).join(' · ');
+    box.append(el('div', { class: 'el-v' + (on ? ' on' : '') },
+      el('button', { type: 'button', class: 'el-play', text: play ? '⏹' : '▶', onclick: () => { if (play) { elLibStop(); return elLibRender() } elLibStop(); if (!v.preview_url) return announce('Brak próbki'); const a = new Audio(v.preview_url); elLib.audio = a; elLib.playing = id; a.onended = () => { elLib.playing = ''; elLibRender() }; a.play().catch(() => announce('Nie udało się odtworzyć próbki')); elLibRender() } }),
+      el('div', {}, el('b', { text: v.name }), el('small', { text: info }), v.description ? el('small', { text: String(v.description).slice(0, 110) }) : ''),
+      el('button', { type: 'button', class: on ? '' : 'primary', text: on ? '✓ Wybrany' : 'Wybierz', onclick: () => elLibPick(v) })));
+  }
+}
+async function elLibLoad(reset) {
+  if (reset) { elLib.page = 0; elLib.list = [] }
+  const q = new URLSearchParams({ language: 'pl', page_size: '30', page: String(elLib.page) }); const g = $('elLibGender').value, s = $('elLibSearch').value.trim(); if (g) q.set('gender', g); if (s) q.set('search', s);
+  $('elLibState').textContent = 'Szukam głosów…'; $('elLibMore').hidden = true;
+  try { const j = await elApi('/v1/shared-voices?' + q); elLib.list.push(...(j.voices || [])); elLib.page++; $('elLibState').textContent = elLib.list.length ? 'Kliknij ▶, żeby posłuchać. „Wybierz” ustawia głos w apce.' : 'Nic nie znalazłem — zmień filtr.'; $('elLibMore').hidden = !j.has_more; elLibRender() }
+  catch (e) { $('elLibState').textContent = '❌ ' + e.message }
+}
+async function elLibPick(v) {
+  elLibStop(); $('elLibState').textContent = 'Dodaję „' + v.name + '” do Twoich głosów…';
+  let id = v.voice_id;
+  try { const j = await elApi('/v1/voices/add/' + encodeURIComponent(v.public_owner_id) + '/' + encodeURIComponent(v.voice_id), 'POST', { new_name: 'BK+ ' + v.name }); if (j.voice_id) id = j.voice_id }
+  catch (e) { if (!/already|exist|409|400/i.test(e.message)) { $('elLibState').textContent = '❌ ' + e.message + (/limit|slot/i.test(e.message) ? ' — usuń jakiś głos na elevenlabs.io (My Voices) albo zmień plan.' : ''); return } }
+  settings.elVoice = id; settings.elVoiceSrc = v.voice_id; settings.elVoiceName = v.name; settings.el = true; $('elVoice').value = id; $('elOn').checked = true; saveSettings(); configureNative(); elUI(); elLibRender();
+  $('elLibState').textContent = '✓ Wybrany: ' + v.name + '. Teraz kliknij „⬇ Pobierz głos”, żeby działał bez internetu.';
+  try { const t = 'Cześć Domi, tu ' + v.name.split(/[\s\-–—]/)[0] + '. Czy kosz już jest?'; await elGet(t); speak('', t) } catch (e) { }
+}
+$('elBrowse').addEventListener('click', () => { const b = $('elLibBox'); b.hidden = !b.hidden; if (!b.hidden && !elLib.list.length) elLibLoad(true); if (b.hidden) elLibStop() });
+$('elLibGender').addEventListener('change', () => elLibLoad(true));
+let elLibT = 0; $('elLibSearch').addEventListener('input', () => { clearTimeout(elLibT); elLibT = setTimeout(() => elLibLoad(true), 600) });
+$('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };

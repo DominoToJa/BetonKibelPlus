@@ -43,6 +43,7 @@ const voice = {
   clearVoice: safe(() => Domino.clearVoice(), null),
   haptic: safe(kind => Domino.haptic({ kind: kind || 'success' }), null),
   elFetch: safe(o => Domino.elFetch(o), null),
+  elApi: safe(o => Domino.elApi(o), null),
   onHeard(cb) { if (isNative) Domino.addListener('heard', e => cb(e.text || '')) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };

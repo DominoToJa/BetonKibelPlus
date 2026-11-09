@@ -34,7 +34,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "listVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearVoice", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "haptic", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "elFetch", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "elFetch", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "elApi", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -640,6 +641,21 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             }
             do { try d.write(to: self.voiceDir().appendingPathComponent(self.safeKey(name) + ".mp3")); call.resolve(["ok": true, "bytes": d.count]) }
             catch { call.reject("Nie udało się zapisać pliku głosu") }
+        }.resume()
+    }
+    /// Ogólne zapytanie do API ElevenLabs (biblioteka głosów, dodawanie głosu) — bez CORS.
+    @objc func elApi(_ call: CAPPluginCall) {
+        guard let key = call.getString("key"), !key.isEmpty, let path = call.getString("path"), path.hasPrefix("/v1/"),
+              let url = URL(string: "https://api.elevenlabs.io" + path) else { call.reject("Brak klucza albo złe zapytanie"); return }
+        var req = URLRequest(url: url)
+        req.httpMethod = call.getString("method") ?? "GET"; req.timeoutInterval = 30
+        req.setValue(key, forHTTPHeaderField: "xi-api-key")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body = call.getString("body") { req.setValue("application/json", forHTTPHeaderField: "Content-Type"); req.httpBody = body.data(using: .utf8) }
+        URLSession.shared.dataTask(with: req) { data, resp, err in
+            if let err = err { call.reject("Brak połączenia z ElevenLabs: \(err.localizedDescription)"); return }
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            call.resolve(["status": code, "body": data.flatMap { String(data: $0, encoding: .utf8) } ?? ""])
         }.resume()
     }
     @objc func listVoice(_ call: CAPPluginCall) {
