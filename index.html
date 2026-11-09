@@ -77,8 +77,8 @@
 </div></section>
 
 <section id="work" class="hide">
-<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kosz</span><button type="button" id="oneHandBtn" class="one-hand-btn">✋ Jedna ręka</button></div>
-<div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small></div>
+<div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kosz</span><button type="button" id="oneHandBtn" class="one-hand-btn">🖐 Duży kosz</button></div>
+<div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small><em class="oh-dose">w koszu <b id="ohDose">0</b> m³</em></div>
 <div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kosz</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Inne</button></div>
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small>Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
@@ -204,6 +204,7 @@
 <button type="button" id="elClear" class="full warn" style="margin-top:8px">🗑 Usuń pobrany głos</button>
 </div></details>
 <details class="panel set-cat" id="catUse"><summary><span>✋ Obsługa i ekran</span></summary><div class="set-body">
+<label class="label check oh-set"><input type="checkbox" id="ohSetting"> 🖐 Duży kosz — tryb jednej ręki: kosz na cały ekran, tylko najważniejsze liczby</label>
 <label class="label check"><input type="checkbox" id="holdAdd" checked> ✋ Dodawanie przytrzymaniem kosza (przypadkowe dotknięcie nie nalicza)</label>
 <label class="label check"><input type="checkbox" id="keepAwake" checked> ☀️ Ekran nie gaśnie podczas betonowania</label>
 <label class="label check"><input type="checkbox" id="hapticsOn" checked> 📳 Wibracja przy naliczeniu</label>
@@ -233,7 +234,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.6.5 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.6.6 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

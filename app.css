@@ -786,3 +786,24 @@ body.app-in main>*:nth-child(1){animation-delay:.2s}body.app-in main>*:nth-child
 @media (prefers-reduced-motion:reduce){.tile.add,.tile.add::after{animation:none}}
 
 #pcEditFill.on{background:#ffd17e!important;color:#06121a!important;border-color:#ffd17e!important}
+
+/* 3.6.6 — tryb „Duży kosz” (jedna ręka): kosz na cały ekran, minimum liczb */
+.one-hand-btn{background:linear-gradient(120deg,color-mix(in srgb,var(--c1) 35%,#0b1a22),color-mix(in srgb,var(--c2) 50%,#0b1a22))!important;border:2px solid var(--c1)!important;color:#fff!important;font-weight:900!important;font-size:14px!important;box-shadow:0 0 14px color-mix(in srgb,var(--c1) 45%,transparent);animation:addGlow 2.4s ease-in-out infinite}
+body.one-hand .one-hand-btn{animation:none;background:transparent!important;box-shadow:none;border-width:1px!important}
+.oh-set{border:2px solid var(--c1);border-radius:14px;padding:12px!important;background:color-mix(in srgb,var(--c1) 12%,transparent)}
+body.one-hand:has(#work:not(.hide)) header.top,body.one-hand:has(#work:not(.hide)) nav.tabs{display:none!important}
+body.one-hand #work .panel.slim{padding:8px 12px!important;margin-bottom:8px}
+body.one-hand #work .panel.slim .row{min-height:0}
+body.one-hand #work .bot-quote,body.one-hand #touchText,body.one-hand #siteName{display:none!important}
+body.one-hand .oh-top{display:flex!important;align-items:baseline;justify-content:center;gap:10px;margin:2px 0 0;flex-wrap:wrap}
+body.one-hand .oh-top strong{font-size:clamp(34px,11vw,46px)}
+body.one-hand .oh-top small{font-size:12px}
+body.one-hand #bucketPanel{padding:6px!important}
+body.one-hand .bucket{max-width:none!important;width:100%!important;padding:0!important}
+body.one-hand #bucketSvgWrap svg{width:100%;height:auto;max-height:calc(100dvh - 285px);display:block;margin:0 auto}
+body.one-hand .oh-bar{gap:8px;margin-top:8px}
+body.one-hand .oh-bar button{min-height:68px;font-size:17px;border-radius:16px}
+body.one-hand .oh-exit{margin-top:8px;padding:9px;font-size:12px}
+.oh-dose{display:none;font-style:normal}
+body.one-hand .oh-dose{display:block;width:100%;text-align:center;font-size:15px;font-weight:800;color:#e6f6fb}
+body.one-hand .oh-dose b{font-size:22px;color:var(--c1);font-variant-numeric:tabular-nums}

@@ -598,7 +598,7 @@ function add(value, { at = Date.now(), silent = false } = {}) {
 (function bucketPress() {
   const b = $('bucket'); let t = 0, fired = false, sx = 0, sy = 0, down = false, moved = false;
   const cancel = () => { clearTimeout(t); t = 0; b.classList.remove('holding') };
-  const levelAt = clientY => { if (!session) return; const r = b.querySelector('svg')?.getBoundingClientRect(); if (!r) return; const yv = (clientY - r.top) / r.height * SVG_H;
+  const levelAt = clientY => { if (!session) return; const sv = b.querySelector('svg'), r = sv?.getBoundingClientRect(); if (!r) return; const vb = sv.viewBox?.baseVal, yv = vb && vb.height ? vb.y + (clientY - r.top) / r.height * vb.height : (clientY - r.top) / r.height * SVG_H;
     const [top, bot] = session.method === 'taczka' ? [150, 254] : session.method === 'inne' ? [100, 256] : [SVG_TOP, SVG_BOTTOM];
     const f = Math.max(0, Math.min(1, (bot - yv) / (bot - top))), v = Math.min(session.capacity, Math.round(currentModel().volumeAtFraction(f) * 100) / 100);
     changeDose(v, true); announce('Beton do ' + fmt(v) + ' m³ · przytrzymaj, żeby dodać') };
@@ -612,9 +612,9 @@ function add(value, { at = Date.now(), silent = false } = {}) {
 $('ohUndo').addEventListener('click', () => undo());
 $('ohTrip').addEventListener('click', () => { if (phase === 'away' || phase === 'late') returned(); else depart() });
 $('ohMic').addEventListener('click', () => $('mic').click());
-const setOneHand = on => { settings.oneHand = on; saveSettings(); document.body.classList.toggle('one-hand', on); $('oneHandBtn').textContent = on ? '✋ Pełny widok' : '✋ Jedna ręka'; if (session) render(); window.scrollTo({ top: 0 }) };
+const setOneHand = on => { settings.oneHand = on; saveSettings(); document.body.classList.toggle('one-hand', on); $('oneHandBtn').textContent = on ? '↩ Pełny widok' : '🖐 Duży kosz'; if ($('ohSetting')) $('ohSetting').checked = on; svgKey = ''; window.scrollTo(0, 0); if (session) render(); window.scrollTo({ top: 0 }) };
 $('oneHandBtn').addEventListener('click', () => setOneHand(!settings.oneHand)); $('ohExit').addEventListener('click', () => setOneHand(false));
-document.body.classList.toggle('one-hand', !!settings.oneHand); $('oneHandBtn').textContent = settings.oneHand ? '✋ Pełny widok' : '✋ Jedna ręka';
+document.body.classList.toggle('one-hand', !!settings.oneHand); $('oneHandBtn').textContent = settings.oneHand ? '↩ Pełny widok' : '🖐 Duży kosz'; $('ohSetting').checked = !!settings.oneHand; $('ohSetting').addEventListener('change', () => setOneHand($('ohSetting').checked));
 function undo({ silent = false } = {}) {
   if (!session?.entries?.length) return announce('Nie ma czego cofnąć');
   const last = session.entries.pop();
@@ -832,10 +832,30 @@ let renderQ = 0, levelQ = 0, svgKey = '';
 function renderLevel(model) {
   const s = session; if (!s) return; model = model || currentModel();
   const key = [s.method, settings.ui, s.capacity, s.dose, s.bucketProfile?.id || s.bucketProfile?.name || ''].join('|');
-  if (key !== svgKey) { svgKey = key; $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); }
+  if (key !== svgKey) { svgKey = key; requestAnimationFrame(ohCrop); $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); }
   $('dose').textContent = fmt(s.dose || 0);
+  $('ohDose').textContent = fmt(s.dose || 0);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   renderSlider(model); renderHudPanel(s);
+}
+/** tryb jednej ręki: przytnij rysunek do samego kosza (bez etykiet z boku) — kosz robi się większy */
+function ohCrop() {
+  const sv = $('bucketSvgWrap').querySelector('svg'); if (!sv) return;
+  if (!sv.dataset.vb) sv.dataset.vb = sv.getAttribute('viewBox') || '';
+  if (!settings.oneHand) { if (sv.dataset.vb) sv.setAttribute('viewBox', sv.dataset.vb); return }
+  const vb = sv.dataset.vb.split(/[ ,]+/).map(Number); if (vb.length !== 4) return;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; const labels = [];
+  for (const c of sv.children) {
+    const tag = c.tagName.toLowerCase(); if (tag === 'defs' || tag === 'style' || tag === 'title') continue;
+    if (tag === 'g' && c.querySelector('text')) { labels.push(c); continue }
+    if (tag !== 'path' && tag !== 'ellipse' && tag !== 'polygon') continue; // tylko bryła kosza
+    let b; try { b = c.getBBox() } catch (e) { continue } if (!b || !(b.width > 0 && b.height > 0)) continue;
+    if (b.width >= vb[2] * .97 && b.height >= vb[3] * .97) continue; // tło
+    x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height);
+  }
+  for (const g of labels) { let b; try { b = g.getBBox() } catch (e) { continue } const cx = b.x + b.width / 2; if (cx < x0 || cx > x1 || b.x + b.width > x1 + 4 || b.x < x0 - 4) g.style.display = 'none' } // etykiety z boku chowamy
+  if (!(x1 > x0 && y1 > y0)) return; const pd = 6; x0 = Math.max(vb[0], x0 - pd); y0 = Math.max(vb[1], y0 - pd); x1 = Math.min(vb[0] + vb[2], x1 + pd); y1 = Math.min(vb[1] + vb[3], y1 + pd);
+  sv.setAttribute('viewBox', [x0, y0, x1 - x0, y1 - y0].map(v => Math.round(v * 10) / 10).join(' '));
 }
 function renderLevelSoon() { if (levelQ) return; levelQ = requestAnimationFrame(() => { levelQ = 0; renderLevel() }) }
 function renderSoon() { if (renderQ) return; renderQ = requestAnimationFrame(() => { renderQ = 0; render() }) }
