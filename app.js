@@ -1681,6 +1681,7 @@ $('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
+{ const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
 /* ustawienia jak akordeon — otwarta jedna kategoria naraz */
 document.querySelectorAll('details.set-cat').forEach(d => d.addEventListener('toggle', () => { if (d.open) document.querySelectorAll('details.set-cat').forEach(o => { if (o !== d) o.open = false }) }));
@@ -1814,6 +1815,7 @@ drainNative();
 (function intro() {
   const box = $('intro'); if (!box) return;
   document.body.classList.add('pre-intro');
+  document.documentElement.style.setProperty('--hs', (Number(settings.helloShift) || 0) + 's');
   setTimeout(() => document.body.classList.remove('pre-intro'), 25000);
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); box.classList.add('out'); document.body.classList.remove('pre-intro'); document.body.classList.add('app-in'); setTimeout(() => box.remove(), 1200); setTimeout(() => document.body.classList.remove('app-in'), 1600) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
