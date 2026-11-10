@@ -588,7 +588,7 @@ body.ui-hud .tile.on :is(b,small,strong,span){color:var(--c1)!important}
 
 /* przytrzymanie kibla */
 .bucket{position:relative}
-.bucket.holding::after{content:"";position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:6px solid var(--c1);box-shadow:0 0 24px var(--c1);animation:holdRing .48s linear forwards;pointer-events:none}
+.bucket.holding::after{content:"";position:absolute;left:50%;top:50%;width:150px;height:150px;margin:-75px 0 0 -75px;border-radius:50%;border:6px solid var(--c1);box-shadow:0 0 24px var(--c1);animation:holdRing .3s linear forwards;pointer-events:none}
 @keyframes holdRing{from{transform:scale(1.4);opacity:.2}to{transform:scale(.55);opacity:1}}
 .bucket{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 /* tryb jednej ręki */
@@ -904,3 +904,5 @@ body.app-in header.top{animation:none}
 .pc-tape input{width:100%;font-size:22px;font-weight:900;text-align:center}
 .pc-tape .hint{font-size:13px;margin:0 0 8px}
 .pill.tape-pill{border:2px solid var(--c1)!important;font-weight:900}
+#toast{pointer-events:none}
+.bucket.holding::after{animation-duration:.3s!important}

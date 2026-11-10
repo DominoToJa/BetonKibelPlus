@@ -702,9 +702,9 @@ function add(value, { at = Date.now(), silent = false } = {}) {
     const [top, bot] = session.method === 'taczka' ? [150, 254] : session.method === 'inne' ? [100, 256] : [SVG_TOP, SVG_BOTTOM];
     const f = Math.max(0, Math.min(1, (bot - yv) / (bot - top))), v = Math.min(session.capacity, Math.round(currentModel().volumeAtFraction(f) * 100) / 100);
     changeDose(v, true); announce('Beton do ' + fmt(v) + ' m³ · przytrzymaj, żeby dodać') };
-  b.addEventListener('pointerdown', e => { if (!session) return; down = true; moved = false; fired = false; sx = e.clientX; sy = e.clientY; if (!settings.holdAdd) return; b.classList.add('holding'); t = setTimeout(() => { t = 0; fired = true; b.classList.remove('holding'); add(session?.dose) }, 480) });
+  b.addEventListener('pointerdown', e => { if (!session) return; down = true; moved = false; fired = false; sx = e.clientX; sy = e.clientY; if (!settings.holdAdd) return; b.classList.add('holding'); t = setTimeout(() => { t = 0; fired = true; b.classList.remove('holding'); add(session?.dose) }, 300) });
   b.addEventListener('pointermove', e => { if (down && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) { moved = true; cancel() } });
-  b.addEventListener('pointerup', e => { if (!down) return; down = false; const short = !!t; cancel(); if (settings.holdAdd && short && !moved && !fired) levelAt(e.clientY) });
+  b.addEventListener('pointerup', e => { if (!down) return; down = false; const short = !!t; cancel(); if (settings.holdAdd && short && !moved && !fired) { if (settings.tapLevel) levelAt(e.clientY); else if (Date.now() - (b._hintAt || 0) > 4000) { b._hintAt = Date.now(); announce('Poziom betonu zmieniasz suwakiem z boku · przytrzymaj kosz, żeby dodać') } } });
   for (const ev of ['pointerleave', 'pointercancel']) b.addEventListener(ev, () => { down = false; cancel() });
   b.addEventListener('contextmenu', e => e.preventDefault());
   b.addEventListener('click', e => { if (!settings.holdAdd || e.detail === 0) { if (!moved) add(session?.dose); return } });
@@ -974,7 +974,7 @@ function render() {
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
   renderLevel(model);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible); document.body.classList.toggle('alarm-on', !!alarmVisible); if (!alarmVisible) alarmSince = 0;
-  $('touchText').textContent = (settings.holdAdd ? 'DOTKNIJ = POZIOM BETONU · PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
+  $('touchText').textContent = (settings.holdAdd ? (settings.tapLevel ? 'DOTKNIJ = POZIOM BETONU · ' : 'POZIOM = SUWAK Z BOKU · ') + 'PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
   $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
   $('ohTrip').classList.toggle('hide', s.method === 'taczka'); $('ohTrip').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał'; $('ohTrip').classList.toggle('good', phase === 'away' || phase === 'late');
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
@@ -1684,7 +1684,8 @@ $('elLibGender').addEventListener('change', () => elLibLoad(true));
 let elLibT = 0; $('elLibSearch').addEventListener('input', () => { clearTimeout(elLibT); elLibT = setTimeout(() => elLibLoad(true), 600) });
 $('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
-for (const [id, k] of [['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
+$('tapLevel').checked = !!settings.tapLevel;
+for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 $('introEvery').checked = settings.introEvery !== false; $('introEvery').addEventListener('change', () => { settings.introEvery = $('introEvery').checked; saveSettings() });
 { const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
