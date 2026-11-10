@@ -93,6 +93,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var meanTripSec: Double = 120
     private var dose: Double = 0.5
     private var capacity: Double = 0.5
+    private var elKey = "", elVoice = "", elModel = "eleven_multilingual_v2"
     private var leftM3: Double = 0
     private var poured: Double = 0
     private var loadM3: Double = 0
@@ -137,6 +138,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
     }
     private func pauseForCall() {
+        sayQueue.removeAll(); isSpeaking = false
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         player?.stop(); player = nil
         generation += 1
@@ -517,6 +519,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let k = call.getString("elKey") { self.elKey = k }
+            if let v = call.getString("elVoice") { self.elVoice = v }
+            if let m = call.getString("elModel"), !m.isEmpty { self.elModel = m }
             if let ao = call.getBool("askOnly") { self.askOnly = ao }
             if let g = call.getDouble("micGate") { self.micGateDb = Float(g) }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
@@ -627,18 +632,51 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if item.text.isEmpty { nextSay(); return }
         if elOn, !elTag.isEmpty {
             let f = voiceURL(item.text)
-            if FileManager.default.fileExists(atPath: f.path) {
-                do {
-                    try configureSession()
-                    let p = try AVAudioPlayer(contentsOf: f)
-                    p.delegate = self
-                    player = p
-                    if p.play() { return }
-                } catch { }
+            if FileManager.default.fileExists(atPath: f.path), playFile(f) { return }
+            // brak gotowego nagrania (np. odpowiedź z liczbą) — pobierz głos ElevenLabs na bieżąco, max 4 s
+            if !elKey.isEmpty, !elVoice.isEmpty {
+                elLive(item.text, to: f) { [weak self] ok in
+                    guard let self = self, self.isSpeaking, !self.inCall else { return }
+                    if ok, self.playFile(f) { return }
+                    self.speakSystem(item.text)
+                }
+                return
             }
         }
+        speakSystem(item.text)
+    }
+
+    private func playFile(_ f: URL) -> Bool {
+        do {
+            try configureSession()
+            let p = try AVAudioPlayer(contentsOf: f)
+            p.delegate = self
+            player = p
+            return p.play()
+        } catch { return false }
+    }
+
+    private func elLive(_ text: String, to file: URL, done: @escaping (Bool) -> Void) {
+        let v = elVoice.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? elVoice
+        guard let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(v)?output_format=mp3_44100_128") else { done(false); return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"; req.timeoutInterval = 4
+        req.setValue(elKey, forHTTPHeaderField: "xi-api-key")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        var body: [String: Any] = ["text": text, "model_id": elModel, "voice_settings": ["stability": 0.5, "similarity_boost": 0.75]]
+        if elModel.contains("turbo_v2_5") || elModel.contains("flash_v2_5") { body["language_code"] = "pl" }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
+            let ok = (resp as? HTTPURLResponse)?.statusCode == 200 && (data?.count ?? 0) > 300
+            if ok, let d = data { try? d.write(to: file) }
+            DispatchQueue.main.async { done(ok) }
+        }.resume()
+    }
+
+    private func speakSystem(_ text: String) {
         try? configureSession()
-        let u = AVSpeechUtterance(string: item.text)
+        let u = AVSpeechUtterance(string: text)
         u.voice = (voiceId.isEmpty ? nil : AVSpeechSynthesisVoice(identifier: voiceId)) ?? bestPolishVoice()
         u.rate = min(0.6, max(0.44, rate))
         u.pitchMultiplier = min(1.06, max(0.94, pitch))
