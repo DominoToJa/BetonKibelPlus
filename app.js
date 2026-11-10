@@ -156,7 +156,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -213,7 +213,7 @@ function sayBot(key, text) {
   if (settings.mode === 'full') { if (full || clipKeys.has(key)) { lastBotAt = Date.now(); speak(key, full) } }
   else beep();
 }
-function beep() { try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; const ctx = new AC(); const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = 700; g.gain.setValueAtTime(.06, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .22); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + .22); setTimeout(() => ctx.close(), 700) } catch (err) { } }
+function beep() { try { const ctx = getAC() || new (window.AudioContext || window.webkitAudioContext)(); const t = ctx.currentTime, vol = .55 * Number(settings.voiceVol ?? 1); for (const [f, d] of [[880, 0], [1175, .16]]) { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = f; g.gain.setValueAtTime(.0001, t + d); g.gain.exponentialRampToValueAtTime(vol, t + d + .01); g.gain.exponentialRampToValueAtTime(.001, t + d + .15); o.connect(g); g.connect(ctx.destination); o.start(t + d); o.stop(t + d + .16) } } catch (err) { } } // głośny dwutonowy sygnał
 /* ── muzyczka (własna, generowana na żywo — bez plików i praw autorskich) ── */
 let audioCtx = null;
 const getAC = () => { try { const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null; if (!audioCtx || audioCtx.state === 'closed') audioCtx = new AC(); if (audioCtx.state === 'suspended') audioCtx.resume(); return audioCtx } catch (e) { return null } };
@@ -1700,6 +1700,8 @@ $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem(
 $('musicTest').addEventListener('click', () => { if (!BGM_ENABLED) { playIntroVoice(); return } if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
 $('micSens').value = settings.micSens || 'low'; $('micSens').addEventListener('change', () => { settings.micSens = $('micSens').value; saveSettings(); configureNative() });
+{ const vv = $('voiceVol'), show = () => $('voiceVolV').textContent = Math.round(Number(settings.voiceVol ?? 1) * 100) + '%'; vv.value = String(settings.voiceVol ?? 1); show(); vv.addEventListener('input', () => { settings.voiceVol = Number(vv.value); show() }); vv.addEventListener('change', () => { saveSettings(); configureNative(); beep() }) }
+$('boostVolume').checked = settings.boostVolume !== false; $('boostVolume').addEventListener('change', () => { settings.boostVolume = $('boostVolume').checked; saveSettings(); configureNative() });
 $('loudVoice').checked = settings.loudVoice !== false; $('loudVoice').addEventListener('change', () => { settings.loudVoice = $('loudVoice').checked; saveSettings(); configureNative() });
 $('askOnly').checked = settings.askOnly !== false; $('askOnly').addEventListener('change', () => { settings.askOnly = $('askOnly').checked; saveSettings(); configureNative() });
 $('clicksOn').checked = settings.clicks !== false; $('clicksOn').addEventListener('change', () => { settings.clicks = $('clicksOn').checked; saveSettings() });

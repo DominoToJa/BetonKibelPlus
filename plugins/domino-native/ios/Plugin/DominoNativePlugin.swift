@@ -80,6 +80,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var loudVoice = true          // głośny lektor: bez tłumienia echa iOS (ono mocno przycisza dźwięk)
     private var speakStartedAt = Date.distantPast
     private var sessionReady = false
+    private var boostVolume = true
+    private var targetVolume: Float = 1.0
+    private lazy var volumeView: MPVolumeView = {
+        let v = MPVolumeView(frame: CGRect(x: -2000, y: -2000, width: 1, height: 1)); v.alpha = 0.01; v.isUserInteractionEnabled = false; return v
+    }()
     private var sayingNow = ""
     private var watchdog: Timer?
     private var keepAwake = true
@@ -144,6 +149,20 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             }
         }
     }
+    /// na budowie: przed komunikatem podkręć głośność telefonu do ustawionego poziomu (iOS nie pozwala grać głośniej niż system)
+    private func volumeUp() {
+        guard boostVolume else { return }
+        let cur = AVAudioSession.sharedInstance().outputVolume
+        guard cur < targetVolume - 0.02 else { return }
+        if volumeView.superview == nil, let host = bridge?.viewController?.view { host.addSubview(volumeView) }
+        let target = targetVolume
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let slider = self?.volumeView.subviews.compactMap({ $0 as? UISlider }).first else { return }
+            slider.setValue(target, animated: false)
+            slider.sendActions(for: .valueChanged)
+        }
+    }
+
     private func watch() {
         if isSpeaking && Date().timeIntervalSince(speakStartedAt) > 15 {   // mowa wisi
             if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
@@ -556,6 +575,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let m = call.getString("elModel"), !m.isEmpty { self.elModel = m }
             if let ao = call.getBool("askOnly") { self.askOnly = ao }
             if let lv = call.getBool("loudVoice") { self.loudVoice = lv }
+            if let bv = call.getBool("boostVolume") { self.boostVolume = bv }
+            if let tv = call.getDouble("targetVolume") { self.targetVolume = Float(max(0.3, min(1.0, tv))) }
             if let g = call.getDouble("micGate") { self.micGateDb = Float(g) }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
@@ -655,6 +676,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         isSpeaking = true
         speakStartedAt = Date()
         sayingNow = norm(item.text)
+        volumeUp()
         if useClips, let k = item.key, hasClip(k) {
             do {
                 try configureSession()
