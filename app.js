@@ -1031,7 +1031,7 @@ function report(key, value) { reportAt = Date.now(); const text = (pickVariant(k
 let lastErrAt = 0;
 function heardText(t) {
   const n = normalise(t); if (n.length < 2) return;
-  if (n.split(' ').length > 7) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } // długie zdania = ktoś rozmawia, nie komenda
+  if (n.split(' ').length > 7) { const tail = t.trim().split(/\s+/).slice(-6).join(' '); if (command(tail) !== true) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } micDisplay('✓ „' + tail + '”'); buzz('success'); if (settings.askOnly !== false) sayBot('heardOk'); return } // długa wypowiedź: komenda zwykle na końcu
   const r = command(t);
   if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300 && Date.now() - lastBotAt > 400) sayBot('heardOk'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');

@@ -79,6 +79,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var voiceProcOn = false
     private var loudVoice = true          // głośny lektor: bez tłumienia echa iOS (ono mocno przycisza dźwięk)
     private var speakStartedAt = Date.distantPast
+    private var sessionReady = false
+    private var sayingNow = ""
     private var watchdog: Timer?
     private var keepAwake = true
     private var lockStatus = true
@@ -175,8 +177,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let s = AVAudioSession.sharedInstance()
         var opts: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
         if !headsetButtons { opts.insert(.mixWithOthers) }   // przyciski słuchawki działają tylko bez miksowania
+        // nie przestawiaj sesji, jeśli już jest dobra — każde przestawienie potrafi zatrzymać mikrofon
+        if s.category == .playAndRecord && s.mode == .default && s.categoryOptions == opts && sessionReady { return }
         try s.setCategory(.playAndRecord, mode: .default, options: opts)
         try s.setActive(true, options: [])
+        sessionReady = true
         // mikrofon w słuchawce BT, jeśli jest podłączona
         if let bt = s.availableInputs?.first(where: { $0.portType == .bluetoothHFP }) { try? s.setPreferredInput(bt) }
     }
@@ -320,7 +325,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let loudEnough = utterPeakDb >= micGateDb - (btIn ? 12 : 0)
         let peak = utterPeakDb
         utterPeakDb = -120
-        if text.count >= 2 && loudEnough && !isSpeaking && Date() > speakingUntil {
+        let busy = isSpeaking || Date() <= speakingUntil
+        if text.count >= 2 && loudEnough && (!busy || bargeIn(text)) {
             heard(text)
         } else if text.count >= 2 && !loudEnough && UIApplication.shared.applicationState == .active {
             notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
@@ -328,6 +334,14 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if listening {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.startTask() }
         }
+    }
+
+    /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
+    private func bargeIn(_ text: String) -> Bool {
+        let t = norm(text)
+        let keys = ["dodaj", "cofnij", "wyjechal", "pojechal", "zalany", "jeszcze nie", "nie ma", "kosz jest", "ile zostalo", "ile koszy", "pelny", "pol kosza"]
+        guard let k = keys.first(where: { t.contains($0) }) else { return false }
+        return !sayingNow.contains(k)
     }
 
     private func heard(_ text: String) {
@@ -340,6 +354,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     // MARK: - Przerwania (telefon, Siri, słuchawki)
     @objc private func onInterruption(_ n: Notification) {
+        sessionReady = false
         guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         DispatchQueue.main.async {
@@ -348,10 +363,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
     }
     @objc private func onMediaReset(_ n: Notification) {
+        sessionReady = false
         DispatchQueue.main.async { self.resumeAfterBreak() }
     }
     /// Podłączenie / odłączenie słuchawki BT → przestaw mikrofon i wznów słuchanie
     @objc private func onRouteChange(_ n: Notification) {
+        sessionReady = false
         guard let raw = n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
               reason == .newDeviceAvailable || reason == .oldDeviceUnavailable else { return }
@@ -637,6 +654,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let item = sayQueue.removeFirst()
         isSpeaking = true
         speakStartedAt = Date()
+        sayingNow = norm(item.text)
         if useClips, let k = item.key, hasClip(k) {
             do {
                 try configureSession()
@@ -980,7 +998,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let t = norm(raw)
         let now = nowMs()
         guard active else { return }
-        if t.split(separator: " ").count > 7 { return }  // rozmowa, nie komenda
+        let w = t.split(separator: " ")
+        if w.count > 7 { return handleInBackground(w.suffix(6).joined(separator: " ")) }  // długa wypowiedź — komenda zwykle na końcu
         let waiting = phase == "away" || phase == "late"
         if waiting && !t.contains(" ile ") && has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
