@@ -1064,7 +1064,7 @@ function command(utterance) {
 }
 function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted); const om = $('ohMic'); if (om) { om.textContent = micWanted ? '🟢 Słucham' : '🎙 Mikrofon'; om.classList.toggle('live', micWanted) } if ($('ohMicStatus')) $('ohMicStatus').textContent = t; if (settings.oneHand && /❌|Brak|Nie mogę/.test(t)) announce(t) }
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-async function stopMic() { micWanted = false; micLive = false; clearTimeout(voiceRetry); if (nativeVoice) await NV.stop().catch(() => { }); else try { recognition?.abort() } catch (e) { } micDisplay('Mikrofon wyłączony.') }
+async function stopMic() { micWanted = false; micLive = false; if (settings.micOn) { settings.micOn = false; saveSettings() } clearTimeout(voiceRetry); if (nativeVoice) await NV.stop().catch(() => { }); else try { recognition?.abort() } catch (e) { } micDisplay('Mikrofon wyłączony.') }
 function bootWebRecognition() {
   if (!micWanted || document.hidden) return;
   try {
@@ -1082,8 +1082,10 @@ async function toggleMic() {
     micDisplay('Prośba o zgodę…');
     const p = await NV.askPermissions().catch(() => ({}));
     if (!p.mic || !p.speech) return micDisplay('❌ Brak zgody na mikrofon lub mowę. Ustawienia iPhone’a → BetonKibelPlus → włącz Mikrofon i Rozpoznawanie mowy.');
-    try { const r = await NV.start(); micWanted = true; micLive = true; micDisplay('🟢 Słucham — także przy zablokowanym ekranie.' + (r && r.onDevice === false ? ' (rozpoznawanie przez internet)' : '')); sayBot('micOn') }
-    catch (e) { micWanted = false; micDisplay('❌ ' + (e.message || e)) }
+    for (let i = 0; i < 4; i++) { // mikrofon czasem nie rusza od razu (np. po rozmowie) — ponów kilka razy
+      try { const r = await NV.start(); micWanted = true; micLive = true; settings.micOn = true; saveSettings(); micDisplay('🟢 Słucham — także przy zablokowanym ekranie.' + (r && r.onDevice === false ? ' (rozpoznawanie przez internet)' : '')); if (!toggleMic.silent) sayBot('micOn'); return }
+      catch (e) { if (i === 3) { micWanted = false; settings.micOn = false; saveSettings(); return micDisplay('❌ ' + (e.message || e)) } micDisplay('⏳ Mikrofon nie ruszył, ponawiam… (' + (i + 1) + '/3)'); await new Promise(r => setTimeout(r, 2000)) }
+    }
     return;
   }
   if (!SpeechRec) return micDisplay('❌ Ta przeglądarka nie rozpoznaje mowy. Użyj przycisków.');
@@ -1830,6 +1832,12 @@ if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { if (c
 tab(session && settings.startForm !== false ? 'work' : 'home'); setInterval(tick, 500);
 drainNative();
 
+/* ikony (emoji / symbole na początku przycisków) trochę większe — owijamy je w <span class="ico"> */
+const ICO_RE = /^((?:\p{Extended_Pictographic}|[⌂▤▶↶⏹↩✕✓⏮⏯⏳⚖⚡➕＋])(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*)\s*/u;
+function icoWrap(b) { const f = b.firstChild; if (!f || f.nodeType !== 3) return; const m = f.nodeValue.match(ICO_RE); if (!m) return; const sp = document.createElement('span'); sp.className = 'ico'; sp.textContent = m[1]; f.nodeValue = ' ' + f.nodeValue.slice(m[0].length); b.insertBefore(sp, f) }
+const icoScan = root => { if (root.matches?.('button, .pill, summary')) icoWrap(root); root.querySelectorAll?.('button, .pill, summary').forEach(icoWrap) };
+icoScan(document.body);
+new MutationObserver(ms => { for (const m of ms) { if (m.target.matches?.('button, .pill, summary')) icoWrap(m.target); for (const n of m.addedNodes) if (n.nodeType === 1) icoScan(n) } }).observe(document.body, { childList: true, subtree: true });
 const INTRO_TPL = $('intro')?.cloneNode(true);
 let hiddenAt = 0;
 /* intro za każdym razem, gdy wracasz do apki (po min. 30 s), o ile nie trwa betonowanie */
@@ -1871,5 +1879,7 @@ function runIntro(box) {
     else webIntro();
   } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }
+  /* mikrofon był włączony przy betonowaniu — po ponownym uruchomieniu apki włącz go sam */
+  setTimeout(() => { if (nativeVoice && settings.micOn && session && !micWanted) { toggleMic.silent = true; toggleMic().finally(() => { toggleMic.silent = false }) } }, 2500);
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 }

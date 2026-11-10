@@ -92,3 +92,14 @@ Stan na 9 listopada 2026, wersja **3.5.8**.
 - Pobieranie głosu ElevenLabs i biblioteka głosów na iPhonie.
 - Czułość mikrofonu w hałasie na budowie.
 - Status na ekranie blokady i przyciski słuchawki BT.
+
+## Zmiany 10.11.2026 (wersje 3.8.3 – 3.9.1)
+- Komendy w tle: „ile koszy”, „pełny kosz”, „pół kosza”, „dodaj pół”.
+- ElevenLabs także dla odpowiedzi z liczbami (pobierane na bieżąco).
+- Kalkulator kosza: opcja 📏 Miarka (wysokość + opcjonalnie szerokość w cm).
+- Poziom betonu tylko suwakiem; przytrzymanie 0,3 s; przelany kosz (np. 0,48 → do 0,5).
+- Głośny lektor (bez tłumienia echa), wszystkie komunikaty mówione, suwak głośności, podkręcanie głośności telefonu.
+- Alarm „Czy kosz już jest?”: „Jeszcze nie” działa, podwójne pytanie, 3 mignięcia z wibracją na blokadzie.
+- Stabilność: strażnik mowy/mikrofonu, ponawianie startu mikrofonu, mikrofon wraca sam po restarcie apki, komendy w trakcie mowy lektora, praca w tle bez mikrofonu (cichy dźwięk trzymający apkę).
+- Większe ikony.
+- Do zrobienia: nowe liczenie betonu w koszu (wieczór 10.11), aktualizacje bez komputera (SideStore / aktualizacje w locie).

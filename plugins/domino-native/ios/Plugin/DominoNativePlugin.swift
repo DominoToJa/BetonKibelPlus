@@ -80,6 +80,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var loudVoice = true          // głośny lektor: bez tłumienia echa iOS (ono mocno przycisza dźwięk)
     private var speakStartedAt = Date.distantPast
     private var sessionReady = false
+    private var taskStartedAt = Date.distantPast
+    private var quickFails = 0
     private var boostVolume = true
     private var targetVolume: Float = 1.0
     private lazy var volumeView: MPVolumeView = {
@@ -170,6 +172,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             nextSay()
         }
         if listening && !inCall && !isSpeaking && !engine.isRunning { resumeAfterBreak() }   // mikrofon padł
+        if UIApplication.shared.applicationState != .active { if active && !inCall && !engine.isRunning { startKeepAlive() } else if !active { stopKeepAlive() } }
     }
     private func pauseForCall() {
         sayQueue.removeAll(); isSpeaking = false
@@ -293,6 +296,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         request = req
         lastPartial = ""
         utterPeakDb = -120
+        taskStartedAt = Date()
         task = rec.recognitionTask(with: req) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self, gen == self.generation else { return }
@@ -351,7 +355,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
         }
         if listening {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in self?.startTask() }
+            // zadanie padło od razu bez słów (błąd rozpoznawania) — nie młóć w kółko, odczekaj chwilę
+            let quick = text.isEmpty && Date().timeIntervalSince(taskStartedAt) < 1.0
+            quickFails = quick ? quickFails + 1 : 0
+            let wait = quickFails >= 3 ? min(3.0, 0.5 * Double(quickFails)) : 0.05
+            if quickFails >= 6 { quickFails = 0; DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in self?.resumeAfterBreak() }; return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in self?.startTask() }
         }
     }
 
@@ -387,10 +396,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
     /// Podłączenie / odłączenie słuchawki BT → przestaw mikrofon i wznów słuchanie
     @objc private func onRouteChange(_ n: Notification) {
-        sessionReady = false
         guard let raw = n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: raw),
               reason == .newDeviceAvailable || reason == .oldDeviceUnavailable else { return }
+        sessionReady = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { self.resumeAfterBreak() }
     }
     // MARK: - Przyciski słuchawki (play/pauza = dodaj kibel, następny = dodaj, poprzedni = cofnij)
@@ -457,8 +466,33 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return MPMediaItemArtwork(boundsSize: size) { _ in img }
     }
     // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
-    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus() } }
-    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus() } }
+    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus(); self.startKeepAlive() } }
+    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); self.stopKeepAlive() } }
+
+    // MARK: - Praca w tle bez mikrofonu: cichy dźwięk trzyma apkę przy życiu, żeby pytała o kosz i liczyła czas
+    private var keepPlayer: AVAudioPlayer?
+    private func silentWav() -> Data {
+        let rate: UInt32 = 8000, samples = rate  // 1 s ciszy
+        var d = Data()
+        func u32(_ v: UInt32) { var x = v.littleEndian; d.append(Data(bytes: &x, count: 4)) }
+        func u16(_ v: UInt16) { var x = v.littleEndian; d.append(Data(bytes: &x, count: 2)) }
+        d.append("RIFF".data(using: .ascii)!); u32(36 + samples * 2); d.append("WAVE".data(using: .ascii)!)
+        d.append("fmt ".data(using: .ascii)!); u32(16); u16(1); u16(1); u32(rate); u32(rate * 2); u16(2); u16(16)
+        d.append("data".data(using: .ascii)!); u32(samples * 2); d.append(Data(count: Int(samples * 2)))
+        return d
+    }
+    private func startKeepAlive() {
+        guard active, !inCall, keepPlayer?.isPlaying != true else { return }
+        if engine.isRunning { return }   // mikrofon i tak trzyma apkę w tle
+        do {
+            try configureSession()
+            let p = try AVAudioPlayer(data: silentWav())
+            p.numberOfLoops = -1; p.volume = 0
+            p.prepareToPlay(); p.play()
+            keepPlayer = p
+        } catch { }
+    }
+    private func stopKeepAlive() { keepPlayer?.stop(); keepPlayer = nil }
     private func statusLine() -> String {
         var trip = ""
         if method != "taczka" {

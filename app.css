@@ -911,3 +911,10 @@ body.app-in header.top{animation:none}
 .vs-tick.over-tick{opacity:.8;color:#ffd17e!important}
 .vslider.over .vs-fill{background:linear-gradient(to top,var(--c1) 85%,#ffb703)!important}
 .vslider.over .vs-thumb{background:#ffb703!important;border-color:#ffb703!important}
+
+/* 3.9.1 — większe ikony */
+.ico{display:inline-block;font-size:1.3em;line-height:1;vertical-align:-.1em;margin-right:.1em}
+.tabs button .ico{display:block;font-size:22px;margin:0 auto 3px;line-height:1.1}
+.tabs button{line-height:1.15}
+summary .ico{font-size:1.25em}
+.one-hand-btn .ico,#ohMic .ico,.oh-bar .ico{font-size:1.4em}
