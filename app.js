@@ -511,16 +511,33 @@ const TEMPLATES = [
   ['walec', 'Walec', 'proste ścianki', 'cylinder', { d: 90, h: 90 }],
   ['skrzynia', 'Prostokątny', 'kanciasty / skrzynia', 'rect', { lTop: 120, wTop: 80, lBottom: 80, wBottom: 40, h: 90 }],
 ];
+/* rysunki koszy — korpus + ucho do haka, łańcuchy, zamknięcie, dźwignia, nogi */
+const KS = 'var(--c1)', KF = 'color-mix(in srgb,var(--c1) 32%,transparent)', KD = 'color-mix(in srgb,var(--c1) 60%,#000)';
+const kSvg = inner => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'tpl-ico kosz-art');
+  svg.innerHTML = `<g fill="none" stroke="${KS}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">${inner}</g>`; return svg };
+const kBail = (xl, xr, y) => `<path d="M${xl} ${y}L32 6M${xr} ${y}L32 6" stroke-width="1.3"/><circle cx="32" cy="4.5" r="2.4" stroke-width="1.6"/><path d="M${xl - 1} ${y}h2M${xr - 1} ${y}h2" stroke-width="3"/>`;
+const kGate = (x, y, w) => `<rect x="${x - w / 2}" y="${y}" width="${w}" height="3.4" rx="1" fill="${KD}"/>`;
+const kLever = (x0, y0, x1, y1) => `<path d="M${x0} ${y0}L${x1} ${y1}L${x1 - 4} ${y1 + 2.5}" stroke-width="1.6"/><circle cx="${x1}" cy="${y1}" r="1.7" fill="${KS}"/>`;
 function tplSvg(shape, d) {
   let pts; // [y, półszerokość] od góry
   if (shape === 'cone') pts = [[0, d.dTop / 2], [d.h, d.dBottom / 2]];
   else if (shape === 'cylcone') pts = [[0, d.d / 2], [d.hCyl, d.d / 2], [d.hCyl + d.hCone, d.dOut / 2]];
   else if (shape === 'cylinder') pts = [[0, d.d / 2], [d.h, d.d / 2]];
   else pts = [[0, d.lTop / 2], [d.h, d.lBottom / 2]];
-  const H = pts.at(-1)[0], W = Math.max(...pts.map(p => p[1])) * 2, k = 52 / Math.max(H, W), ox = 32, oy = 6 + (52 - H * k) / 2;
-  const P = [...pts.map(([y, w]) => [ox - w * k, oy + y * k]), ...pts.slice().reverse().map(([y, w]) => [ox + w * k, oy + y * k])].map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'tpl-ico');
-  svg.innerHTML = `<polygon points="${P}" fill="color-mix(in srgb,var(--c1) 35%,transparent)" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round"/>`; return svg;
+  const H = pts.at(-1)[0], Wm = Math.max(...pts.map(p => p[1])), k = Math.min(34 / H, 19 / Wm), top = 16, ox = 32;
+  const L = pts.map(([y, w]) => [ox - w * k, top + y * k]), R = pts.map(([y, w]) => [ox + w * k, top + y * k]);
+  const f = a => a.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const bot = L.at(-1)[1], wb = R.at(-1)[0] - ox, wt = R[0][0] - ox, gw = Math.max(8, Math.min(wb * 2, 14));
+  let g = kBail(ox - wt + 1, ox + wt - 1, top) + `<polygon points="${f([...L, ...R.slice().reverse()])}" fill="${KF}"/>`;
+  g += `<path d="M${ox - wt - 1.5} ${top}h${2 * wt + 3}" stroke-width="3.2"/>`; // obręcz
+  g += `<path d="M${ox - wt * .97} ${top + 5}L${ox + wt * .97} ${top + 5}" stroke-width=".9" opacity=".6"/>`; // przetłoczenie
+  if (shape === 'rect') g += [.33, .66].map(t => `<path d="M${(ox - wt + (wt - wb) * .0 + 2 * wt * t).toFixed(1)} ${top}L${(ox - wb + 2 * wb * t).toFixed(1)} ${bot}" stroke-width=".9" opacity=".6"/>`).join('');
+  // nogi / rama
+  const ly = top + (bot - top) * .55, lx = (ox + (L[0][0] - ox) * .55 + (L.at(-1)[0] - ox) * .45);
+  const lxL = Math.min(lx, ox - wb) - 1, lxR = 2 * ox - lxL;
+  g += `<path d="M${lxL.toFixed(1)} ${ly.toFixed(1)}L${(lxL - 4).toFixed(1)} 61h-3M${lxR.toFixed(1)} ${ly.toFixed(1)}L${(lxR + 4).toFixed(1)} 61h3" stroke-width="2"/>`;
+  g += kGate(ox, bot, gw) + kLever(ox + gw / 2, bot + 1.7, Math.min(ox + wt + 6, 60), ly - 4);
+  return kSvg(g);
 }
 async function templatePick() {
   let tpl = TEMPLATES[0], cap = .75;
@@ -1259,9 +1276,20 @@ const EICH_BASIC = [
   ['Kształt L (boczny wylot)', [['1021', 'L — boczny wysyp', 'pionowy, wylot z boku'], ['1019', 'L — sanki', 'leżący, sztywny wylot']]],
   ['Z rękawem', [['1023', 'Rękaw — boczny', 'pionowy, wylot z rękawem'], ['1018', 'Rękaw — sanki', 'leżący, z rękawem']]],
 ];
-const eichIco = ser => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'tpl-ico');
-  const P = { '1011': 'M10 8h44L40 50H24z', '1012': 'M12 8h40v26L38 50H26L12 34z', '1021': 'M14 8h36v34L34 52H22v-6L14 42z', '1019': 'M6 18h44v24H6zM50 26h10v8H50z', '1023': 'M14 8h36v34L34 50H24zM24 50l-6 10M34 50l-6 10', '1018': 'M6 16h40v22H6zM46 24h6l8 26h-6z' }[ser] || 'M10 8h44L40 50H24z';
-  svg.innerHTML = `<path d="${P}" fill="color-mix(in srgb,var(--c1) 35%,transparent)" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round"/>`; return svg };
+const eichIco = ser => {
+  const lean = x => `<path d="M${x} 16L${x} 61h-3" stroke-width="2"/>`;
+  const sleeve = (x, y) => `<path d="M${x - 4} ${y}h8l2 16q-6 3-12 0z" fill="color-mix(in srgb,#ff9a2e 55%,transparent)" stroke="#ff9a2e" stroke-width="1.5"/><path d="M${x - 4.5} ${y + 5}h9M${x - 5} ${y + 10}h10" stroke="#ff9a2e" stroke-width=".8" opacity=".8"/>`;
+  const sankiBody = `<path d="M6 22h40l8 8v10H6z" fill="${KF}"/><path d="M5 22h42" stroke-width="3"/><path d="M14 22v18M26 22v18M38 22v18" stroke-width=".9" opacity=".6"/><path d="M4 46h46q6 0 7-5M4 46q-2 0-1-3" stroke-width="2.2"/><path d="M10 40v6M44 40v6" stroke-width="1.6"/><path d="M8 22L28 8M44 22L28 8" stroke-width="1.3"/><circle cx="28" cy="6.5" r="2.4" stroke-width="1.6"/>`;
+  const upright = side => `${kBail(16, 46, 14)}<path d="M14 14h34v26L38 50H26V44L14 40z" fill="${KF}"/><path d="M12.5 14h37" stroke-width="3.2"/><path d="M15 19h32" stroke-width=".9" opacity=".6"/><path d="M15 36L10 61h-3M47 36L52 61h3" stroke-width="2"/>`;
+  const art = {
+    '1011': () => tplSvg('cone', { dTop: 110, dBottom: 55, h: 100 }).innerHTML,
+    '1012': () => tplSvg('cylcone', { d: 110, hCyl: 55, hCone: 45, dOut: 30 }).innerHTML,
+    '1021': () => upright() + `<path d="M38 44h12l2 6H38z" fill="${KD}"/>` + kLever(50, 46, 56, 30),
+    '1023': () => upright() + `<path d="M38 44h8v4h-8z" fill="${KD}"/>` + sleeve(42, 48) + kLever(46, 45, 56, 30),
+    '1019': () => sankiBody + `<path d="M54 30h7v7h-7z" fill="${KD}"/>` + kLever(52, 28, 58, 18),
+    '1018': () => sankiBody + `<path d="M50 40h8v3h-8z" fill="${KD}"/>` + `<g transform="translate(0,-2)">${sleeve(54, 45)}</g>` + kLever(52, 28, 58, 18),
+  };
+  const svg = kSvg(''); const inner = (art[ser] || art['1011'])(); svg.innerHTML = inner.startsWith('<g') ? inner : `<g fill="none" stroke="${KS}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">${inner}</g>`; return svg };
 async function eichPick() {
   let ser = '', chosen = null;
   const grid = el('div', { class: 'eich-basic' }), list = el('div', { class: 'eich-list' });

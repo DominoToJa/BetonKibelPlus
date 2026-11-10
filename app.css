@@ -971,3 +971,6 @@ body.m-kosz .tile.eich-tile{display:grid!important}
 .eich-list .eich-row>b{grid-row:1/3;font-size:20px;white-space:nowrap;min-width:78px}
 .eich-list .eich-row>small{font-size:11px;opacity:.8;line-height:1.3}
 .eich-list .eich-row{flex-shrink:0!important}.eich-list{overflow:visible!important;max-height:none!important}
+
+.tpl .kosz-art{width:58px;height:58px}
+.eich-type .kosz-art{width:64px;height:64px}
