@@ -756,13 +756,9 @@ function kursRender() {
   const s = session, tr = trucksOf(s), cur = tr.at(-1), n = s.entries.length, last = s.entries.at(-1), cap = Number(s.capacity) || .5;
   $('kursNo').textContent = n;
   const inTruck = s.entries.slice(cur.start).reduce((a, e) => a + Number(e.amount || 0), 0), restT = Math.max(0, cur.m3 - inTruck);
-  $('kursInfo').textContent = n ? 'ostatni: ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³' + (restT > .001 ? ' · w gruszce ~' + fmt(Math.round(restT * 10) / 10) + ' m³' : ' · gruszka chyba pusta?') : 'przytrzymaj kosz = pełny kurs';
+  $('kursInfo').textContent = n ? 'ostatni: ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³ (' + Math.round(Number(last.amount) / cap * 100) + '%)' : 'przytrzymaj kosz = pełny kurs';
   const f = last ? Number(last.amount) / cap : -1;
   for (const b of $('kursFrac').children) { const bf = b.dataset.f === 'over' ? OVER_F : Number(b.dataset.f); b.classList.toggle('on', !!last && !cur.closed && s.entries.length > cur.start && Math.abs(f - bf) < .02); b.disabled = !last || s.entries.length <= cur.start }
-  const can = !!last && s.entries.length > cur.start && !cur.closed, kr = $('kfRange'); kr.disabled = !can;
-  if (document.activeElement !== kr) kr.value = can ? Math.round(Math.min(1.1, f) * 100) : 100;
-  $('kfVal').textContent = can ? Math.round(f * 100) + '% = ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³' : '—';
-  kr.style.setProperty('--p', (kr.value / 110 * 100) + '%');
   $('truckNo').textContent = tr.length; $('truckInfo').textContent = fmt(cur.m3) + ' m³' + (cur.closed ? ' ✓' : '');
   $('truckEmpty').disabled = cur.closed || s.entries.length <= cur.start;
   $('kursLearn').textContent = s.learned ? '⚖️ ' + s.learned : 'Kosz: ' + fmt(cap) + ' m³ · po „Gruszka pusta” apka sama poprawi pojemność.';
@@ -788,8 +784,6 @@ function setLastPct(pct, { final = false } = {}) {
   if (final) { remember(); render(); syncNative(); announce('Ostatni kurs: ' + pct + '% = ' + fmt(last.amount) + ' m³'); sayBot('custom', pct + ' procent, ' + fmt(Math.round(last.amount * 100) / 100) + ' metra.') }
   else render();
 }
-$('kfRange').addEventListener('input', e => { const v = Math.round(e.target.value / 5) * 5 === +e.target.value ? +e.target.value : +e.target.value; setLastPct(v) });
-$('kfRange').addEventListener('change', e => setLastPct(+e.target.value, { final: true }));
 /** gruszka pusta: kursy z tej gruszki = dokładnie jej m³, a z tego prawdziwa pojemność kosza */
 function truckEmpty({ silent = false } = {}) {
   const s = session; if (!s || s.method !== 'kibel') return; const tr = trucksOf(s), cur = tr.at(-1); if (cur.closed) return announce('Ta gruszka jest już zamknięta');
@@ -1009,8 +1003,12 @@ function renderHudPanel(s) {
 }
 $('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(doseMax(session.capacity), Number($('hudRange').value)); renderLevelSoon() } });
 $('hudRange').addEventListener('change', () => { if (session) changeDose(Number($('hudRange').value), true) });
+/** kosz: suwak z boku pokazuje ostatni kurs bieżącej gruszki */
+const koszLast = s => { const cur = trucksOf(s).at(-1); return s.entries.length > cur.start && !cur.closed ? s.entries.at(-1) : null };
 function renderSlider(model) {
-  const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
+  const s = session, cap = Number(s.capacity || .5), kl = s.method === 'kibel' ? koszLast(s) : null, dose = s.method === 'kibel' ? (kl ? Number(kl.amount) : 0) : Number(s.dose || 0);
+  $('vslider').classList.toggle('locked', !!settings.sliderLock); $('vsLock').textContent = settings.sliderLock ? '🔒' : '🔓';
+  $('vslider').classList.toggle('empty', s.method === 'kibel' && !kl);
   const pct = v => (slPos(model, v, cap) * 100).toFixed(2) + '%', mx = Math.round(doseMax(cap) * 100) / 100;
   $('vsFill').style.height = pct(dose); $('vslider').classList.toggle('over', dose > cap + 1e-4);
   $('vsThumb').style.bottom = pct(dose);
@@ -1026,11 +1024,16 @@ function renderSlider(model) {
 }
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false, dirty = false;
-  let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.max(0, Math.round(slVal(model, f, Number(session.capacity)) * 100) / 100); if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
-  vs.addEventListener('pointerdown', e => { rect = vs.querySelector('.vs-track').getBoundingClientRect(); dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
+  let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.max(0, Math.round(slVal(model, f, Number(session.capacity)) * 100) / 100);
+    if (session.method === 'kibel') { const cap = Number(session.capacity) || .5, pct = Math.max(0, Math.min(110, Math.round(v / cap * 100))); if (pct === kPct) return; kPct = pct; setLastPct(pct); dirty = true; return }
+    if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
+  let kPct = -1;
+  $('vsLock').addEventListener('pointerdown', e => e.stopPropagation());
+  $('vsLock').addEventListener('click', e => { e.stopPropagation(); settings.sliderLock = !settings.sliderLock; saveSettings(); renderLevelSoon(); announce(settings.sliderLock ? '🔒 Suwak zablokowany' : '🔓 Suwak odblokowany'); buzz?.('light') });
+  vs.addEventListener('pointerdown', e => { if (settings.sliderLock) { announce('🔒 Suwak zablokowany — dotknij kłódki, żeby odblokować'); return } if (session?.method === 'kibel' && !koszLast(session)) { announce('Najpierw dodaj kurs — potem suwakiem poprawisz ile było'); return } kPct = -1; rect = vs.querySelector('.vs-track').getBoundingClientRect(); dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
-  const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
-  vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(doseMax(session.capacity), session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
+  const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; if (session.method === 'kibel') setLastPct(kPct, { final: true }); else changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
+  vs.addEventListener('keydown', e => { if (!session || settings.sliderLock || session.method === 'kibel') return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(doseMax(session.capacity), session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
 let renderQ = 0, levelQ = 0, svgKey = '';
@@ -1348,7 +1351,19 @@ function qmCalc() {
 function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t[0] === qmType ? ' on' : ''), onclick: () => { qmType = t[0]; qmRender(); qmCalc() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] })))) }
 ['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmCalc));
 /** kosz = tylko nazwa i pojemność (bez kształtu, zdjęć do liczenia i wymiarów) */
-function formSimple() { const k = $('bKind').value === 'kosz'; $('bucketForm').classList.toggle('simple', k); $('qmBox').classList.toggle('hide', !k); if (k) { $('bShape').value = 'plate'; qmRender() } }
+/* łyżka koparki: szerokość × długość (otwarcie) × głębokość — wystarczą 2 z 3, trzeci szacuję z typowych proporcji */
+const LM_K = .6; // łyżka ma zaokrąglone dno — wypełnia ok. 60% prostopadłościanu
+function lmCalc() {
+  const W = number($('lmW').value), L = number($('lmL').value), H = number($('lmH').value), ok = v => v > 10 && v < 400, n = [W, L, H].filter(ok).length;
+  if (n < 2) { $('lmOut').textContent = 'Wpisz co najmniej 2 wymiary (najlepiej szerokość i długość) — policzę pojemność.'; return 0 }
+  const w = ok(W) ? W : (ok(L) ? L : H / .85), l = ok(L) ? L : (ok(H) ? H / .85 : W), h = ok(H) ? H : l * .85, est = n < 3;
+  const cap = Math.round(w * l * h / 1e6 * LM_K * 1000) / 1000;
+  $('lmOut').textContent = '≈ ' + fmt(Math.round(cap * 100) / 100) + ' m³ betonu w łyżce' + (est ? ' (szacunek — ' + (!ok(H) ? 'głębokość' : !ok(L) ? 'długość' : 'szerokość') + ' ≈ ' + Math.round(!ok(H) ? h : !ok(L) ? l : w) + ' cm; podaj, będzie dokładniej)' : '');
+  $('bReal').value = fmt(Math.round(cap * 100) / 100); if (!$('bShape').value || $('bShape').value === 'cone') $('bShape').value = 'plate';
+  return cap;
+}
+['lmW', 'lmL', 'lmH'].forEach(id => $(id).addEventListener('input', lmCalc));
+function formSimple() { $('lmBox').classList.toggle('hide', $('bKind').value !== 'lyzka'); lmCalc(); const k = $('bKind').value === 'kosz'; $('bucketForm').classList.toggle('simple', k); $('qmBox').classList.toggle('hide', !k); if (k) { $('bShape').value = 'plate'; qmRender() } }
 $('bKind').addEventListener('change', () => { formSimple(); dimFields($('bShape').value, {}) });
 function closeBucketForm() { $('bucketForm').classList.add('hide'); $('newBucket').classList.remove('hide'); editingId = '' }
 $('newBucket').addEventListener('click', () => openBucketForm()); $('bCancel').addEventListener('click', closeBucketForm);

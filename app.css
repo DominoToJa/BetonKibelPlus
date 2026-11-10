@@ -921,8 +921,8 @@ summary .ico{font-size:1.25em}
 /* 4.0.0 — nowe liczenie kosza: kursy + gruszka */
 .kurs-panel{display:none}
 body.m-kosz .kurs-panel{display:block;margin-top:10px}
-body.m-kosz #vslider,body.m-kosz .hud-reg,body.m-kosz #less,body.m-kosz #more,body.m-kosz .quick-caps,body.m-kosz .quick-caps-label,body.m-kosz #levelHint,body.m-kosz .tile.tpl-add{display:none!important}
-body.m-kosz .bucket-stage{grid-template-columns:1fr!important}
+body.m-kosz .hud-reg,body.m-kosz #less,body.m-kosz #more,body.m-kosz .quick-caps,body.m-kosz .quick-caps-label,body.m-kosz #levelHint,body.m-kosz .tile.tpl-add{display:none!important}
+
 .kurs-big{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:4px 0 8px}
 .kurs-big span{font-weight:900;letter-spacing:.12em;opacity:.8}
 .kurs-big b{font-size:52px;line-height:1;color:var(--c1);font-variant-numeric:tabular-nums}
@@ -940,8 +940,8 @@ body.one-hand.m-kosz .kurs-big{display:none}
 body.one-hand.m-kosz .kurs-frac button{min-height:64px}
 #bucketForm.simple label[for="bShape"],#bucketForm.simple #bShape,#bucketForm.simple #bShapeHint,#bucketForm.simple #bPhotoCalc,#bucketForm.simple #bDims,#bucketForm.simple #bPreview{display:none!important}
 #bucketForm.simple label[for="bReal"]::after{content:' — sam się poprawi po pierwszej gruszce';font-weight:600;opacity:.7}
-body.m-kosz.one-hand #work #bucketPanel .bucket-stage > #vslider,body.m-kosz #work #bucketPanel .bucket-stage > #vslider{display:none!important}
-body.m-kosz.one-hand .bucket-stage{grid-template-columns:1fr!important}
+
+
 body.m-kosz #hudPanel .hud-status{display:none!important}
 
 .qm-box{margin:10px 0;padding:10px;border-radius:14px;border:2px solid var(--c1);background:color-mix(in srgb,var(--c1) 8%,transparent)}
@@ -992,3 +992,13 @@ body.m-kosz .tile.eich-tile{display:grid!important}
 .kf-ticks{position:relative;height:16px;margin:0 17px;display:block;padding:0}
 .kf-ticks span{position:absolute;transform:translateX(-50%);margin:0!important;white-space:nowrap}
 .kf-ticks span:last-child{transform:translateX(-80%)}.kf-ticks span:first-child{transform:translateX(-30%)}
+
+body.m-kosz .kurs-truck,body.m-kosz .kurs-learn{display:none!important}
+.vslider{position:relative}
+.vs-lock{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);z-index:5;width:38px;height:38px;min-height:0!important;padding:0!important;border-radius:50%;font-size:20px;line-height:1;display:grid;place-items:center;background:color-mix(in srgb,var(--c1) 14%,#0b1220);border:1.5px solid color-mix(in srgb,var(--c1) 50%,transparent)}
+.vslider.locked .vs-lock{background:#5a3a00;border-color:#ffb02e}
+.vslider.locked .vs-track{opacity:.55;filter:grayscale(.6)}
+.vslider.locked .vs-thumb{cursor:not-allowed}
+.vslider.empty .vs-thumb{opacity:.35}
+#bucketPanel{-webkit-user-select:none;user-select:none}
+body.one-hand .vs-track{bottom:52px!important}
