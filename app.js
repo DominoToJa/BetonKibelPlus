@@ -564,6 +564,7 @@ function sheetRender() {
   }
   if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
   if (method !== 'taczka' && method !== 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
+  if (method === 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add eich-tile', onclick: async () => { const p = await eichPick(); if (p) { chooseProfile(p.id); sheetRender?.(); tab('setup') } } }, el('b', { text: '🏷 Kosz Eichinger z katalogu' }), el('small', { text: 'seria z tabliczki (1011, 1012, 1021…) + pojemność' })));
   r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: method === 'kibel' ? '＋ Dodaj swój kosz' : '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Dodaj') }), el('small', { text: method === 'kibel' ? 'nazwa + pojemność z tabliczki · resztę policzy gruszka' : 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
@@ -1233,6 +1234,49 @@ function openBucketForm(p = null, kind = null) {
   $('bError').textContent = ''; formSimple(); dimFields($('bShape').value, p?.dims || {}); thumbsRender();
   $('bucketForm').classList.remove('hide'); $('newBucket').classList.add('hide'); $('bName').focus();
 }
+
+/* ───── katalog koszy Eichinger (dane katalogowe producenta; mm, kg) ───── */
+const EICH = [
+  ['1011', 'stożkowy, prosty wysyp', [['1011.8', 500, 1140, 1300, 194], ['1011.9', 600, 1200, 1360, 210], ['1011.10', 750, 1240, 1430, 236], ['1011.11', 800, 1300, 1460, 252], ['1011.12', 1000, 1350, 1590, 286]]],
+  ['1012', 'cylindryczno-stożkowy, prosty wysyp', [['1012.8', 500, 1040, 1320, 200], ['1012.9', 600, 1040, 1420, 230], ['1012.10', 750, 1040, 1620, 260], ['1012.11', 800, 1040, 1720, 270], ['1012.12', 1000, 1140, 1760, 295], ['1012.13', 1250, 1400, 1710, 320], ['1012.14', 1500, 1400, 1910, 390], ['1012.16', 2000, 1400, 2260, 560]]],
+  ['1021', 'boczny wysyp, bez rękawa', [['1021.8', 500, 970, 1600, 162], ['1021.9', 600, 970, 1700, 180], ['1021.10', 750, 1150, 1720, 230], ['1021.11', 800, 1150, 1770, 245], ['1021.12', 1000, 1300, 1780, 275], ['1021.13', 1250, 1400, 1900, 358], ['1021.14', 1500, 1400, 2100, 405], ['1021.16', 2000, 1600, 2250, 465]]],
+  ['1023', 'boczny wysyp z rękawem', [['1023.8', 500, 970, 1850, 230], ['1023.10', 750, 1150, 1970, 270], ['1023.12', 1000, 1300, 2030, 310], ['1023.13', 1250, 1400, 2150, 350], ['1023.14', 1500, 1400, 2350, 385], ['1023.16', 2000, 1600, 2500, 500]]],
+  ['1018', '„sanki” z rękawem', [['1018.8', 500, 1040, 1750, 210], ['1018.9', 600, 1040, 1780, 230], ['1018.10', 750, 1400, 1700, 250], ['1018.11', 800, 1400, 1780, 280], ['1018.12', 1000, 1400, 1850, 290], ['1018.13', 1250, 1600, 1800, 330], ['1018.14', 1500, 1600, 1900, 365], ['1018.16', 2000, 1600, 2100, 480]]],
+  ['1019', '„sanki” ze sztywnym wylotem', [['1019.8', 500, 1040, 1490, 218], ['1019.9', 600, 1040, 1520, 240], ['1019.10', 750, 1400, 1560, 320], ['1019.11', 800, 1400, 1590, 380], ['1019.12', 1000, 1400, 1710, 420], ['1019.13', 1250, 1600, 1730, 540], ['1019.14', 1500, 1600, 1840, 590], ['1019.16', 2000, 1600, 2150, 860]]],
+];
+const eichAll = () => EICH.flatMap(([ser, desc, rows]) => rows.map(([typ, l, D, H, kg]) => ({ ser, desc, typ, l, D, H, kg })));
+const eichMass = m => 'z betonem ≈ ' + Math.round(m.l / 1000 * 2400 + m.kg).toLocaleString('pl-PL') + ' kg (beton ' + Math.round(m.l / 1000 * 2400).toLocaleString('pl-PL') + ' + kosz ' + m.kg + ')';
+/** dopasuj model po średnicy i wysokości (cm) */
+function eichMatch(Dcm, Hcm) { if (!(Dcm > 30 && Hcm > 30)) return []; return eichAll().map(m => ({ m, e: Math.abs(m.D / 10 - Dcm) / (m.D / 10) + Math.abs(m.H / 10 - Hcm) / (m.H / 10) })).filter(x => x.e < .16).sort((a, b) => a.e - b.e).slice(0, 3) }
+function eichProfile(m) {
+  let p = profiles.find(x => x.catalog?.typ === m.typ);
+  if (!p) { p = { id: 'bucket-' + Date.now(), kind: 'kosz', name: 'Eichinger ' + m.typ + ' · ' + m.l + ' l', shape: 'plate', plate: m.l / 1000, capacity: m.l / 1000, catalog: { maker: 'Eichinger', ...m }, created: Date.now(), photos: [] }; profiles.push(p); saveProfiles() }
+  return p;
+}
+/* 6 podstawowych do wyboru (reszta wariantów jest w systemie — pojemności w każdym) */
+const EICH_BASIC = [
+  ['Prosty wysyp', [['1011', 'Prosty stożkowy', 'zwęża się w dół, wylot na dole'], ['1012', 'Prosty walcowy', 'proste ścianki + lejek na dole']]],
+  ['Kształt L (boczny wylot)', [['1021', 'L — boczny wysyp', 'pionowy, wylot z boku'], ['1019', 'L — sanki', 'leżący, sztywny wylot']]],
+  ['Z rękawem', [['1023', 'Rękaw — boczny', 'pionowy, wylot z rękawem'], ['1018', 'Rękaw — sanki', 'leżący, z rękawem']]],
+];
+const eichIco = ser => { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 64 64'); svg.setAttribute('class', 'tpl-ico');
+  const P = { '1011': 'M10 8h44L40 50H24z', '1012': 'M12 8h40v26L38 50H26L12 34z', '1021': 'M14 8h36v34L34 52H22v-6L14 42z', '1019': 'M6 18h44v24H6zM50 26h10v8H50z', '1023': 'M14 8h36v34L34 50H24zM24 50l-6 10M34 50l-6 10', '1018': 'M6 16h40v22H6zM46 24h6l8 26h-6z' }[ser] || 'M10 8h44L40 50H24z';
+  svg.innerHTML = `<path d="${P}" fill="color-mix(in srgb,var(--c1) 35%,transparent)" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round"/>`; return svg };
+async function eichPick() {
+  let ser = '', chosen = null;
+  const grid = el('div', { class: 'eich-basic' }), list = el('div', { class: 'eich-list' });
+  const draw = () => {
+    grid.replaceChildren(...EICH_BASIC.flatMap(([grp, items]) => [el('div', { class: 'eich-grp', text: grp }), ...items.map(([s2, name, sub]) => el('button', { type: 'button', class: 'tpl eich-type' + (s2 === ser ? ' on' : ''), onclick: () => { ser = s2; chosen = null; draw() } }, eichIco(s2), el('b', { text: name }), el('small', { text: sub + ' · ' + s2 })))]));
+    if (!ser) { list.replaceChildren(el('p', { class: 'hint', text: 'Wybierz kształt kosza, potem pojemność.' })); return }
+    const [, desc, rows] = EICH.find(x => x[0] === ser);
+    list.replaceChildren(el('div', { class: 'eich-grp', text: 'Pojemność — Eichinger ' + ser + ' (' + desc + ')' }), ...rows.map(([typ, l, D, H, kg]) => { const m = { ser, desc, typ, l, D, H, kg }; return el('button', { type: 'button', class: 'eich-row' + (chosen?.typ === typ ? ' on' : ''), onclick: () => { chosen = m; draw() } }, el('b', { text: (l / 1000).toLocaleString('pl-PL') + ' m³' }), el('span', { text: typ }), el('small', { text: 'Ø ' + D / 10 + ' cm · wys. ' + H / 10 + ' cm · ' + eichMass(m) })) }));
+  };
+  draw();
+  const body = el('div', {}, grid, list);
+  if (!(await formModal('🏷 Kosz Eichinger', body, '✓ Wybierz'))) return null;
+  if (!chosen) { announce('Wybierz kształt i pojemność'); return null }
+  return eichProfile(chosen);
+}
 /* szybki pomiar: rodzaj kosza + średnica + wysokość → pojemność (zwężenie wg typowego kształtu danego rodzaju) */
 let qmType = 'lej';
 function qmCalc() {
@@ -1243,7 +1287,9 @@ function qmCalc() {
   for (const [k, v] of Object.entries(base)) dims[k] = Math.round(v * (/^h/.test(k) ? kh : /^w/.test(k) ? kw : kd) * 10) / 10;
   const cap = Math.round(geoCapacity(shape, dims) * 1000) / 1000;
   $('qmOut').textContent = '≈ ' + fmt(Math.round(cap * 100) / 100) + ' m³ do krawędzi (' + t[1].toLowerCase() + ')';
-  $('bReal').value = fmt(Math.round(cap * 100) / 100); return cap;
+  $('bReal').value = fmt(Math.round(cap * 100) / 100);
+  const mt = eichMatch(D, H); $('qmMatch').replaceChildren(...(mt.length ? [el('small', { text: 'Pasuje do katalogu Eichinger:' }), ...mt.map(({ m }) => el('button', { type: 'button', class: 'pill', text: m.typ + ' · ' + (m.l / 1000).toLocaleString('pl-PL') + ' m³', onclick: () => { $('bName').value = $('bName').value || 'Eichinger ' + m.typ + ' · ' + m.l + ' l'; $('bPlate').value = fmt(m.l / 1000); $('bReal').value = ''; announce('Wybrano ' + m.typ + ' — ' + eichMass(m)) } }))] : []));
+  return cap;
 }
 function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t[0] === qmType ? ' on' : ''), onclick: () => { qmType = t[0]; qmRender(); qmCalc() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] })))) }
 ['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmCalc));
