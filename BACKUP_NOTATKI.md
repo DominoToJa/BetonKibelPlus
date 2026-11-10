@@ -102,4 +102,11 @@ Stan na 9 listopada 2026, wersja **3.5.8**.
 - Alarm „Czy kosz już jest?”: „Jeszcze nie” działa, podwójne pytanie, 3 mignięcia z wibracją na blokadzie.
 - Stabilność: strażnik mowy/mikrofonu, ponawianie startu mikrofonu, mikrofon wraca sam po restarcie apki, komendy w trakcie mowy lektora, praca w tle bez mikrofonu (cichy dźwięk trzymający apkę).
 - Większe ikony.
-- Do zrobienia: nowe liczenie betonu w koszu (wieczór 10.11), aktualizacje bez komputera (SideStore / aktualizacje w locie).
+- Do zrobienia: aktualizacje bez komputera (SideStore / aktualizacje w locie), gotowe modele koszy z kart producentów.
+
+## 4.0.0 — nowe liczenie kosza (10.11 wieczór)
+- Kosz = jedna liczba (tabliczka albo szybki pomiar: rodzaj + średnica + wysokość). Bez zdjęć i suwaka.
+- Każdy kurs = pełny kosz (przytrzymaj / „dodaj” / słuchawka). Poprawka ostatniego kursu: ¼ ½ ¾ Pełny + Przelany (×1,1).
+- Gruszki: „＋ Nowa gruszka” (m³), „✓ Gruszka pusta” → kursy wyrównane do m³ gruszki i apka uczy się realnej pojemności kosza (zapis w profilu).
+- Głos: „pół”, „trzy czwarte”, „ćwierć”, „przelany”, „gruszka pusta”, „nowa gruszka 7,5”, „dodaj pół”.
+- Taczka i koparka bez zmian.

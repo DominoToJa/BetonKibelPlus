@@ -382,7 +382,7 @@ function remember() {
 function syncNative() {
   if (!nativeVoice) return;
   const s = session;
-  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
+  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
 let modelCache = { key: '', model: null }, customOpen = false;
@@ -563,8 +563,8 @@ function sheetRender() {
       x, el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
   if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
-  if (method !== 'taczka') r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
-  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Zmierz nowy kosz') }), el('small', { text: 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  if (method !== 'taczka' && method !== 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: method === 'kibel' ? '＋ Dodaj swój kosz' : '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Dodaj') }), el('small', { text: method === 'kibel' ? 'nazwa + pojemność z tabliczki · resztę policzy gruszka' : 'ze zdjęć albo wymiarów — dokładna podziałka' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
   const ci = el('input', { inputmode: 'decimal', placeholder: 'np. 0,8', 'aria-label': 'Niestandardowa pojemność' }); if (!chosenProfileId && !isStd && cur > 0) ci.value = fmt(cur);
@@ -672,13 +672,14 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   if (!session) return announce('Najpierw rozpocznij betonowanie');
   const requested = Math.round(Number(value) * 100) / 100;
   if (!(requested > 0)) return announce('Ustaw więcej niż 0 m³');
-  const before = left(); if (before <= 0) return announce('Cały beton już naliczony');
-  const amount = Math.min(requested, Math.round(before * 100) / 100);
+  const before = left(), koszM = session.method === 'kibel';
+  if (before <= 0 && !koszM) return announce('Cały beton już naliczony');
+  const amount = koszM ? requested : Math.min(requested, Math.round(before * 100) / 100); // kosz: licz dalej ponad gruszkę — „Gruszka pusta” wyrówna
   if (!silent && at - lastAddAt < 380) return; lastAddAt = at;
   const prevState = { tripPhase: phase, departed, deadline, alarmVisible, nextReminder }, prevMilestones = { ...(session.milestonesFired || {}) };
   if (session.method !== 'taczka') {
     if (departed && (phase === 'away' || phase === 'late')) session.trips.push({ seconds: Math.max(1, Math.round((at - departed) / 1000)), at });
-    if (amount >= before - 0.00001) { resetTrip(); NATIVE.cancel?.() }
+    if (amount >= before - 0.00001 && !(koszM && before <= 0.0001)) { resetTrip(); NATIVE.cancel?.() }
     else { departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; alarmVisible = false; nextReminder = 0; NATIVE.schedule?.(deadline, SHORT.ask) }
   }
   session.entries.push({ amount, at, prevState, prevMilestones });
@@ -717,6 +718,59 @@ $('ohMic').addEventListener('click', () => toggleMic());
 const setOneHand = on => { settings.oneHand = on; saveSettings(); document.body.classList.toggle('one-hand', on); $('oneHandBtn').textContent = on ? '↩ Pełny widok' : '🖐 Duży kosz'; if ($('ohSetting')) $('ohSetting').checked = on; svgKey = ''; window.scrollTo(0, 0); if (session) render(); window.scrollTo({ top: 0 }) };
 $('oneHandBtn').addEventListener('click', () => setOneHand(!settings.oneHand)); $('ohExit').addEventListener('click', () => setOneHand(false));
 document.body.classList.toggle('one-hand', !!settings.oneHand); $('oneHandBtn').textContent = settings.oneHand ? '↩ Pełny widok' : '🖐 Duży kosz'; $('ohSetting').checked = !!settings.oneHand; $('ohSetting').addEventListener('change', () => setOneHand($('ohSetting').checked));
+/* ───── nowe liczenie kosza: kurs = pełny kosz, poprawka ostatniego kursu, gruszki uczą prawdziwej pojemności ───── */
+const OVER_F = 1.1;
+function trucksOf(s) { if (!s.trucks?.length) s.trucks = [{ m3: Number(s.load) || 0, start: 0, at: s.startedAt }]; return s.trucks }
+function kursRender() {
+  const s = session, tr = trucksOf(s), cur = tr.at(-1), n = s.entries.length, last = s.entries.at(-1), cap = Number(s.capacity) || .5;
+  $('kursNo').textContent = n;
+  const inTruck = s.entries.slice(cur.start).reduce((a, e) => a + Number(e.amount || 0), 0), restT = Math.max(0, cur.m3 - inTruck);
+  $('kursInfo').textContent = n ? 'ostatni: ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³' + (restT > .001 ? ' · w gruszce ~' + fmt(Math.round(restT * 10) / 10) + ' m³' : ' · gruszka chyba pusta?') : 'przytrzymaj kosz = pełny kurs';
+  const f = last ? Number(last.amount) / cap : -1;
+  for (const b of $('kursFrac').children) { const bf = b.dataset.f === 'over' ? OVER_F : Number(b.dataset.f); b.classList.toggle('on', !!last && !cur.closed && s.entries.length > cur.start && Math.abs(f - bf) < .02); b.disabled = !last || s.entries.length <= cur.start }
+  $('truckNo').textContent = tr.length; $('truckInfo').textContent = fmt(cur.m3) + ' m³' + (cur.closed ? ' ✓' : '');
+  $('truckEmpty').disabled = cur.closed || s.entries.length <= cur.start;
+  $('kursLearn').textContent = s.learned ? '⚖️ ' + s.learned : 'Kosz: ' + fmt(cap) + ' m³ · po „Gruszka pusta” apka sama poprawi pojemność.';
+}
+/** ile m³ w gruszce z mowy: „7,5”, „siedem i pół”, „osiem” */
+function truckNumber(t) {
+  const n = normalise(t), d = n.match(/(\d+)(?:[ ,.](\d))?/); if (d) return Number(d[1] + (d[2] ? '.' + d[2] : ''));
+  const W = { jeden: 1, jedna: 1, dwa: 2, dwie: 2, trzy: 3, cztery: 4, piec: 5, szesc: 6, siedem: 7, osiem: 8, dziewiec: 9, dziesiec: 10, jedenascie: 11, dwanascie: 12 };
+  const w = n.split(' ').find(x => W[x] && !/^(druga|trzecia)$/.test(x)); if (!w) return 0; return W[w] + (/\bi pol\b|\bpol\b/.test(n) ? .5 : 0);
+}
+/** popraw ostatni kurs: ¼ ½ ¾ pełny albo przelany */
+function setLastFrac(f, { silent = false } = {}) {
+  const s = session; if (!s || s.method !== 'kibel') return; const cur = trucksOf(s).at(-1);
+  if (!s.entries.length || s.entries.length <= cur.start) return announce('Najpierw dodaj kurs (przytrzymaj kosz)');
+  const cap = Number(s.capacity) || .5, last = s.entries.at(-1); last.amount = Math.round(cap * (f === 'over' ? OVER_F : f) * 1000) / 1000;
+  remember(); render(); syncNative(); const txt = { 0.25: 'Ćwierć kosza', 0.5: 'Pół kosza', 0.75: 'Trzy czwarte kosza', 1: 'Pełny kosz', over: 'Przelany kosz' }[f] || '';
+  announce('Ostatni kurs: ' + txt + ' = ' + fmt(last.amount) + ' m³'); if (!silent) sayBot('custom', txt + ', ' + fmt(last.amount) + ' metra.');
+}
+/** gruszka pusta: kursy z tej gruszki = dokładnie jej m³, a z tego prawdziwa pojemność kosza */
+function truckEmpty({ silent = false } = {}) {
+  const s = session; if (!s || s.method !== 'kibel') return; const tr = trucksOf(s), cur = tr.at(-1); if (cur.closed) return announce('Ta gruszka jest już zamknięta');
+  const ents = s.entries.slice(cur.start), sum = ents.reduce((a, e) => a + Number(e.amount || 0), 0); if (!(sum > 0) || !(cur.m3 > 0)) return announce('Brak kursów z tej gruszki');
+  const k = cur.m3 / sum, cap = Number(s.capacity) || .5, units = sum / cap, real = Math.round(cur.m3 / units * 1000) / 1000;
+  for (const e of ents) e.amount = Math.round(Number(e.amount) * k * 1000) / 1000;
+  cur.closed = true; cur.kursy = ents.length;
+  const ok = Math.abs(k - 1) <= .4 && real > .02 && real <= 5;
+  if (ok) { s.capacity = real; s.dose = real; const p = s.bucketProfile?.id ? getProfile(s.bucketProfile.id) : null; if (p) { const old = p.capacity; p.capacity = real; p.real = real; p.calib = { poured: cur.m3, buckets: units, old, at: Date.now(), auto: true }; saveProfiles() } }
+  if (left() <= 0.001) { resetTrip(); NATIVE.cancel?.() } // betonu już nie ma — nie pytaj o kosz
+  s.learned = 'Gruszka ' + tr.length + ': ' + ents.length + ' kurs' + (ents.length === 1 ? '' : 'ów') + ' = ' + fmt(cur.m3) + ' m³' + (ok ? ' → kosz realnie ' + fmt(real) + ' m³' : ' (różnica za duża — pojemności nie zmieniam)');
+  remember(); render(); syncNative(); announce('⚖️ ' + s.learned);
+  if (!silent) sayBot('custom', ok ? 'Gruszka pusta. Kosz realnie ' + fmt(real) + ' metra.' : 'Gruszka pusta.');
+}
+async function newTruck(m3) {
+  const s = session; if (!s || s.method !== 'kibel') return; const tr = trucksOf(s), prev = tr.at(-1);
+  if (!(m3 > 0)) { const inp = el('input', { inputmode: 'decimal', value: fmt(prev.m3), placeholder: 'np. 7,5' }); if (!(await formModal('🚚 Nowa gruszka — ile m³?', el('div', {}, el('p', { class: 'hint', text: 'Ile metrów przywiozła nowa gruszka? Poprzednia ' + (prev.closed ? 'jest zamknięta.' : 'zostanie zamknięta jako pusta.') }), inp), '＋ Dodaj gruszkę'))) return; m3 = number(inp.value) }
+  if (!(m3 > 0 && m3 <= 15)) return announce('Podaj m³ gruszki, np. 7,5');
+  if (!prev.closed && s.entries.length > prev.start) truckEmpty({ silent: true });
+  tr.push({ m3, start: s.entries.length, at: Date.now() }); s.load = Math.round((Number(s.load) + m3) * 100) / 100;
+  remember(); render(); syncNative(); announce('🚚 Gruszka ' + tr.length + ': ' + fmt(m3) + ' m³'); sayBot('custom', 'Nowa gruszka, ' + fmt(m3) + ' metra.');
+}
+$('kursFrac').addEventListener('click', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; setLastFrac(b.dataset.f === 'over' ? 'over' : Number(b.dataset.f)) });
+$('truckEmpty').addEventListener('click', async () => { if (await ask('Gruszka pusta — cały beton z niej wylany? Apka wyrówna kursy do ' + fmt(trucksOf(session).at(-1).m3) + ' m³ i nauczy się prawdziwej pojemności kosza.', '✓ Tak, pusta')) truckEmpty() });
+$('truckNew').addEventListener('click', () => newTruck());
 function undo({ silent = false } = {}) {
   if (!session?.entries?.length) return announce('Nie ma czego cofnąć');
   const last = session.entries.pop();
@@ -969,6 +1023,7 @@ function renderLevelSoon() { if (levelQ) return; levelQ = requestAnimationFrame(
 function renderSoon() { if (renderQ) return; renderQ = requestAnimationFrame(() => { renderQ = 0; render() }) }
 function render() {
   if (!session) return; const s = session; if (!s.capacity) s.capacity = s.dose || .5;
+  const kosz = s.method === 'kibel'; document.body.classList.toggle('m-kosz', kosz); if (kosz) { s.dose = s.capacity; kursRender() }
   const model = currentModel();
   $('siteName').textContent = s.site; $('modeLabel').textContent = { kibel: 'KOSZ', taczka: 'TACZKA', inne: 'INNE' }[s.method]; document.querySelectorAll('[data-wm]').forEach(b => b.classList.toggle('on', b.dataset.wm === s.method));
   $('loaded').textContent = fmt(s.load); $('poured').textContent = fmt(entriesSum()); $('left').textContent = fmt(left());
@@ -982,7 +1037,7 @@ function render() {
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
   renderLevel(model);
   $('travelPanel').classList.toggle('hide', s.method === 'taczka'); $('alert').classList.toggle('hide', !alarmVisible); document.body.classList.toggle('alarm-on', !!alarmVisible); if (!alarmVisible) alarmSince = 0;
-  $('touchText').textContent = (settings.holdAdd ? (settings.tapLevel ? 'DOTKNIJ = POZIOM BETONU · ' : 'POZIOM = SUWAK Z BOKU · ') + 'PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
+  $('touchText').textContent = s.method === 'kibel' ? (settings.holdAdd ? 'PRZYTRZYMAJ KOSZ = KURS · NIEPEŁNY? POPRAW NIŻEJ' : 'DOTKNIJ KOSZA = KURS · NIEPEŁNY? POPRAW NIŻEJ') : (settings.holdAdd ? (settings.tapLevel ? 'DOTKNIJ = POZIOM BETONU · ' : 'POZIOM = SUWAK Z BOKU · ') + 'PRZYTRZYMAJ = DODAJ ' + ({ taczka: 'TACZKĘ', inne: 'ŁYŻKĘ' }[s.method] || 'KOSZ') : '') || (s.method === 'taczka' ? 'DOTKNIJ TACZKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : s.method === 'inne' ? 'DOTKNIJ ŁYŻKI, ŻEBY DODAĆ · SUWAK = ILE WLANO' : 'DOTKNIJ KOSZA, ŻEBY DODAĆ · SUWAK = ILE WLANO');
   $('ohLeft').textContent = fmt(left()); $('ohPoured').textContent = fmt(entriesSum()) + ' z ' + fmt(s.load) + ' m³';
   $('ohTrip').classList.toggle('hide', s.method === 'taczka'); $('ohTrip').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał'; $('ohTrip').classList.toggle('good', phase === 'away' || phase === 'late');
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
@@ -1051,6 +1106,13 @@ function command(utterance) {
   if (has('ile koszy|ile kursow|ile jeszcze koszy|ile koszy zostalo|ile kibli|ile taczek|ile lyzek|ile razy jeszcze')) { report('reportBuckets', bucketPlanText(bucketPlan(), true)); return true }
   if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik')) { report('reportPoured', fmt(entriesSum())); return true }
   if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
+  if (session?.method === 'kibel') { // nowe liczenie kosza: kursy + gruszki
+    if (has('gruszka pusta|pusta gruszka|koniec gruszki|gruszka skonczona|gruszka sie skonczyla|wylane wszystko|wszystko wylane')) { truckEmpty(); return true }
+    if (has('nowa gruszka|kolejna gruszka|nastepna gruszka|druga gruszka|trzecia gruszka|przyjechala gruszka|nowy samochod')) { const n = truckNumber(t); newTruck(n > 0 && n <= 15 ? n : 0); return true }
+    const fr = has('trzy czwarte|trzy czwarta|3 4') ? .75 : has('cwierc|jedna czwarta|cwiartka|1 4') ? .25 : has('przelany|przelalem|przelane|przelany kosz|z czubem|z gorka') ? 'over' : has('pol kosza|pol kibla|polowa kosza|do polowy|polowe kosza|pol kubla|polowa|pol') ? .5 : has('pelny kosz|pelny kibel|caly kosz|do pelna|pelen kosz|pelny') ? 1 : 0;
+    if (fr && has('dodaj|plus|zalany')) { add(session.capacity * (fr === 'over' ? OVER_F : fr)); return true }
+    if (fr) { setLastFrac(fr); return true }
+  }
   if (!has('dodaj|zalany|zalane') && has('ustaw kosz|zmien kosz|kosz|kibel|pojemnosc kosza|pojemnosc|kosz ma|nowy kosz|kosz na|ustaw kibel|zmien kibel')) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } }
   if (has('lej|leje|wlewam|wlej|zmien ilosc|ustaw ilosc|ilosc|lejemy|zalewam|do kosza|wlewamy|ustaw porcje|porcja')) { const n = spokenNumber(t); if (n >= 0 && n <= 5 && !isNaN(n)) { changeDose(n, true); sayBot('doseSet'); return true } }
   if (has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
@@ -1107,6 +1169,9 @@ async function drainNative() {
       else if (e.type === 'delay') delay({ at: e.at, silent: true });
       else if (e.type === 'depart') depart({ at: e.at, silent: true });
       else if (e.type === 'undo') undo({ silent: true });
+      else if (e.type === 'lastFrac') setLastFrac(e.frac === 'over' ? 'over' : Number(e.frac), { silent: true });
+      else if (e.type === 'truckEmpty') truckEmpty({ silent: true });
+      else if (e.type === 'newTruck' && Number(e.m3) > 0) newTruck(Number(e.m3));
       else if (e.type === 'dose') { session.dose = Math.min(doseMax(session.capacity), Number(e.amount) || session.dose) }
       else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + REMIND_MS; deadline = nextReminder }
     }
@@ -1165,9 +1230,26 @@ function openBucketForm(p = null, kind = null) {
   $('bName').value = p?.name || ''; $('bShape').value = p?.shape && SHAPES[p.shape] ? p.shape : 'cone';
   $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims && !p.real ? fmt(p.capacity) : '');
   $('bReal').value = p?.real ? fmt(p.real) : '';
-  $('bError').textContent = ''; dimFields($('bShape').value, p?.dims || {}); thumbsRender();
+  $('bError').textContent = ''; formSimple(); dimFields($('bShape').value, p?.dims || {}); thumbsRender();
   $('bucketForm').classList.remove('hide'); $('newBucket').classList.add('hide'); $('bName').focus();
 }
+/* szybki pomiar: rodzaj kosza + średnica + wysokość → pojemność (zwężenie wg typowego kształtu danego rodzaju) */
+let qmType = 'lej';
+function qmCalc() {
+  const t = TEMPLATES.find(x => x[0] === qmType) || TEMPLATES[0], [, , , shape, base] = t, D = number($('qmD').value), H = number($('qmH').value), W = number($('qmW').value);
+  $('qmWRow').classList.toggle('hide', shape !== 'rect'); $('qmDLabel').textContent = shape === 'rect' ? 'Długość górą (cm)' : 'Średnica górą (cm)';
+  if (!(D > 20 && D < 400 && H > 20 && H < 400)) { $('qmOut').textContent = 'Wybierz rodzaj i wpisz wymiary — policzę pojemność.'; return 0 }
+  const kd = D / (base.dTop || base.d || base.lTop), kh = H / (base.h || (base.hCyl + base.hCone)), kw = shape === 'rect' && W > 10 ? W / base.wTop : kd, dims = {};
+  for (const [k, v] of Object.entries(base)) dims[k] = Math.round(v * (/^h/.test(k) ? kh : /^w/.test(k) ? kw : kd) * 10) / 10;
+  const cap = Math.round(geoCapacity(shape, dims) * 1000) / 1000;
+  $('qmOut').textContent = '≈ ' + fmt(Math.round(cap * 100) / 100) + ' m³ do krawędzi (' + t[1].toLowerCase() + ')';
+  $('bReal').value = fmt(Math.round(cap * 100) / 100); return cap;
+}
+function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t[0] === qmType ? ' on' : ''), onclick: () => { qmType = t[0]; qmRender(); qmCalc() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] })))) }
+['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmCalc));
+/** kosz = tylko nazwa i pojemność (bez kształtu, zdjęć do liczenia i wymiarów) */
+function formSimple() { const k = $('bKind').value === 'kosz'; $('bucketForm').classList.toggle('simple', k); $('qmBox').classList.toggle('hide', !k); if (k) { $('bShape').value = 'plate'; qmRender() } }
+$('bKind').addEventListener('change', () => { formSimple(); dimFields($('bShape').value, {}) });
 function closeBucketForm() { $('bucketForm').classList.add('hide'); $('newBucket').classList.remove('hide'); editingId = '' }
 $('newBucket').addEventListener('click', () => openBucketForm()); $('bCancel').addEventListener('click', closeBucketForm);
 $('bSave').addEventListener('click', () => {
@@ -1200,7 +1282,7 @@ let bucketQuery = '';
 const bucketOpen = {};
 function bucketListRender() {
   const box = $('bucketList'); box.replaceChildren();
-  if (!profiles.length) { box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Zmierz kosz — policzę dokładną pojemność i podziałkę.' })); return }
+  if (!profiles.length) { box.append(el('p', { class: 'hint', text: 'Nie masz jeszcze zapisanych koszy. Dodaj kosz: nazwa + tabliczka albo szybki pomiar miarką — resztę dopracuje gruszka.' })); return }
   if (profiles.length > 5) { const q = el('input', { type: 'search', class: 'bucket-search', placeholder: '🔍 Szukaj (nazwa albo m³)', value: bucketQuery }); q.addEventListener('input', () => { bucketQuery = q.value; const pos = q.selectionStart; bucketListRender(); const n = $('bucketList').querySelector('.bucket-search'); n.focus(); try { n.setSelectionRange(pos, pos) } catch (e) { } }); box.append(q) }
   const ql = bucketQuery.trim().toLowerCase(), match = p => !ql || (p.name || '').toLowerCase().includes(ql) || fmt(p.capacity).includes(ql.replace('.', ','));
   for (const [kind, [ico, label]] of Object.entries(KINDS)) {

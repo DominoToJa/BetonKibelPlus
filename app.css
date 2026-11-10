@@ -918,3 +918,35 @@ body.app-in header.top{animation:none}
 .tabs button{line-height:1.15}
 summary .ico{font-size:1.25em}
 .one-hand-btn .ico,#ohMic .ico,.oh-bar .ico{font-size:1.4em}
+/* 4.0.0 — nowe liczenie kosza: kursy + gruszka */
+.kurs-panel{display:none}
+body.m-kosz .kurs-panel{display:block;margin-top:10px}
+body.m-kosz #vslider,body.m-kosz .hud-reg,body.m-kosz #less,body.m-kosz #more,body.m-kosz .quick-caps,body.m-kosz .quick-caps-label,body.m-kosz #levelHint,body.m-kosz .tile.tpl-add{display:none!important}
+body.m-kosz .bucket-stage{grid-template-columns:1fr!important}
+.kurs-big{display:flex;align-items:baseline;justify-content:center;gap:10px;margin:4px 0 8px}
+.kurs-big span{font-weight:900;letter-spacing:.12em;opacity:.8}
+.kurs-big b{font-size:52px;line-height:1;color:var(--c1);font-variant-numeric:tabular-nums}
+.kurs-big small{font-size:12px;opacity:.8;max-width:140px;line-height:1.2}
+.kurs-label{font-size:12px;font-weight:800;opacity:.8;margin:4px 2px}
+.kurs-frac{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.kurs-frac button{min-height:58px;font-size:20px;font-weight:900;border-radius:14px;padding:4px 2px}
+.kurs-frac button.over{font-size:13px}
+.kurs-frac button.on{background:var(--c1)!important;color:#06121a!important;border-color:var(--c1)!important}
+.kurs-truck{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;margin-top:10px;padding:8px 10px;border-radius:14px;border:1px solid color-mix(in srgb,var(--c1) 30%,transparent);background:color-mix(in srgb,var(--c1) 8%,transparent)}
+.kurs-truck small{display:block;font-size:11px;font-weight:800;opacity:.8}.kurs-truck b{font-size:18px}
+.kurs-truck button{min-height:48px;font-size:13px;font-weight:900;padding:0 10px}
+.kurs-learn{margin:8px 2px 0;font-size:12px;color:#c9d5e2;min-height:1em}
+body.one-hand.m-kosz .kurs-big{display:none}
+body.one-hand.m-kosz .kurs-frac button{min-height:64px}
+#bucketForm.simple label[for="bShape"],#bucketForm.simple #bShape,#bucketForm.simple #bShapeHint,#bucketForm.simple #bPhotoCalc,#bucketForm.simple #bDims,#bucketForm.simple #bPreview{display:none!important}
+#bucketForm.simple label[for="bReal"]::after{content:' — sam się poprawi po pierwszej gruszce';font-weight:600;opacity:.7}
+body.m-kosz.one-hand #work #bucketPanel .bucket-stage > #vslider,body.m-kosz #work #bucketPanel .bucket-stage > #vslider{display:none!important}
+body.m-kosz.one-hand .bucket-stage{grid-template-columns:1fr!important}
+body.m-kosz #hudPanel .hud-status{display:none!important}
+
+.qm-box{margin:10px 0;padding:10px;border-radius:14px;border:2px solid var(--c1);background:color-mix(in srgb,var(--c1) 8%,transparent)}
+.qm-head{font-weight:900;margin-bottom:6px}
+.qm-types{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.qm-types .tpl b{font-size:12px}
+.qm-box input{font-size:20px;font-weight:900;text-align:center}
+.qm-out{font-size:18px;font-weight:900;color:var(--c1);margin:6px 0 2px}

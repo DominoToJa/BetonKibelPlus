@@ -65,6 +65,14 @@
   <p class="hint" id="bShapeHint"></p>
   <button type="button" id="bPhotoCalc" class="full calc-photo-btn">📷 Policz ze zdjęcia — bez mierzenia</button>
   <div id="bDims" class="grid two"></div>
+  <div id="qmBox" class="qm-box">
+   <div class="qm-head">📏 Szybki pomiar miarką <span class="muted">(opcjonalnie — jeśli nie ma tabliczki)</span></div>
+   <div class="qm-types" id="qmTypes"></div>
+   <div class="grid two"><label class="label"><span id="qmDLabel">Średnica górą (cm)</span><input id="qmD" inputmode="decimal" placeholder="np. 120"></label><label class="label">Wysokość (cm)<input id="qmH" inputmode="decimal" placeholder="np. 100"></label></div>
+   <label class="label hide" id="qmWRow">Szerokość górą (cm) <span class="muted">opcjonalnie</span><input id="qmW" inputmode="decimal" placeholder="np. 80"></label>
+   <p class="qm-out" id="qmOut">Wybierz rodzaj i wpisz wymiary — policzę pojemność.</p>
+   <p class="hint">Wysokość: od dołu wylewu do górnej krawędzi. Możesz zmierzyć apką Miarka w iPhonie.</p>
+  </div>
   <label class="label" for="bPlate">Pojemność z tabliczki (m³) <span class="muted">— jeśli jest</span></label><input id="bPlate" inputmode="decimal" placeholder="np. 0,75">
   <label class="label" for="bReal">Faktycznie wchodzi (m³) <span class="muted">— jeśli wiesz, np. tabliczka 0,75, a wchodzi 0,6</span></label><input id="bReal" inputmode="decimal" placeholder="np. 0,6">
   <div id="bPreview" class="calc-box" aria-live="polite"></div>
@@ -94,6 +102,13 @@
     <div class="vs-track"><div class="vs-fill" id="vsFill"></div><div class="vs-ticks" id="vsTicks"></div><div class="vs-thumb" id="vsThumb"><span id="vsValue">0,5</span></div></div>
   </div>
 </div>
+<div id="kursPanel" class="kurs-panel kosz-only">
+  <div class="kurs-big"><span>KURS</span><b id="kursNo">0</b><small id="kursInfo">przytrzymaj kosz = pełny kurs</small></div>
+  <div class="kurs-label">Ostatni kurs był:</div>
+  <div class="kurs-frac" id="kursFrac"><button type="button" data-f="0.25">¼</button><button type="button" data-f="0.5">½</button><button type="button" data-f="0.75">¾</button><button type="button" data-f="1">Pełny</button><button type="button" data-f="over" class="over">+ Przelany</button></div>
+  <div class="kurs-truck"><div><small>🚚 GRUSZKA <span id="truckNo">1</span></small><b id="truckInfo">7,5 m³</b></div><button type="button" id="truckEmpty" class="good">✓ Gruszka pusta</button><button type="button" id="truckNew">＋ Nowa gruszka</button></div>
+  <p class="kurs-learn" id="kursLearn"></p>
+</div>
 <div class="oh-bar oh-only"><button type="button" id="ohUndo">↶ Cofnij</button><button type="button" id="ohTrip">▶ Wyjechał</button><button type="button" id="ohMic" class="mic-btn">🎙 Mikrofon</button></div>
 <p class="oh-only oh-micstatus" id="ohMicStatus"></p><button type="button" id="ohExit" class="oh-only oh-exit">Pełny widok (zakończ, ustawienia)</button>
 <div id="hudPanel" class="hud-only">
@@ -103,7 +118,7 @@
 <div class="bucket-meta"><b id="dose">0,5</b> m³ z <b id="bucketCap">0,5</b> m³ <span id="levelHint" class="level-hint"></span></div>
 <div class="controls"><button id="less" type="button">− 0,05</button><button id="more" type="button">+ 0,05</button><button id="undo" type="button">↶ Cofnij</button></div>
 <div id="activeBucket" class="active-bucket hide"></div>
-<div class="label" style="text-align:center;margin:14px 0 6px">Pojemność kosza</div><div class="chips quick-caps" id="quick"></div>
+<div class="label quick-caps-label" style="text-align:center;margin:14px 0 6px">Pojemność kosza</div><div class="chips quick-caps" id="quick"></div>
 </div>
 
 <div id="travelPanel" class="panel slim"><div class="actions"><button id="depart" type="button">▶ Kosz wyjechał</button><button id="returned" type="button" class="good">✓ Kosz już jest</button></div></div>
@@ -241,7 +256,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.9.1 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.0.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

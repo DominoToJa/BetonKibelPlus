@@ -81,6 +81,17 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var speakStartedAt = Date.distantPast
     private var sessionReady = false
     private var taskStartedAt = Date.distantPast
+    private var lastAdd: Double = 0
+    private var loadM3First: Double = 7.5
+    /// ułamek kursu z mowy: ćwierć / pół / trzy czwarte / pełny / przelany
+    private func kursFrac(_ t: String) -> String? {
+        if has(t, ["trzy czwarte", "trzy czwarta"]) { return "0.75" }
+        if has(t, ["cwierc", "jedna czwarta", "cwiartka"]) { return "0.25" }
+        if has(t, ["przelany", "przelalem", "przelane", "z czubem", "z gorka"]) { return "over" }
+        if has(t, ["pol kosza", "pol kibla", "polowa kosza", "do polowy", "polowe kosza", "polowa", "pol"]) { return "0.5" }
+        if has(t, ["pelny kosz", "pelny kibel", "caly kosz", "do pelna", "pelen kosz", "pelny"]) { return "1" }
+        return nil
+    }
     private var quickFails = 0
     private var boostVolume = true
     private var targetVolume: Float = 1.0
@@ -973,6 +984,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.leftM3 = call.getDouble("left") ?? 0
             self.poured = call.getDouble("poured") ?? 0
             self.loadM3 = call.getDouble("load") ?? 0
+            if let lt = call.getDouble("lastTruck"), lt > 0 { self.loadM3First = lt }
+            if let la = call.getDouble("lastAmount") { self.lastAdd = la }
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
             self.updateNowPlaying()
@@ -1076,6 +1089,22 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             let pl: (Int) -> String = { n in n == 1 ? w.0 : ((2...4).contains(n % 10) && !(12...14).contains(n % 100)) ? w.1 : w.2 }
             let txt = leftM3 <= 0.0001 ? "nic — koniec betonu" : last >= 0.01 ? (full > 0 ? "\(full) \(pl(full)) i ostatni \(fmt(last)) metra" : "ostatni \(fmt(last)) metra") : "\(full) \(pl(full)) po \(fmt(d)) metra"
             report("reportBuckets", txt, "Zostało jeszcze X.")
+        } else if method == "kibel" && has(t, ["gruszka pusta", "pusta gruszka", "koniec gruszki", "gruszka skonczona", "gruszka sie skonczyla", "wylane wszystko", "wszystko wylane"]) {
+            pending.append(["type": "truckEmpty", "at": now])
+            say(key: nil, text: "Gruszka pusta, przeliczę po odblokowaniu.")
+        } else if method == "kibel" && has(t, ["nowa gruszka", "kolejna gruszka", "nastepna gruszka", "druga gruszka", "trzecia gruszka", "przyjechala gruszka", "nowy samochod"]) {
+            let m = spokenAmount(raw) ?? 0
+            let v = m > 0 && m <= 15 ? m : loadM3First
+            pending.append(["type": "newTruck", "at": now, "m3": v])
+            leftM3 += v; loadM3 += v
+            say(key: nil, text: "Nowa gruszka, \(fmt(v)) metra.")
+        } else if method == "kibel" && !has(t, ["dodaj", "plus", "zalany"]), let f = kursFrac(t) {
+            pending.append(["type": "lastFrac", "at": now, "frac": f])
+            let fv = f == "over" ? 1.1 : (Double(f) ?? 1)
+            let amt = (capacity * fv * 1000).rounded() / 1000
+            poured += amt - lastAdd; leftM3 = max(0, leftM3 - (amt - lastAdd)); lastAdd = amt
+            updateNowPlaying(); postStatus()
+            say(key: nil, text: "\(["0.25": "Ćwierć kosza", "0.5": "Pół kosza", "0.75": "Trzy czwarte kosza", "1": "Pełny kosz", "over": "Przelany kosz"][f] ?? "Poprawione"), \(fmt(amt)) metra.")
         } else if has(t, ["pelny kosz", "pelny kibel", "do pelna", "caly kosz", "caly kibel", "pelen kosz", "na full", "pelny"]) {
             dose = capacity; pending.append(["type": "dose", "at": now, "amount": dose]); updateNowPlaying()
             say(key: "fullBucket", text: nil)
@@ -1089,10 +1118,13 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             say(key: "depart", text: nil)
             scheduleAsk()
         } else if has(t, ["dodac", "dodam", "dodaje", "dodajcie", "do daj", "dodaj kosza", "dodaj kibla", "dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
-            guard leftM3 > 0.0001 else { return }
+            guard leftM3 > 0.0001 || method == "kibel" else { return }
             let before = leftM3
-            let spoken = spokenAmount(raw)
-            let amount = min((spoken ?? 0) > 0 && (spoken ?? 0) <= 5 ? spoken! : dose, leftM3)
+            var spoken = spokenAmount(raw)
+            if method == "kibel", let f = kursFrac(t) { spoken = capacity * (f == "over" ? 1.1 : (Double(f) ?? 1)) }   // „dodaj pół” = pół kosza
+            let want = (spoken ?? 0) > 0 && (spoken ?? 0) <= 5 ? spoken! : dose
+            let amount = method == "kibel" ? want : min(want, leftM3)
+            lastAdd = amount
             leftM3 = max(0, ((leftM3 - amount) * 100).rounded() / 100)
             poured += amount
             cancelAskChain(); pending.append(["type": "add", "at": now, "amount": amount])
