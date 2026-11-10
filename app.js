@@ -736,10 +736,15 @@ const bucketMarks = cap => {
   const out = []; for (let v = step; v < cap - step * .6; v += step) out.push(Math.round(v * 100) / 100);
   out.push(Math.round(cap * 100) / 100); return out;
 };
+/** przelany kosz: suwak pozwala wlać trochę więcej niż policzona pojemność (np. 0,48 → do 0,5) */
+const doseMax = cap => { cap = Number(cap) || .5; return Math.max(cap + .02, Math.ceil(cap * 1.04 / .05 - 1e-6) * .05) };
+const OVER_K = .9; // dolne 90% suwaka = do pełnego kosza wg kształtu, górne 10% = przelane
+function slPos(model, v, cap) { const mx = doseMax(cap); return v <= cap ? model.fraction(Math.max(0, v)) * OVER_K : OVER_K + Math.min(1, (v - cap) / (mx - cap)) * (1 - OVER_K) }
+function slVal(model, F, cap) { const mx = doseMax(cap); F = Math.max(0, Math.min(1, F)); return F <= OVER_K ? model.volumeAtFraction(F / OVER_K) : cap + (F - OVER_K) / (1 - OVER_K) * (mx - cap) }
 function changeDose(v, quiet = false) {
   if (!session) return; const n = Math.round(Number(v) * 100) / 100; const cap = Number(session.capacity || .5);
   if (!Number.isFinite(n) || n < 0 || n > 5) return announce('Podaj ilość od 0 do 5 m³');
-  session.dose = Math.max(0, Math.min(n, cap)); remember(); render(); if (!quiet) announce('Ustawiono ' + fmt(session.dose) + ' m³');
+  session.dose = Math.max(0, Math.min(n, Math.round(doseMax(cap) * 100) / 100)); remember(); render(); if (!quiet) announce('Ustawiono ' + fmt(session.dose) + ' m³');
 }
 function changeCapacity(v, profile = null) {
   if (!session) return; const n = Math.round(Number(v) * 100) / 100; if (!(n > 0 && n <= 5)) return;
@@ -748,7 +753,7 @@ function changeCapacity(v, profile = null) {
   remember(); render(); announce((profile ? profile.name + ' · ' : 'Kosz ') + fmt(n) + ' m³'); sayBot('capacityChanged');
 }
 $('less').addEventListener('click', () => { if (session) changeDose(Math.max(0, Number(session.dose || 0) - bucketStep(session.capacity)), true) });
-$('more').addEventListener('click', () => { if (session) changeDose(Math.min(session.capacity, Number(session.dose || 0) + bucketStep(session.capacity)), true) });
+$('more').addEventListener('click', () => { if (session) changeDose(Math.min(doseMax(session.capacity), Number(session.dose || 0) + bucketStep(session.capacity)), true) });
 
 function triggerAlarm(force = false) {
   if (!session || session.method === 'taczka') return; if (alarmVisible && !force) return;
@@ -896,7 +901,7 @@ function renderHudPanel(s) {
   const cap = Number(s.capacity || .5), dose = Number(s.dose || 0), pct = Math.round(dose / cap * 100);
   $('hudState').textContent = dose <= 0 ? 'Pusty' : pct < 35 ? 'Niski' : pct < 92 ? 'Optymalny' : 'Pełny';
   $('hudPct').textContent = pct + '%'; $('hudVal').textContent = fmt(dose) + ' m³';
-  const r = $('hudRange'); r.max = String(cap); r.step = '0.01'; if (document.activeElement !== r) r.value = String(dose);
+  const r = $('hudRange'); r.max = String(Math.round(doseMax(cap) * 100) / 100); r.step = '0.01'; if (document.activeElement !== r) r.value = String(dose);
   r.style.setProperty('--p', Math.min(100, dose / cap * 100) + '%');
   const marks = bucketMarks(cap), pick = [0, ...marks.slice(0, -1).filter((_, i, a) => a.length <= 2 || i === Math.floor(a.length / 3) || i === Math.floor(a.length * 2 / 3)), cap];
   const hq = $('hudQuick'), hk = String(cap);
@@ -904,29 +909,30 @@ function renderHudPanel(s) {
   for (const b of hq.children) b.classList.toggle('on', Math.abs(Number(b.dataset.v) - dose) < 1e-4);
   $('hudOnline').textContent = '● ' + (phase === 'away' ? 'Kosz w drodze' : phase === 'late' ? 'Kosz się spóźnia' : 'Gotowy');
 }
-$('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(session.capacity, Number($('hudRange').value)); renderLevelSoon() } });
+$('hudRange').addEventListener('input', () => { if (session) { session.dose = Math.min(doseMax(session.capacity), Number($('hudRange').value)); renderLevelSoon() } });
 $('hudRange').addEventListener('change', () => { if (session) changeDose(Number($('hudRange').value), true) });
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = Number(s.dose || 0);
-  const pct = v => (model.fraction(v) * 100).toFixed(2) + '%';
-  $('vsFill').style.height = pct(dose);
+  const pct = v => (slPos(model, v, cap) * 100).toFixed(2) + '%', mx = Math.round(doseMax(cap) * 100) / 100;
+  $('vsFill').style.height = pct(dose); $('vslider').classList.toggle('over', dose > cap + 1e-4);
   $('vsThumb').style.bottom = pct(dose);
   $('vsValue').textContent = fmt(dose);
-  const ticks = $('vsTicks'), tk = cap + '|' + model.fraction(cap / 2).toFixed(4);
+  const ticks = $('vsTicks'), tk = cap + '|' + model.fraction(cap / 2).toFixed(4) + '|o';
   if (ticks.dataset.k === tk) { for (const t of ticks.querySelectorAll('.vs-tick.major')) t.classList.toggle('near', Math.abs(model.fraction(Number(t.dataset.v)) - model.fraction(dose)) < .15) }
   else { ticks.dataset.k = tk; ticks.replaceChildren();
   const marks = bucketMarks(cap), minor = cap <= 1 ? .05 : .1;
   for (let v = minor; v < cap - 1e-6; v += minor) { if (marks.some(m => Math.abs(m - v) < 1e-4)) continue; const t = el('span', { class: 'vs-tick minor' }); t.style.bottom = pct(v); ticks.append(t) }
+  { const t = el('span', { class: 'vs-tick major over-tick', text: fmt(mx), 'data-v': String(mx) }); t.style.bottom = pct(mx); ticks.append(t) }
   for (const v of marks) { const near = Math.abs(model.fraction(v) - model.fraction(dose)) < .15; const t = el('span', { class: 'vs-tick major' + (near ? ' near' : '') + (v >= cap - 1e-6 ? ' max' : ''), text: fmt(v), 'data-v': String(v) }); t.style.bottom = pct(v); ticks.append(t) } }
-  const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(cap)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
+  const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(mx)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
 }
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false, dirty = false;
-  let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.min(session.capacity, Math.max(0, Math.round(model.volumeAtFraction(Math.max(0, Math.min(1, f))) * 100) / 100)); if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
+  let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.max(0, Math.round(slVal(model, f, Number(session.capacity)) * 100) / 100); if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
   vs.addEventListener('pointerdown', e => { rect = vs.querySelector('.vs-track').getBoundingClientRect(); dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
   const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
-  vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(session.capacity, session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
+  vs.addEventListener('keydown', e => { if (!session) return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(doseMax(session.capacity), session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
 let renderQ = 0, levelQ = 0, svgKey = '';
@@ -1099,7 +1105,7 @@ async function drainNative() {
       else if (e.type === 'delay') delay({ at: e.at, silent: true });
       else if (e.type === 'depart') depart({ at: e.at, silent: true });
       else if (e.type === 'undo') undo({ silent: true });
-      else if (e.type === 'dose') { session.dose = Math.min(session.capacity, Number(e.amount) || session.dose) }
+      else if (e.type === 'dose') { session.dose = Math.min(doseMax(session.capacity), Number(e.amount) || session.dose) }
       else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + REMIND_MS; deadline = nextReminder }
     }
     remember(); render(); tick();

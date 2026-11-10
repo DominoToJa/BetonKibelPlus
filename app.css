@@ -906,3 +906,8 @@ body.app-in header.top{animation:none}
 .pill.tape-pill{border:2px solid var(--c1)!important;font-weight:900}
 #toast{pointer-events:none}
 .bucket.holding::after{animation-duration:.3s!important}
+
+/* 3.9.0 — przelany kosz: górna część suwaka */
+.vs-tick.over-tick{opacity:.8;color:#ffd17e!important}
+.vslider.over .vs-fill{background:linear-gradient(to top,var(--c1) 85%,#ffb703)!important}
+.vslider.over .vs-thumb{background:#ffb703!important;border-color:#ffb703!important}
