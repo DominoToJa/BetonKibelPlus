@@ -898,3 +898,9 @@ body.logo-landing header.top .hud-logo,body.logo-landing header.top .brand img{o
 .logo-land{animation:logoLand .45s cubic-bezier(.2,.8,.2,1.3)}
 @keyframes logoLand{0%{transform:scale(1.25);filter:drop-shadow(0 0 10px var(--c1))}100%{transform:scale(1);filter:none}}
 body.app-in header.top{animation:none}
+
+/* 3.8.5 — miarka w kalkulatorze kosza */
+.pc-tape{margin:8px 0;padding:10px;border-radius:14px;border:2px solid var(--c1);background:color-mix(in srgb,var(--c1) 10%,transparent)}
+.pc-tape input{width:100%;font-size:22px;font-weight:900;text-align:center}
+.pc-tape .hint{font-size:13px;margin:0 0 8px}
+.pill.tape-pill{border:2px solid var(--c1)!important;font-weight:900}

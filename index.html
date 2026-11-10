@@ -237,7 +237,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.8.4 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.8.5 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
@@ -262,6 +262,10 @@
     <div class="label">Jaki to kosz? <span class="muted">(z tabliczki albo jak się na niego mówi)</span></div>
     <div class="chips" id="pcNominal"></div>
     <div class="row pc-other hide" id="pcOtherRow"><input id="pcOther" inputmode="decimal" placeholder="np. 0,8"><span>m³</span></div>
+    <div id="pcTapeRow" class="pc-tape hide">
+     <p class="hint">📏 Zmierz miarką (albo apką <b>Miarka</b> w iPhonie) <b>wysokość kosza</b>: od dołu wylewu do górnej krawędzi. Szerokość górą jest opcjonalna, ale poprawia dokładność.</p>
+     <div class="grid two"><label class="label">Wysokość (cm)<input id="pcTapeH" inputmode="decimal" placeholder="np. 110"></label><label class="label">Szerokość górą (cm) <span class="muted">opcjonalnie</span><input id="pcTapeW" inputmode="decimal" placeholder="np. 120"></label></div>
+    </div>
     <div id="pcRefBox" class="hide">
      <label class="label" for="pcRefType">Przedmiot obok kosza (dotknij jego 2 końców na zdjęciu)</label>
      <select id="pcRefType"><option value="175">Człowiek (ok. 175 cm)</option><option value="120">Europaleta — długość (120 cm)</option><option value="80">Europaleta — szerokość (80 cm)</option><option value="200">Drzwi (ok. 200 cm)</option><option value="100">Koło ciężarówki / gruszki (ok. 100 cm)</option><option value="65">Koło osobówki (ok. 65 cm)</option><option value="-1">Coś innego — wpiszę cm</option></select>

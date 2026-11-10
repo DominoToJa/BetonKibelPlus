@@ -1297,17 +1297,20 @@ function pcCompute() {
   if (mv === 'top' && pc.other === 'ref') return null; // wzorzec długości działa na zdjęciu z przodu/boku
   const topRatio = lvT ? (lvT[0].y - lvT.at(-1).y) / Math.max(1, ...lvT.map(l => l.w)) : 0;
   const rect = pc.shape === 'rect';
-  const mk = c => {
-    const d = { h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * c), ...(rect ? { rect: true } : {}) };
+  const mk = (c, cw = c) => {
+    const d = { h: hPx * c, hs: lv.map(l => (yb - l.y) * c), ds: lv.map(l => l.w * cw), ...(rect ? { rect: true } : {}) };
     if (lvS) { const ybS = lvS[0].y, hS = ybS - lvS.at(-1).y, cS = hPx * c / hS; d.dd = lv.map(l => widthAtY(lvS, ybS - (yb - l.y) / hPx * hS) * cS); d.lshape = true }
-    else if (topRatio > .05) d.dd = lv.map(l => l.w * c * topRatio);
+    else if (topRatio > .05) d.dd = lv.map(l => l.w * cw * topRatio);
     return d;
   };
   const useRef = pc.other === 'ref';
   let c, nominal = 0;
-  if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
+  let cW = 0;
+  const tapeH = pc.other === 'tape' ? number($('pcTapeH').value) : 0, tapeW = pc.other === 'tape' ? number($('pcTapeW').value) : 0;
+  if (pc.other === 'tape') { const wPx = Math.max(...lv.map(l => l.w)); if (tapeH > 10 && tapeH < 400) c = tapeH / hPx; else if (tapeW > 10 && tapeW < 400) c = tapeW / wPx; else return null; if (tapeH > 10 && tapeW > 10 && mv !== 'top') cW = tapeW / wPx }
+  else if (useRef) { const R = F.ref || [], rp = R.length === 2 ? dist(R[0], R[1]) : 0, rc = pcRefCm(); if (!(rp > 3 && rc > 0)) return null; c = rc / rp }
   else { nominal = pc.other === true ? number($('pcOther').value) : pc.nominal; if (!(nominal > 0 && nominal <= 5)) return null; const c0 = 100 / hPx; c = c0 * Math.cbrt(nominal / geoCapacity('profile', mk(c0))) }
-  const dims = mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .9), real = volumeUpTo('profile', dims, dims.h - fillCm);
+  const dims = cW ? mk(c, cW) : mk(c), rim = geoCapacity('profile', dims), fillCm = Math.min(pc.fill, dims.h * .9), real = volumeUpTo('profile', dims, dims.h - fillCm);
   return { dims, rim, real, nominal, fillCm, levels: lv.length, useRef, twoViews: !!(lvS || lvT), pair: mv === 'top' ? 'tylko góra — kształt przybliżony' : lvS ? 'przód + bok' : lvT ? (mv === 'side' ? 'bok + góra' : 'przód + góra') : mv === 'side' ? 'tylko bok' : 'tylko przód' };
 }
 function pcUI() {
@@ -1339,8 +1342,9 @@ function pcUI() {
   $('pcStep').textContent = t;
   const nb = $('pcNominal'); nb.replaceChildren(...NOMINALS.map(v => el('button', { type: 'button', class: 'pill' + (!pc.other && Math.abs(pc.nominal - v) < 1e-4 ? ' on' : ''), text: fmt(v) + (v === 1 ? ' (kubik)' : ''), onclick: () => { pc.other = false; pc.nominal = v; pcUI() } })),
     el('button', { type: 'button', class: 'pill' + (pc.other === true ? ' on' : ''), text: '✏️ Inny', onclick: () => { pc.other = true; pcUI(); $('pcOther').focus() } }),
-    el('button', { type: 'button', class: 'pill' + (pc.other === 'ref' ? ' on' : ''), text: '📏 Nie wiem — zmierz', onclick: () => pcRefStart() }));
-  $('pcOtherRow').classList.toggle('hide', pc.other !== true); $('pcRefBox').classList.toggle('hide', pc.other !== 'ref');
+    el('button', { type: 'button', class: 'pill tape-pill' + (pc.other === 'tape' ? ' on' : ''), text: '📏 Miarka (cm)', onclick: () => { pc.other = 'tape'; pcUI(); setTimeout(() => $('pcTapeH').focus(), 50) } }),
+    el('button', { type: 'button', class: 'pill' + (pc.other === 'ref' ? ' on' : ''), text: '🧍 Wzorzec na zdjęciu', onclick: () => pcRefStart() }));
+  $('pcOtherRow').classList.toggle('hide', pc.other !== true); $('pcTapeRow').classList.toggle('hide', pc.other !== 'tape'); $('pcRefBox').classList.toggle('hide', pc.other !== 'ref');
   $('pcRefCustom').classList.toggle('hide', Number($('pcRefType').value) !== -1);
   $('pcFillTxt').textContent = pc.fill ? pc.fill + ' cm pod krawędzią' : 'przy samej krawędzi';
   $('pcFillTap').classList.toggle('on', pc.fillTap); $('pcFillTap').textContent = pc.fillTap ? '👆 Stuknij na zdjęciu…' : '📍 Zaznacz na zdjęciu';
@@ -1354,7 +1358,7 @@ function pcUI() {
     box.append(el('div', { class: 'muted', text: 'Wys. ' + Math.round(r.dims.h) + ' cm · góra ' + Math.round(r.dims.ds.at(-1)) + ' cm · wylew ' + Math.round(r.dims.ds[0]) + ' cm' + ' · ' + n + ' pkt obrysu' + ' · ' + r.pair }));
     const m = bucketModel({ shape: 'profile', dims: r.dims, capacity: r.real }, r.real);
     box.append(el('div', { class: 'marks' }, ...bucketMarks(r.real).map(v => el('div', { class: 'mark-row' }, el('b', { text: fmt(v) + ' m³' }), el('span', { text: Math.round(m.belowRimCm(v)) + ' cm pod krawędzią' })))));
-  } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : 'Wybierz, jaki to kosz.' }));
+  } else if (pcLevels()) box.append(el('div', { class: 'muted', text: pc.other === 'ref' ? 'Zaznacz przedmiot na zdjęciu.' : pc.other === 'tape' ? 'Wpisz wysokość kosza z miarki (cm).' : 'Wybierz, jaki to kosz.' }));
   $('pcSave').disabled = !r;
   if (pc.edit) { $('pcEditFill').classList.toggle('on', !!pc.fillTap); $('pcEditFill').classList.toggle('hide', !(pcCompute() && pcMainView() && pcMainView() !== 'top')) }
   if (pc.edit) $('pcEditHint').textContent = (pc.fillTap ? '👆 Stuknij albo przeciągnij, gdzie kończy się beton' : pc.other === 'ref' && pcLevels() && pc.ref.length < 2 ? '📏 Stuknij oba końce wzorca' : 'Punkty: ' + pc.pts.length + ' / ' + PT_MAX + ' · stuknij = punkt · przeciągnij punkt = popraw' + (pcFillLineY() != null ? ' · przeciągnij białą linię = beton' : '') + ' · przesuń palcem = przewiń');
@@ -1554,7 +1558,7 @@ $('pcFillTap').addEventListener('click', () => {
   if (pc.view !== mv) pcSwitch(mv);
   pc.fillTap = true; pcEditOpen(); pc.fillTap = true; pcUI();
 });
-['pcOther', 'pcRefCustom'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
+['pcOther', 'pcRefCustom', 'pcTapeH', 'pcTapeW'].forEach(id => $(id).addEventListener('input', () => pcUI())); $('pcRefType').addEventListener('change', () => pcUI());
 document.querySelectorAll('[data-pcshape]').forEach(b => b.addEventListener('click', () => { pc.shape = b.dataset.pcshape; pcUI() }));
 $('pcClose').addEventListener('click', pcClose); $('pcCancel').addEventListener('click', pcClose);
 $('pcSave').addEventListener('click', async () => {
