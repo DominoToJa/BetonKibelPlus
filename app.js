@@ -96,6 +96,8 @@ try {
 } catch (e) { }
 /* jednorazowo: naturalniejszy lektor — bez skrajnej wysokości i tempa, które „rozjeżdżały” głos */
 if (!settings.lektorFixV1) { const L0 = LEKTORS.find(x => x[0] === settings.lektor) || LEKTORS[0]; settings.rate = L0[5]; settings.pitch = L0[6]; settings.tempo = .95; settings.lektorFixV1 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
+/* jednorazowo: lektor mówi wszystkie komunikaty i jest głośny */
+if (!settings.voiceV3) { settings.askOnly = false; settings.loudVoice = true; settings.voiceV3 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 /* jednorazowo: zamiast Zosi przyjemniejszy głos (Ewa / Premium), ElevenLabs włącza się sam po wklejeniu klucza */
 if (!settings.voiceV2) { if (/^zosia/.test(settings.lektor || 'zosia')) { settings.lektor = 'ewa'; settings.voice = ''; settings.rate = .48; settings.pitch = 1 } if (settings.elKey) settings.el = true; settings.voiceV2 = true; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
 /* jednorazowo: styl Panel HUD + kolory Hopper (cyjan) */
@@ -154,7 +156,7 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -353,7 +355,7 @@ let phase = 'ready', departed = 0, deadline = 0, alarmVisible = false, nextRemin
 const REMIND_MS = 20000; // co ile przypominać „Czy kosz już jest?”
 let alarmSince = 0;
 /** mocne przypomnienie: dźwięk + wibracja + głos */
-function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
+function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (key === 'ask') setTimeout(() => { if (alarmVisible) { beep(); sayBot('remind') } }, 6000); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
 let micWanted = false, micLive = false, recognition = null, voiceRetry = null, lastAddAt = 0;
 const entriesSum = () => session ? session.entries.reduce((s, x) => s + Number(x.amount || 0), 0) : 0;
 /** liczenie kursów: ile wysłano, ile pełnych zostało i ile w ostatnim */
@@ -660,7 +662,7 @@ function returned({ at = Date.now(), silent = false } = {}) {
 }
 function delay({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
-  phase = 'late'; alarmVisible = true; nextReminder = at + REMIND_MS; deadline = nextReminder;
+  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + REMIND_MS; deadline = nextReminder;
   remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind); if (!silent) sayBot('late');
 }
 window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
@@ -1007,7 +1009,7 @@ function tick() {
   if (alarmVisible) { const t = Math.floor((Date.now() - (alarmSince || Date.now())) / 1000); $('alertLate').textContent = t > 2 ? 'Pytam od ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') + ' — zaznacz, żeby licznik się zgadzał' : 'Zaznacz, czy kosz wrócił' }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
-  else if (s.method !== 'taczka' && phase === 'late' && alarmVisible && now >= nextReminder) { nextReminder = now + REMIND_MS; deadline = nextReminder; remember(); alarmKick('remind') }
+  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { alarmVisible = true; nextReminder = now + REMIND_MS; deadline = nextReminder; remember(); render(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
@@ -1698,6 +1700,7 @@ $('introReplay').addEventListener('click', () => { try { sessionStorage.setItem(
 $('musicTest').addEventListener('click', () => { if (!BGM_ENABLED) { playIntroVoice(); return } if (!settings.music) { settings.music = true; $('musicOn').checked = true; saveSettings() } if (settings.bgm === false) { settings.bgm = true; $('bgmOn').checked = true; saveSettings() } bgmUpdate(); });
 $('musicVol').addEventListener('input', () => { settings.musicVol = Number($('musicVol').value); if (bgm && !bgm.paused) { clearInterval(bgmTimer); bgm.volume = bgmTarget() } });
 $('micSens').value = settings.micSens || 'low'; $('micSens').addEventListener('change', () => { settings.micSens = $('micSens').value; saveSettings(); configureNative() });
+$('loudVoice').checked = settings.loudVoice !== false; $('loudVoice').addEventListener('change', () => { settings.loudVoice = $('loudVoice').checked; saveSettings(); configureNative() });
 $('askOnly').checked = settings.askOnly !== false; $('askOnly').addEventListener('change', () => { settings.askOnly = $('askOnly').checked; saveSettings(); configureNative() });
 $('clicksOn').checked = settings.clicks !== false; $('clicksOn').addEventListener('change', () => { settings.clicks = $('clicksOn').checked; saveSettings() });
 $('introVoiceOn').checked = settings.introVoice !== false; $('introVoiceOn').addEventListener('change', () => { settings.introVoice = $('introVoiceOn').checked; saveSettings(); if (settings.introVoice) playIntroVoice(); else if (voiceEl) { voiceEl.pause(); voiceEl = null; bgmUpdate() } });

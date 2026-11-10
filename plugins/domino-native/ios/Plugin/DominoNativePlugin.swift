@@ -77,6 +77,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var micGateDb: Float = -30      // próg głośności: ciche dźwięki z otoczenia są pomijane
     private var utterPeakDb: Float = -120
     private var voiceProcOn = false
+    private var loudVoice = true          // głośny lektor: bez tłumienia echa iOS (ono mocno przycisza dźwięk)
+    private var speakStartedAt = Date.distantPast
+    private var watchdog: Timer?
     private var keepAwake = true
     private var lockStatus = true
     private var site = ""
@@ -117,6 +120,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         nc.addObserver(self, selector: #selector(onBackground), name: UIApplication.didEnterBackgroundNotification, object: nil)
         nc.addObserver(self, selector: #selector(onForeground), name: UIApplication.willEnterForegroundNotification, object: nil)
         callObserver.setDelegate(self, queue: DispatchQueue.main)
+        // strażnik: jeśli mowa albo mikrofon się zawiesi, sam to naprawia
+        watchdog = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in self?.watch() }
         inCall = callObserver.calls.contains { !$0.hasEnded }
     }
 
@@ -136,6 +141,14 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                 if self.active { self.scheduleAsk() }
             }
         }
+    }
+    private func watch() {
+        if isSpeaking && Date().timeIntervalSince(speakStartedAt) > 15 {   // mowa wisi
+            if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
+            player?.stop(); player = nil
+            nextSay()
+        }
+        if listening && !inCall && !isSpeaking && !engine.isRunning { resumeAfterBreak() }   // mikrofon padł
     }
     private func pauseForCall() {
         sayQueue.removeAll(); isSpeaking = false
@@ -216,7 +229,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let input = engine.inputNode
         if tapInstalled { input.removeTap(onBus: 0); tapInstalled = false }
         // tłumienie szumu i echa (wbudowane w iOS): mniej łapie otoczenie i nie słyszy własnego lektora
-        if !voiceProcOn {
+        if loudVoice {
+            if voiceProcOn { try? input.setVoiceProcessingEnabled(false); voiceProcOn = false }
+        } else if !voiceProcOn {
             try? input.setVoiceProcessingEnabled(true); voiceProcOn = true
             // nie przyciszaj lektora/dźwięków, gdy mikrofon słucha
             if #available(iOS 17.0, *) { input.voiceProcessingOtherAudioDuckingConfiguration = AVAudioVoiceProcessingOtherAudioDuckingConfiguration(enableAdvancedDucking: false, duckingLevel: .min) }
@@ -523,6 +538,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let v = call.getString("elVoice") { self.elVoice = v }
             if let m = call.getString("elModel"), !m.isEmpty { self.elModel = m }
             if let ao = call.getBool("askOnly") { self.askOnly = ao }
+            if let lv = call.getBool("loudVoice") { self.loudVoice = lv }
             if let g = call.getDouble("micGate") { self.micGateDb = Float(g) }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
@@ -620,6 +636,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
         let item = sayQueue.removeFirst()
         isSpeaking = true
+        speakStartedAt = Date()
         if useClips, let k = item.key, hasClip(k) {
             do {
                 try configureSession()

@@ -182,7 +182,8 @@
 <label class="label check"><input type="checkbox" id="confirmOn" checked> Sygnał po naliczeniu</label>
 </div></details>
 <details class="panel set-cat" id="catVoice"><summary><span>🗣 Lektor i komunikaty</span></summary><div class="set-body">
-<label class="label check"><input type="checkbox" id="askOnly" checked> 🔇 Lektor mówi tylko „Czy kosz już jest?” (reszta komunikatów tylko na ekranie, odpowiedzi na „ile zostało?” dalej na głos)</label>
+<label class="label check"><input type="checkbox" id="loudVoice" checked> 📢 Głośny lektor na budowę (wyłącza tłumienie echa iPhone'a, które mocno przycisza dźwięk)</label>
+<label class="label check"><input type="checkbox" id="askOnly"> 🔇 Lektor mówi tylko „Czy kosz już jest?” (reszta komunikatów tylko na ekranie, odpowiedzi na „ile zostało?” dalej na głos)</label>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
 <div class="label">Lektor</div><div id="lektorList" class="lektor-list"></div>
 <label class="label" for="tempo">🐢 Tempo lektora <b id="tempoVal">95%</b></label><input id="tempo" type="range" min="0.8" max="1.15" step="0.05" value="0.95">
@@ -238,7 +239,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 3.8.6 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 3.8.7 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
