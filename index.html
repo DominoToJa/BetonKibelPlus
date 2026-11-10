@@ -107,6 +107,7 @@
   <div class="kurs-big"><span>KURS</span><b id="kursNo">0</b><small id="kursInfo">przytrzymaj kosz = pełny kurs</small></div>
   <div class="kurs-label">Ostatni kurs był:</div>
   <div class="kurs-frac" id="kursFrac"><button type="button" data-f="0.25">¼</button><button type="button" data-f="0.5">½</button><button type="button" data-f="0.75">¾</button><button type="button" data-f="1">Pełny</button><button type="button" data-f="over" class="over">+ Przelany</button></div>
+  <div class="kurs-fine" id="kursFine"><div class="kf-top"><span>Dokładnie:</span><b id="kfVal">—</b></div><input type="range" id="kfRange" min="0" max="110" step="1" value="100" aria-label="Dokładny poziom ostatniego kursu"><div class="kf-ticks"><span style="left:0%">0</span><span style="left:22.7%">¼</span><span style="left:45.5%">½</span><span style="left:68.2%">¾</span><span style="left:90.9%">pełny</span><span style="left:100%">+</span></div></div>
   <div class="kurs-truck"><div><small>🚚 GRUSZKA <span id="truckNo">1</span></small><b id="truckInfo">7,5 m³</b></div><button type="button" id="truckEmpty" class="good">✓ Gruszka pusta</button><button type="button" id="truckNew">＋ Nowa gruszka</button></div>
   <p class="kurs-learn" id="kursLearn"></p>
 </div>
@@ -257,7 +258,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.1.1 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.1.2 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

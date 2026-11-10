@@ -746,6 +746,10 @@ function kursRender() {
   $('kursInfo').textContent = n ? 'ostatni: ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³' + (restT > .001 ? ' · w gruszce ~' + fmt(Math.round(restT * 10) / 10) + ' m³' : ' · gruszka chyba pusta?') : 'przytrzymaj kosz = pełny kurs';
   const f = last ? Number(last.amount) / cap : -1;
   for (const b of $('kursFrac').children) { const bf = b.dataset.f === 'over' ? OVER_F : Number(b.dataset.f); b.classList.toggle('on', !!last && !cur.closed && s.entries.length > cur.start && Math.abs(f - bf) < .02); b.disabled = !last || s.entries.length <= cur.start }
+  const can = !!last && s.entries.length > cur.start && !cur.closed, kr = $('kfRange'); kr.disabled = !can;
+  if (document.activeElement !== kr) kr.value = can ? Math.round(Math.min(1.1, f) * 100) : 100;
+  $('kfVal').textContent = can ? Math.round(f * 100) + '% = ' + fmt(Math.round(Number(last.amount) * 100) / 100) + ' m³' : '—';
+  kr.style.setProperty('--p', (kr.value / 110 * 100) + '%');
   $('truckNo').textContent = tr.length; $('truckInfo').textContent = fmt(cur.m3) + ' m³' + (cur.closed ? ' ✓' : '');
   $('truckEmpty').disabled = cur.closed || s.entries.length <= cur.start;
   $('kursLearn').textContent = s.learned ? '⚖️ ' + s.learned : 'Kosz: ' + fmt(cap) + ' m³ · po „Gruszka pusta” apka sama poprawi pojemność.';
@@ -764,6 +768,15 @@ function setLastFrac(f, { silent = false } = {}) {
   remember(); render(); syncNative(); const txt = { 0.25: 'Ćwierć kosza', 0.5: 'Pół kosza', 0.75: 'Trzy czwarte kosza', 1: 'Pełny kosz', over: 'Przelany kosz' }[f] || '';
   announce('Ostatni kurs: ' + txt + ' = ' + fmt(last.amount) + ' m³'); if (!silent) sayBot('custom', txt + ', ' + fmt(last.amount) + ' metra.');
 }
+/** suwak dokładności ostatniego kursu (0–110 %) */
+function setLastPct(pct, { final = false } = {}) {
+  const s = session; if (!s || s.method !== 'kibel') return; const cur = trucksOf(s).at(-1); if (s.entries.length <= cur.start || cur.closed) return;
+  const cap = Number(s.capacity) || .5, last = s.entries.at(-1); last.amount = Math.round(cap * pct / 100 * 1000) / 1000;
+  if (final) { remember(); render(); syncNative(); announce('Ostatni kurs: ' + pct + '% = ' + fmt(last.amount) + ' m³'); sayBot('custom', pct + ' procent, ' + fmt(Math.round(last.amount * 100) / 100) + ' metra.') }
+  else render();
+}
+$('kfRange').addEventListener('input', e => { const v = Math.round(e.target.value / 5) * 5 === +e.target.value ? +e.target.value : +e.target.value; setLastPct(v) });
+$('kfRange').addEventListener('change', e => setLastPct(+e.target.value, { final: true }));
 /** gruszka pusta: kursy z tej gruszki = dokładnie jej m³, a z tego prawdziwa pojemność kosza */
 function truckEmpty({ silent = false } = {}) {
   const s = session; if (!s || s.method !== 'kibel') return; const tr = trucksOf(s), cur = tr.at(-1); if (cur.closed) return announce('Ta gruszka jest już zamknięta');
