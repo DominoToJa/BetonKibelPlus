@@ -264,9 +264,22 @@ let introJinglePending = false, voicePending = false, soundUnlockedAt = 0;
 /* „Betonowy głos” — głos w intro (przycisza muzykę, gdy mówi) */
 let nativeIntro = false;
 function stopIntroVoice() { if (nativeIntro) { nativeIntro = false; NV.stopIntro?.() } const v = voiceEl; voiceEl = null; voicePending = false; if (!v) return; const iv = setInterval(() => { v.volume = Math.max(0, v.volume - .1); if (v.volume <= .01) { clearInterval(iv); v.pause() } }, 40) }
+/* piosenki intro — losowo co start (bez powtórki z rzędu). delay = o ile później rusza animacja (żeby uderzenie i „Witaj” wpadły w śpiew) */
+const INTRO_SONGS = [
+  { id: 'country', file: 'intro_voice', name: 'Country — oryginał', delay: 0 },
+  { id: 'bk1', file: 'intro_bk1', name: 'Betonkibel 1', delay: 4 },
+  { id: 'bk2', file: 'intro_bk2', name: 'Betonkibel 2', delay: 2.8 },
+];
+let introSong = INTRO_SONGS[0];
+const songDelay = sg => Number(settings.songShift?.[sg.id] ?? sg.delay) || 0;
+function pickIntroSong() {
+  const want = settings.introSong || 'random'; let sg = INTRO_SONGS.find(x => x.id === want);
+  if (!sg) { let last = ''; try { last = localStorage.getItem('bkp_last_song') || '' } catch (e) { } const pool = INTRO_SONGS.filter(x => x.id !== last); sg = pool[Math.floor(Math.random() * pool.length)] }
+  try { localStorage.setItem('bkp_last_song', sg.id) } catch (e) { } return (introSong = sg);
+}
 function playIntroVoice() {
-  try { voiceEl?.pause(); voiceEl = new Audio('sounds/intro_voice.mp3'); voiceEl.volume = 1;
-    voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => { const late = window.__introT0 && introPlaying ? (Date.now() - window.__introT0) / 1000 : 0; window.__introStart?.(); if (late > .3) try { voiceEl.currentTime = late } catch (e) { } }, { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
+  try { voiceEl?.pause(); voiceEl = new Audio('sounds/' + introSong.file + '.mp3'); voiceEl.volume = 1;
+    voiceEl.onplay = () => bgmUpdate(); voiceEl.addEventListener('playing', () => { const late = window.__introT0 && introPlaying ? (Date.now() - window.__introT0) / 1000 + songDelay(introSong) : 0; if (window.__introStart) { const st = window.__introStart; setTimeout(st, songDelay(introSong) * 1000) } if (late > .3) try { voiceEl.currentTime = late } catch (e) { } }, { once: true }); voiceEl.onended = () => { voiceEl = null; bgmUpdate() };
     voiceEl.play().catch(() => { voicePending = true }) } catch (e) { }
 }
 /* muzyka w tle „Czas na Beton” — intro + zakładki Start, Budowy, Diagram (nie na Liczniku, żeby nie przeszkadzać mikrofonowi) */
@@ -1866,6 +1879,15 @@ $('startForm').checked = settings.startForm !== false; $('startForm').addEventLi
 $('tapLevel').checked = !!settings.tapLevel;
 for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
+{ const sel = $('introSong'), sh = $('songShift'), shv = $('songShiftV');
+  sel.replaceChildren(el('option', { value: 'random', text: '🎲 Losowo (co start inna)' }), ...INTRO_SONGS.map(x => el('option', { value: x.id, text: '🎵 ' + x.name })));
+  sel.value = settings.introSong || 'random';
+  const cur = () => INTRO_SONGS.find(x => x.id === sel.value) || introSong;
+  const shDraw = () => { const sg = cur(); sh.value = String(songDelay(sg)); shv.textContent = sg.name + ': ' + fmt(songDelay(sg)) + ' s' };
+  sel.addEventListener('change', () => { settings.introSong = sel.value; saveSettings(); shDraw() });
+  sh.addEventListener('input', () => { const sg = cur(); settings.songShift = { ...(settings.songShift || {}), [sg.id]: Number(sh.value) }; saveSettings(); shDraw() });
+  $('introReplay').addEventListener('click', () => { if ($('intro') || !INTRO_TPL || session) return announce(session ? 'Najpierw zakończ betonowanie' : 'Intro już leci'); const b = INTRO_TPL.cloneNode(true); document.body.prepend(b); runIntro(b); setTimeout(shDraw, 100) });
+  shDraw() }
 $('introEvery').checked = settings.introEvery !== false; $('introEvery').addEventListener('change', () => { settings.introEvery = $('introEvery').checked; saveSettings() });
 { const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
@@ -2035,16 +2057,17 @@ function runIntro(box) {
   document.body.classList.add('pre-intro');
   document.documentElement.style.setProperty('--hs', (Number(settings.helloShift) || 0) + 's');
   setTimeout(() => document.body.classList.remove('pre-intro'), 25000);
+  pickIntroSong(); window.__introT0 = 0;
   let done = false; const close = () => { if (done) return; done = true; introPlaying = false; if (TAB_OF[currentTab] === 'work') stopIntroVoice(); bgmUpdate(); setTimeout(bgmUpdate, 600); introMorph(box) };
   box.addEventListener('click', () => { if (Date.now() - soundUnlockedAt < 700) return; stopIntroVoice(); close() });
   /* animacja startuje razem z muzyką, żeby zderzenie i „Witaj” wpadły w rytm */
   box.classList.add('wait'); let started = false;
   const start = () => { if (started || done) return; started = true; window.__introT0 = Date.now(); box.classList.remove('wait'); setTimeout(close, 17000); setTimeout(() => { if (!done) { playBoom(); buzz('warning'); setTimeout(() => buzz('warning'), 180); box.classList.add('boom-hit') } }, 2950) };
-  window.__introStart = start; setTimeout(start, 2500);
+  window.__introStart = start; setTimeout(start, 2500 + songDelay(introSong) * 1000);
   introPlaying = true;
   const webIntro = () => { playIntroVoice(); if (voiceEl) voiceEl.addEventListener('ended', () => setTimeout(close, 300)) };
   if (settings.music && settings.introVoice !== false) {
-    if (NATIVE.isNative && NV.playIntro) NV.playIntro({ volume: Math.min(1, .3 + Number(settings.musicVol ?? .7)) }).then(r => { if (r?.ok) { nativeIntro = true; start(); setTimeout(close, (r.duration || 16) * 1000 + 300) } else webIntro() }).catch(webIntro); // iPhone: gra od razu z apki
+    if (NATIVE.isNative && NV.playIntro) NV.playIntro({ file: introSong.file, volume: Math.min(1, .3 + Number(settings.musicVol ?? .7)) }).then(r => { if (r?.ok) { nativeIntro = true; setTimeout(start, songDelay(introSong) * 1000); setTimeout(close, (r.duration || 16) * 1000 + 300) } else webIntro() }).catch(webIntro); // iPhone: gra od razu z apki
     else webIntro();
   } else start();
   if (!settings.themeChosen) { settings.themeChosen = true; saveSettings() }

@@ -544,15 +544,21 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     @objc func playIntro(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             let vol = Float(max(0, min(1, call.getDouble("volume") ?? 0.9)))
-            var url = Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public/sounds")
-                ?? Bundle.main.url(forResource: "intro_voice", withExtension: "mp3", subdirectory: "public")
-                ?? Bundle.main.url(forResource: "intro_voice", withExtension: "mp3")
-            if url == nil, let root = Bundle.main.resourcePath {
-                for rel in ["public/sounds/intro_voice.mp3", "sounds/intro_voice.mp3", "www/sounds/intro_voice.mp3"] {
-                    let path = (root as NSString).appendingPathComponent(rel)
-                    if FileManager.default.fileExists(atPath: path) { url = URL(fileURLWithPath: path); break }
+            var name = (call.getString("file") ?? "intro_voice").replacingOccurrences(of: "/", with: "")
+            if name.isEmpty { name = "intro_voice" }
+            func find(_ n: String) -> URL? {
+                if let u = Bundle.main.url(forResource: n, withExtension: "mp3", subdirectory: "public/sounds")
+                    ?? Bundle.main.url(forResource: n, withExtension: "mp3", subdirectory: "public")
+                    ?? Bundle.main.url(forResource: n, withExtension: "mp3") { return u }
+                if let root = Bundle.main.resourcePath {
+                    for rel in ["public/sounds/\(n).mp3", "sounds/\(n).mp3", "www/sounds/\(n).mp3"] {
+                        let path = (root as NSString).appendingPathComponent(rel)
+                        if FileManager.default.fileExists(atPath: path) { return URL(fileURLWithPath: path) }
+                    }
                 }
+                return nil
             }
+            let url = find(name) ?? find("intro_voice")
             guard let u = url else { call.resolve(["ok": false]); return }
             do {
                 let ses = AVAudioSession.sharedInstance()

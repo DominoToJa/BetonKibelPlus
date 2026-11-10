@@ -188,6 +188,7 @@
 <details class="panel set-cat" id="catSound"><summary><span>🔊 Dźwięk i muzyka</span></summary><div class="set-body">
 <label class="label check"><input type="checkbox" id="musicOn" checked> 🎵 Muzyka w aplikacji (główny wyłącznik)</label>
 <label class="label check"><input type="checkbox" id="introEvery" checked> 🎬 Intro przy każdym otwarciu apki (gdy nie trwa betonowanie)</label>
+<label class="label" for="introSong">🎵 Piosenka w intro</label><select id="introSong"></select><label class="label" for="songShift">⏱ Start animacji względem piosenki <b id="songShiftV"></b></label><input id="songShift" type="range" min="0" max="10" step="0.1" value="0"><p class="hint">Uderzenie i „Witaj” mają wpaść w śpiew. Jak animacja leci za wcześnie — w prawo. Ustawiasz osobno dla każdej piosenki (wybierz ją wyżej).</p><button type="button" class="secondary" id="introReplay">▶ Pokaż intro teraz</button>
 <label class="label" for="helloShift">🎤 Intro: napis „Witaj” względem śpiewu <b id="helloShiftV">0 s</b></label><input id="helloShift" type="range" min="-2" max="2" step="0.1" value="0"><p class="hint">Jeśli „Witaj” na ekranie wyskakuje przed śpiewem — przesuń w prawo, jeśli po — w lewo. Sprawdzisz przy następnym starcie apki.</p>
 <label class="label check"><input type="checkbox" id="clicksOn" checked> 🔘 Odgłos klikania przycisków</label>
 <label class="label check"><input type="checkbox" id="introVoiceOn" checked> 🎬 Muzyka intro „Beton Plus”</label>
