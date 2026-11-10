@@ -578,7 +578,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         var key = key
         if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("added") || k.hasPrefix("report")) {
             // tylko pytanie o kosz + odpowiedzi; reakcja na komendę = krótkie potwierdzenie „Przyjęłam”
-            if ["late", "arrived", "undo", "depart"].contains(k) && text == nil { key = "heardOk" } else { return }
+            if ["late", "arrived", "undo", "depart", "fullBucket", "halfBucket"].contains(k) && text == nil { key = "heardOk" } else { return }
         }
         let t = (text?.isEmpty == false ? text! : pick(key))
         let clip = key.map { hasClip($0) } ?? false
@@ -911,6 +911,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
         if let r = low.range(of: "\\d+", options: .regularExpression), let v = Double(low[r]), v > 0, v <= 5 { return v }
         let t = norm(raw)
+        if t.contains(" pol ") || t.contains(" pol metra ") { return 0.5 }
         let dict = ["zero": "0", "jeden": "1", "dwa": "2", "trzy": "3", "cztery": "4", "piec": "5", "szesc": "6", "siedem": "7", "osiem": "8", "dziewiec": "9"]
         let words = t.split(separator: " ").map(String.init).filter { dict[$0] != nil || $0 == "przecinek" }
         if words.first == "zero", words.count >= 2 {
@@ -939,6 +940,18 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             report("reportLeft", fmt(leftM3), "Zostało X metra sześciennego.")
         } else if has(t, ["ile wylano", "ile juz wylano", "ile nalano", "ile poszlo", "ile wylalismy", "ile zalalismy", "ile zalane", "ile kubikow poszlo", "ile metrow wylano", "ile mamy wylane", "ile zrobione", "licznik"]) {
             report("reportPoured", fmt(poured), "Wylano X metra sześciennego.")
+        } else if has(t, ["ile koszy", "ile kursow", "ile jeszcze koszy", "ile koszy zostalo", "ile kibli", "ile taczek", "ile lyzek", "ile razy jeszcze"]) {
+            let d = max(0.01, dose), full = Int((leftM3 / d + 1e-6).rounded(.down)), last = ((leftM3 - Double(full) * d) * 100).rounded() / 100
+            let w: (String, String, String) = method == "taczka" ? ("taczka", "taczki", "taczek") : method == "inne" ? ("łyżka", "łyżki", "łyżek") : ("kosz", "kosze", "koszy")
+            let pl: (Int) -> String = { n in n == 1 ? w.0 : ((2...4).contains(n % 10) && !(12...14).contains(n % 100)) ? w.1 : w.2 }
+            let txt = leftM3 <= 0.0001 ? "nic — koniec betonu" : last >= 0.01 ? (full > 0 ? "\(full) \(pl(full)) i ostatni \(fmt(last)) metra" : "ostatni \(fmt(last)) metra") : "\(full) \(pl(full)) po \(fmt(d)) metra"
+            report("reportBuckets", txt, "Zostało jeszcze X.")
+        } else if has(t, ["pelny kosz", "pelny kibel", "do pelna", "caly kosz", "caly kibel", "pelen kosz", "na full", "pelny"]) {
+            dose = capacity; pending.append(["type": "dose", "at": now, "amount": dose]); updateNowPlaying()
+            say(key: "fullBucket", text: nil)
+        } else if has(t, ["pol kosza", "pol kibla", "polowa kosza", "do polowy", "polowe kosza", "pol taczki", "pol lyzki"]) {
+            dose = (capacity / 2 * 100).rounded() / 100; pending.append(["type": "dose", "at": now, "amount": dose]); updateNowPlaying()
+            say(key: "halfBucket", text: nil)
         } else if has(t, ["koparka wyjechala", "koparka pojechala", "lyzka pojechala", "kosz wyjechal", "wyjechal", "ruszyl", "kosz ruszyl", "pojechal", "kosz pojechal", "odjechal", "kibel pojechal", "kibel wyjechal"]) {
             guard method != "taczka" else { return }
             departed = now; phase = "away"; deadline = now + meanTripSec * 1000; reminders = 0
