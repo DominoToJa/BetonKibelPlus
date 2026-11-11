@@ -1020,3 +1020,11 @@ body.one-hand .vs-track{bottom:52px!important}
 #vslider.m-inne .vs-track{top:7%!important;bottom:14%!important;width:26px!important;left:50%!important;margin-left:-13px}
 #vslider.m-inne .vs-thumb{width:48px!important;height:48px!important;margin-left:-24px!important;margin-bottom:-24px!important}
 #vslider.m-inne .vs-lock{bottom:0}
+
+.pioro-calc{margin:4px 0 10px;padding:12px;border-radius:16px;background:color-mix(in srgb,var(--c1) 8%,transparent);border:1px solid color-mix(in srgb,var(--c1) 30%,transparent)}
+.pioro-calc label{display:block;font-weight:900;font-size:15px;margin-bottom:8px}
+.pioro-row{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
+.pioro-row button{font-size:26px;font-weight:900;min-height:52px;padding:0}
+.pioro-row input{font-size:26px;font-weight:900;text-align:center;min-height:52px}
+#pioroOut{display:block;text-align:center;margin-top:10px;font-weight:700;opacity:.9}
+#pioroOut b{display:block;font-size:26px;color:var(--c1)}#pioroOut small{opacity:.8}
