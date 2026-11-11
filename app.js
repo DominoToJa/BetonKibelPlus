@@ -593,9 +593,9 @@ function sheetRender() {
       x, el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
   }
   if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
-  if (method !== 'taczka' && method !== 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
+  if (false) r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
   if (method === 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add eich-tile', onclick: async () => { const p = await eichPick(); if (p) { chooseProfile(p.id); sheetRender?.(); tab('setup') } } }, el('b', { text: '🏷 Kosz Eichinger z katalogu' }), el('small', { text: 'seria z tabliczki (1011, 1012, 1021…) + pojemność' })));
-  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: method === 'kibel' ? '＋ Dodaj swój kosz' : '📷 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę / osprzęt' }[method] || 'Dodaj') }), el('small', { text: method === 'kibel' ? 'nazwa + pojemność z tabliczki · resztę policzy gruszka' : 'ze zdjęć albo wymiarów — dokładna podziałka' })));
+  r.append(el('button', { type: 'button', class: 'tile add', onclick: () => { bucketReturn = 'setup'; tab('buckets'); openBucketForm(null, methodKind(method)) } }, el('b', { text: method === 'kibel' ? '＋ Dodaj swój kosz' : '📏 ＋ ' + ({ taczka: 'Dodaj taczkę', inne: 'Dodaj łyżkę' }[method] || 'Dodaj') }), el('small', { text: method === 'kibel' ? 'nazwa + pojemność z tabliczki · resztę policzy gruszka' : 'zmierz miarką: długość, szerokość, głębokość' })));
   for (const v of opts[method] || []) r.append(el('button', { type: 'button', class: 'tile size' + (!chosenProfileId && Math.abs(number($('portion').value) - v) < .0001 ? ' on' : ''), onclick: pick(() => { chosenProfileId = ''; $('portion').value = fmt(v); renderPresets() }) }, el('b', { text: fmt(v) }), el('small', { text: 'm³ · standard' })));
   const cur = number($('portion').value), isStd = (opts[method] || []).some(v => Math.abs(v - cur) < 1e-4);
   const ci = el('input', { inputmode: 'decimal', placeholder: 'np. 0,8', 'aria-label': 'Niestandardowa pojemność' }); if (!chosenProfileId && !isStd && cur > 0) ci.value = fmt(cur);
@@ -1275,7 +1275,8 @@ function openBucketForm(p = null, kind = null) {
   $('bKind').value = p ? kindOf(p) : (kind || 'kosz'); $('bucketFormTitle').textContent = (p ? 'Edytuj: ' : 'Nowy: ') + KINDS[$('bKind').value][1].toLowerCase();
   $('bName').value = p?.name || ''; $('bShape').value = p?.shape && SHAPES[p.shape] ? p.shape : 'cone';
   $('bPlate').value = p?.plate ? fmt(p.plate) : (p && !p.dims && !p.real ? fmt(p.capacity) : '');
-  $('bReal').value = p?.real ? fmt(p.real) : '';
+  $('bReal').value = p?.real ? fmt(p.real) : (p?.dims ? fmt(p.capacity) : '');
+  ['lmW', 'lmL', 'lmH'].forEach(id => $(id).value = '');
   $('bError').textContent = ''; formSimple(); dimFields($('bShape').value, p?.dims || {}); thumbsRender();
   $('bucketForm').classList.remove('hide'); $('newBucket').classList.add('hide'); $('bName').focus();
 }
@@ -1351,18 +1352,30 @@ function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('but
 ['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmCalc));
 /** kosz = tylko nazwa i pojemność (bez kształtu, zdjęć do liczenia i wymiarów) */
 /* łyżka koparki: szerokość × długość (otwarcie) × głębokość — wystarczą 2 z 3, trzeci szacuję z typowych proporcji */
-const LM_K = .6; // łyżka ma zaokrąglone dno — wypełnia ok. 60% prostopadłościanu
+const LM_K = { lyzka: .6, taczka: .6 }; // zaokrąglone dno / skośne ścianki — ok. 60% prostopadłościanu
+const LM_TXT = {
+  lyzka: { head: '📏 Pomiar łyżki miarką', hLabel: 'Głębokość (cm)', ph: ['np. 80', 'np. 90', 'np. 75'], hint: 'Szerokość: w środku, między bokami. Długość: od zębów do tylnej ścianki. Głębokość: od krawędzi do dna.', est: { H: l => l * .85, L: (w, h) => h ? h / .85 : w, W: l => l } },
+  taczka: { head: '📏 Pomiar taczki miarką', hLabel: 'Głębokość (cm)', ph: ['np. 60', 'np. 90', 'np. 25'], hint: 'Długość i szerokość: górą, po wewnętrznej krawędzi wanny (± kilka cm nie szkodzi). Głębokość: od krawędzi do dna.', est: { H: l => l * .28, L: (w, h) => w ? w / .68 : h / .28, W: l => l * .68 } },
+};
 function lmCalc() {
   const W = number($('lmW').value), L = number($('lmL').value), H = number($('lmH').value), ok = v => v > 10 && v < 400, n = [W, L, H].filter(ok).length;
   if (n < 2) { $('lmOut').textContent = 'Wpisz co najmniej 2 wymiary (najlepiej szerokość i długość) — policzę pojemność.'; return 0 }
-  const w = ok(W) ? W : (ok(L) ? L : H / .85), l = ok(L) ? L : (ok(H) ? H / .85 : W), h = ok(H) ? H : l * .85, est = n < 3;
-  const cap = Math.round(w * l * h / 1e6 * LM_K * 1000) / 1000;
-  $('lmOut').textContent = '≈ ' + fmt(Math.round(cap * 100) / 100) + ' m³ betonu w łyżce' + (est ? ' (szacunek — ' + (!ok(H) ? 'głębokość' : !ok(L) ? 'długość' : 'szerokość') + ' ≈ ' + Math.round(!ok(H) ? h : !ok(L) ? l : w) + ' cm; podaj, będzie dokładniej)' : '');
-  $('bReal').value = fmt(Math.round(cap * 100) / 100); if (!$('bShape').value || $('bShape').value === 'cone') $('bShape').value = 'plate';
+  const kind = $('bKind').value === 'taczka' ? 'taczka' : 'lyzka', E = LM_TXT[kind].est;
+  const l = ok(L) ? L : E.L(ok(W) ? W : 0, ok(H) ? H : 0), w = ok(W) ? W : E.W(l), h = ok(H) ? H : E.H(l), est = n < 3;
+  const cap = Math.round(w * l * h / 1e6 * LM_K[kind] * 1000) / 1000;
+  $('lmOut').textContent = '≈ ' + fmt(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)) + ' m³ betonu ' + (kind === 'taczka' ? 'w taczce (' + Math.round(cap * 1000) + ' l)' : 'w łyżce') + (est ? ' (szacunek — ' + (!ok(H) ? 'głębokość' : !ok(L) ? 'długość' : 'szerokość') + ' ≈ ' + Math.round(!ok(H) ? h : !ok(L) ? l : w) + ' cm; podaj, będzie dokładniej)' : '');
+  $('bReal').value = String(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)).replace('.', ','); if (!$('bShape').value || $('bShape').value === 'cone') $('bShape').value = 'plate';
   return cap;
 }
 ['lmW', 'lmL', 'lmH'].forEach(id => $(id).addEventListener('input', lmCalc));
-function formSimple() { $('lmBox').classList.toggle('hide', $('bKind').value !== 'lyzka'); lmCalc(); const k = $('bKind').value === 'kosz'; $('bucketForm').classList.toggle('simple', k); $('qmBox').classList.toggle('hide', !k); if (k) { $('bShape').value = 'plate'; qmRender() } }
+function formSimple() {
+  const kind = $('bKind').value, k = kind === 'kosz', lm = kind === 'lyzka' || kind === 'taczka', T = LM_TXT[kind] || LM_TXT.lyzka;
+  $('lmBox').classList.toggle('hide', !lm); $('lmHead').textContent = T.head; $('lmHint').textContent = T.hint;
+  $('lmW').placeholder = T.ph[0]; $('lmL').placeholder = T.ph[1]; $('lmH').placeholder = T.ph[2]; $('lmHLabel').textContent = T.hLabel;
+  $('bucketForm').classList.add('simple'); $('bucketForm').classList.toggle('k-kosz', k); $('qmBox').classList.toggle('hide', !k);
+  $('bName').placeholder = { kosz: 'np. Pomarańczowy Eichinger', taczka: 'np. Taczka 100 l', lyzka: 'np. Łyżka 80 cm' }[kind] || '';
+  $('bShape').value = 'plate'; if (k) qmRender(); if (lm) lmCalc();
+}
 $('bKind').addEventListener('change', () => { formSimple(); dimFields($('bShape').value, {}) });
 function closeBucketForm() { $('bucketForm').classList.add('hide'); $('newBucket').classList.remove('hide'); editingId = '' }
 $('newBucket').addEventListener('click', () => openBucketForm()); $('bCancel').addEventListener('click', closeBucketForm);

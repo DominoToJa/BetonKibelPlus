@@ -66,11 +66,11 @@
   <button type="button" id="bPhotoCalc" class="full calc-photo-btn">📷 Policz ze zdjęcia — bez mierzenia</button>
   <div id="bDims" class="grid two"></div>
   <div id="lmBox" class="qm-box hide">
-   <div class="qm-head">📏 Pomiar łyżki miarką <span class="muted">(wystarczą 2 wymiary)</span></div>
+   <div class="qm-head"><span id="lmHead">📏 Pomiar łyżki miarką</span> <span class="muted">(wystarczą 2 wymiary)</span></div>
    <div class="grid two"><label class="label">Szerokość (cm)<input id="lmW" inputmode="decimal" placeholder="np. 80"></label><label class="label">Długość (cm)<input id="lmL" inputmode="decimal" placeholder="np. 90"></label></div>
-   <label class="label">Głębokość (cm) <span class="muted">opcjonalnie</span><input id="lmH" inputmode="decimal" placeholder="np. 75"></label>
+   <label class="label"><span id="lmHLabel">Głębokość (cm)</span> <span class="muted">opcjonalnie</span><input id="lmH" inputmode="decimal" placeholder="np. 75"></label>
    <p class="qm-out" id="lmOut">Wpisz co najmniej 2 wymiary — policzę pojemność.</p>
-   <p class="hint">Szerokość: w środku, między bokami. Długość: od zębów do tylnej ścianki. Głębokość: od krawędzi do dna.</p>
+   <p class="hint" id="lmHint"></p>
   </div>
   <div id="qmBox" class="qm-box">
    <div class="qm-head">📏 Szybki pomiar miarką <span class="muted">(opcjonalnie — jeśli nie ma tabliczki)</span></div>
@@ -265,7 +265,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.3.2 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.4.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

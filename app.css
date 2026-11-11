@@ -939,7 +939,7 @@ body.m-kosz .hud-reg,body.m-kosz #less,body.m-kosz #more,body.m-kosz .quick-caps
 body.one-hand.m-kosz .kurs-big{display:none}
 body.one-hand.m-kosz .kurs-frac button{min-height:64px}
 #bucketForm.simple label[for="bShape"],#bucketForm.simple #bShape,#bucketForm.simple #bShapeHint,#bucketForm.simple #bPhotoCalc,#bucketForm.simple #bDims,#bucketForm.simple #bPreview{display:none!important}
-#bucketForm.simple label[for="bReal"]::after{content:' — sam się poprawi po pierwszej gruszce';font-weight:600;opacity:.7}
+#bucketForm.simple.k-kosz label[for="bReal"]::after{content:' — sam się poprawi po pierwszej gruszce';font-weight:600;opacity:.7}
 
 
 body.m-kosz #hudPanel .hud-status{display:none!important}
