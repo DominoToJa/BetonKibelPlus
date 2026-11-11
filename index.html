@@ -69,7 +69,7 @@
    <div class="qm-head"><span id="lmHead">📏 Pomiar łyżki miarką</span> <span class="muted">(wystarczą 2 wymiary)</span></div>
    <div class="grid two"><label class="label">Szerokość (cm)<input id="lmW" inputmode="decimal" placeholder="np. 80"></label><label class="label">Długość (cm)<input id="lmL" inputmode="decimal" placeholder="np. 90"></label></div>
    <label class="label"><span id="lmHLabel">Głębokość (cm)</span> <span class="muted">opcjonalnie</span><input id="lmH" inputmode="decimal" placeholder="np. 75"></label>
-   <p class="qm-out" id="lmOut">Wpisz co najmniej 2 wymiary — policzę pojemność.</p>
+   <div class="qm-match chips" id="lmMatch"></div><p class="qm-out" id="lmOut">Wpisz co najmniej 2 wymiary — policzę pojemność.</p>
    <p class="hint" id="lmHint"></p>
   </div>
   <div id="qmBox" class="qm-box">
@@ -265,7 +265,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.4.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.5.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

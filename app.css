@@ -1002,3 +1002,4 @@ body.m-kosz .kurs-truck,body.m-kosz .kurs-learn{display:none!important}
 .vslider.empty .vs-thumb{opacity:.35}
 #bucketPanel{-webkit-user-select:none;user-select:none}
 body.one-hand .vs-track{bottom:52px!important}
+.cat-flt{margin:4px 0 8px;gap:6px;flex-wrap:wrap}.cat-flt small{width:100%;font-weight:800;opacity:.8}
