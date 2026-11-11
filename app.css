@@ -1028,3 +1028,13 @@ body.one-hand .vs-track{bottom:52px!important}
 .pioro-row input{font-size:26px;font-weight:900;text-align:center;min-height:52px}
 #pioroOut{display:block;text-align:center;margin-top:10px;font-weight:700;opacity:.9}
 #pioroOut b{display:block;font-size:26px;color:var(--c1)}#pioroOut small{opacity:.8}
+
+/* diagram: duże cyfry nad gruszką */
+.drum-wrap{border-radius:16px;background:radial-gradient(ellipse at 30% 40%,#2a1a55 0,#110e28 70%);border:1px solid #4a4582;padding:6px 6px 8px}
+.drum-wrap .drum-diagram-img{border:0!important;padding:0!important;background:none!important;border-radius:0}
+.drum-inner{position:relative}
+.drum-labels{position:absolute;left:0;right:0;top:0;height:21%;background:linear-gradient(#1a1240 80%,#1a124000)}
+.drum-labels span{position:absolute;top:2%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center}
+.drum-labels b{display:block;min-width:26px;padding:1px 4px;border-radius:7px;background:var(--c1);color:#071018;font-size:18px;font-weight:900;line-height:1.15;text-align:center;box-shadow:0 2px 6px #0009}
+.drum-labels span::after{content:"";width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--c1);margin-top:-1px}
+.drum-unit{text-align:center;font-size:12px;font-weight:800;opacity:.75;margin-top:4px}
