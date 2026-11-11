@@ -110,3 +110,15 @@ Stan na 9 listopada 2026, wersja **3.5.8**.
 - Gruszki: „＋ Nowa gruszka” (m³), „✓ Gruszka pusta” → kursy wyrównane do m³ gruszki i apka uczy się realnej pojemności kosza (zapis w profilu).
 - Głos: „pół”, „trzy czwarte”, „ćwierć”, „przelany”, „gruszka pusta”, „nowa gruszka 7,5”, „dodaj pół”.
 - Taczka i koparka bez zmian.
+
+## 4.1.0 – 4.6.1 (10–11.11.2026)
+- Katalogi: kosze Eichinger (6 kształtów), taczki (6 rodzajów, ~30 modeli), łyżki koparek (6 rodzajów, 496 wariantów, klasy koparek). Podpowiedzi z katalogu po pomiarze miarką.
+- Pomiar miarką: kosz (średnica + wysokość leja), taczka i łyżka (długość × szerokość × wysokość, wystarczą 2, cm albo m). Liczenie ze zdjęć usunięte.
+- Kosz: suwak z boku (ostatni / następny kurs) z kłódką, bez licznika gruszek.
+- Koparka: tylko łyżki, większa łyżka i suwak, punkty pojemności (MAX).
+- Intro: 3 piosenki losowo (country, Betonkibel 1, Betonkibel 2), przesunięcie animacji per piosenka, ▶ Pokaż intro.
+- Diagram: małe pióro = 0,07 m³, licznik piór, duże cyfry nad gruszką.
+- ElevenLabs: suwak szybkości mowy 70–120% (też liczby na żywo w Swift).
+- Ekran blokady: cichy dźwięk przy pilocie + odświeżanie karty co 15 s.
+- Wydajność: diagram przeliczany dopiero przy otwarciu (intro bez zacięć), cache fmt.
+- Do sprawdzenia na iPhonie: karta na ekranie blokady, tempo ElevenLabs na żywo, timing intro nowych piosenek.
