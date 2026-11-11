@@ -117,6 +117,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var dose: Double = 0.5
     private var capacity: Double = 0.5
     private var elKey = "", elVoice = "", elModel = "eleven_multilingual_v2"
+    private var elSpeed = 0.95, elStab = 0.5, elSim = 0.75
     private var leftM3: Double = 0
     private var poured: Double = 0
     private var loadM3: Double = 0
@@ -640,6 +641,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let v = call.getDouble("elSpeed") { self.elSpeed = max(0.7, min(1.2, v)) }
+            if let v = call.getDouble("elStab") { self.elStab = v }
+            if let v = call.getDouble("elSim") { self.elSim = v }
             if let k = call.getString("elKey") { self.elKey = k }
             if let v = call.getString("elVoice") { self.elVoice = v }
             if let m = call.getString("elModel"), !m.isEmpty { self.elModel = m }
@@ -791,7 +795,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         req.setValue(elKey, forHTTPHeaderField: "xi-api-key")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-        var body: [String: Any] = ["text": text, "model_id": elModel, "voice_settings": ["stability": 0.5, "similarity_boost": 0.75]]
+        var body: [String: Any] = ["text": text, "model_id": elModel, "voice_settings": ["stability": elStab, "similarity_boost": elSim, "speed": elSpeed]]
         if elModel.contains("turbo_v2_5") || elModel.contains("flash_v2_5") { body["language_code"] = "pl" }
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: req) { data, resp, _ in

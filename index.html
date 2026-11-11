@@ -231,6 +231,7 @@
 <div class="el-lib"><button type="button" id="elBrowse" class="full primary">🎙️ Wybierz głos z biblioteki ElevenLabs</button><div id="elLibBox" hidden><div class="grid two" style="margin-top:8px"><select id="elLibGender"><option value="">Wszystkie</option><option value="female">Damskie</option><option value="male">Męskie</option></select><input id="elLibSearch" type="search" placeholder="Szukaj (np. spokojny)"></div><p class="hint" id="elLibState"></p><div id="elLibList" class="el-lib-list"></div><button type="button" id="elLibMore" class="full" hidden>Pokaż więcej</button></div></div>
 <label class="label" for="elVoice">ID głosu</label><input id="elVoice" type="text" autocomplete="off" placeholder="np. qVCMNCiCMS3amhcNBMwc">
 <label class="label" for="elModel">Model</label><select id="elModel"><option value="eleven_multilingual_v2">Multilingual v2 (najlepsza jakość)</option><option value="eleven_v3">Eleven v3 (najbardziej ekspresyjny)</option><option value="eleven_turbo_v2_5">Turbo v2.5 (szybszy, taniej)</option><option value="eleven_flash_v2_5">Flash v2.5 (najszybszy)</option></select>
+<label class="label" for="elSpd">🐢 Szybkość mowy lektora <b id="elSpdVal">95%</b></label><input id="elSpd" type="range" min="0.7" max="1.2" step="0.05" value="0.95"><p class="hint">W lewo = wolniej. Po zmianie głos pobiera się od nowa (zużywa trochę kredytów ElevenLabs). Model Eleven v3 tempa nie zmienia — wtedy wybierz Multilingual v2 albo Turbo.</p>
 <p class="hint" id="elState"></p>
 <div class="grid two" style="margin-top:8px"><button type="button" id="elTest">🔊 Sprawdź głos</button><button type="button" id="elDownload" class="primary">⬇ Pobierz głos</button></div>
 <button type="button" id="elClear" class="full warn" style="margin-top:8px">🗑 Usuń pobrany głos</button>
@@ -267,7 +268,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.5.5 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.6.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

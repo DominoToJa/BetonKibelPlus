@@ -112,8 +112,11 @@ function rgb2hsl(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b)
 function hsl2rgb(h, s, l) { h = ((h % 360) + 360) % 360 / 360; if (!s) return [l, l, l]; const q = l < .5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q; const f = t => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < .5 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p }; return [f(h + 1 / 3), f(h), f(h - 1 / 3)] }
 const hueLerp = (a, b, t) => { let d = ((b - a + 540) % 360) - 180; return a + d * t };
 let diagramCache = {};
-function recolorDiagram() {
+let diagramDirty = true;
+function recolorDiagram(force) {
   const img = document.querySelector('.drum-diagram-img'); if (!img) return;
+  if (!force && $('drum')?.classList.contains('hide')) { diagramDirty = true; return } // przeliczanie obrazka (ciężkie) tylko gdy widać diagram — nie tnie intra
+  diagramDirty = false;
   if (!img.dataset.orig) img.dataset.orig = img.getAttribute('src');
   if (settings.theme === 'violet') { img.src = img.dataset.orig; return }
   const [c1, c2] = themeColors(), key = c1 + c2; if (diagramCache[key]) { img.src = diagramCache[key]; return }
@@ -123,13 +126,17 @@ function recolorDiagram() {
       const cv = document.createElement('canvas'); cv.width = src.naturalWidth; cv.height = src.naturalHeight; const g = cv.getContext('2d'); g.drawImage(src, 0, 0);
       const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
       const O1 = rgb2hsl(...hexRgb('#8BD1E0')), O2 = rgb2hsl(...hexRgb('#9B4CD3')), N1 = rgb2hsl(...hexRgb(c1)), N2 = rgb2hsl(...hexRgb(c2));
+      const memo = new Map(); // ten sam kolor = ten sam wynik (obrazek ma mało różnych kolorów) — kilka razy szybciej
       for (let i = 0; i < d.length; i += 4) {
         if (!d[i + 3]) continue;
-        const [h, sa, l] = rgb2hsl(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255); if (sa < .04) continue;
+        const k = (d[i] << 16) | (d[i + 1] << 8) | d[i + 2], m = memo.get(k);
+        if (m !== undefined) { if (m >= 0) { d[i] = m >> 16; d[i + 1] = (m >> 8) & 255; d[i + 2] = m & 255 } continue }
+        const [h, sa, l] = rgb2hsl(d[i] / 255, d[i + 1] / 255, d[i + 2] / 255); if (sa < .04) { memo.set(k, -1); continue }
         const t = Math.min(1, Math.max(0, (((h - O1[0] + 540) % 360) - 180) / (O2[0] - O1[0])));
         const so = O1[1] + (O2[1] - O1[1]) * t, sn = N1[1] + (N2[1] - N1[1]) * t, lo = O1[2] + (O2[2] - O1[2]) * t, ln = N1[2] + (N2[2] - N1[2]) * t;
         const [r, gg, b] = hsl2rgb(hueLerp(N1[0], N2[0], t), Math.min(1, sa * sn / Math.max(.05, so)), Math.min(1, Math.max(0, l + (ln - lo) * .5 * Math.min(1, sa * 2))));
-        d[i] = r * 255; d[i + 1] = gg * 255; d[i + 2] = b * 255;
+        const R = Math.round(r * 255), G = Math.round(gg * 255), B = Math.round(b * 255); memo.set(k, (R << 16) | (G << 8) | B);
+        d[i] = R; d[i + 1] = G; d[i + 2] = B;
       }
       g.putImageData(im, 0, 0); diagramCache[key] = cv.toDataURL('image/png');
       if (themeColors().join('') === key && settings.theme !== 'violet') img.src = diagramCache[key];
@@ -156,14 +163,14 @@ let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
 const polishVoices = () => 'speechSynthesis' in window ? speechSynthesis.getVoices().filter(v => /^pl(?:-|$)/i.test(v.lang)) : [];
 // ── Lektor ElevenLabs: teksty pobrane raz z internetu, potem grane bez netu ──
 const tempoK = () => Math.min(1.15, Math.max(.8, Number(settings.tempo) || .95));
-const elSpeed = () => Math.min(1.15, Math.max(.8, Math.round(tempoK() * 100) / 100));
+const elSpeed = () => Math.min(1.2, Math.max(.7, Math.round((Number(settings.elSpd) || tempoK()) * 100) / 100)); // ElevenLabs: 0,7–1,2
 const elTag = () => [settings.elVoice, settings.elModel, settings.elStab, settings.elSim, elSpeed()].join('|');
 const elReady = () => !!(settings.el && settings.elVoice && settings.elKey);
 function elName(text) { let h = 0x811c9dc5; for (const b of new TextEncoder().encode(elTag() + '|' + String(text).trim())) { h ^= b; h = Math.imul(h, 0x01000193) >>> 0 } return h.toString(16).padStart(8, '0') }
@@ -336,7 +343,8 @@ document.addEventListener('pointerdown', () => { getAC(); bgmPrime(); if (voiceP
 function announce(txt) { const t = $('toast'); t.textContent = txt; t.style.display = 'block'; clearTimeout(announce.timeout); announce.timeout = setTimeout(() => t.style.display = 'none', 2300) }
 
 // ───────────────────────── pomocnicze ─────────────────────────
-const fmt = n => (Math.round(Number(n) * 100) / 100).toLocaleString('pl-PL', { maximumFractionDigits: 2 });
+const NF2 = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 }), fmtC = new Map();
+const fmt = n => { const v = Math.round(Number(n) * 100) / 100; let r = fmtC.get(v); if (r === undefined) { r = NF2.format(v); if (fmtC.size > 3000) fmtC.clear(); fmtC.set(v, r) } return r }; // szybciej: bez tworzenia formatera co wywołanie
 const number = x => Number(String(x ?? '').replace(',', '.').trim());
 const dur = n => { n = Math.max(0, Math.floor(Number(n) || 0)); return String(Math.floor(n / 3600)).padStart(2, '0') + ':' + String(Math.floor(n % 3600 / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0') };
 const shortDur = n => { n = Math.max(0, Math.floor(Number(n) || 0)); return Math.floor(n / 60) + ':' + String(n % 60).padStart(2, '0') };
@@ -413,6 +421,7 @@ let currentTab = 'home', bucketReturn = '';
 function tab(name) {
   if (name === 'home' && settings.startForm !== false) name = 'setup';
   currentTab = name;
+  if (name === 'drum' && diagramDirty) requestAnimationFrame(() => recolorDiagram(true));
   document.querySelectorAll('main section').forEach(s => s.classList.toggle('hide', s.id !== name));
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === TAB_OF[name]));
   if (name === 'work') { if (!session) { tab('setup'); announce('Najpierw rozpocznij betonowanie'); return } render(); tick() }
@@ -1980,6 +1989,11 @@ const elSave = e => { const hadKey = !!settings.elKey; settings.el = $('elOn').c
 for (const id of ['elOn', 'elKey', 'elVoice', 'elModel']) $(id).addEventListener('change', elSave);
 $('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu ' + ((settings.elVoiceName || 'Dasia').split(/[\s\-–—]/)[0]) + '. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });
 let elBusy = false;
+{ const r = $('elSpd'), lbl = () => { $('elSpdVal').textContent = Math.round(elSpeed() * 100) + '%' + (elSpeed() < .95 ? ' · wolniej' : elSpeed() > 1.05 ? ' · szybciej' : ' · normalnie') };
+  r.value = String(elSpeed()); lbl();
+  r.addEventListener('input', () => { settings.elSpd = Number(r.value); lbl() });
+  r.addEventListener('change', async () => { settings.elSpd = Number(r.value); saveSettings(); configureNative(); elUI?.();
+    if (elReady()) { announce('🐢 Nowe tempo ' + Math.round(elSpeed() * 100) + '% — pobieram głos od nowa…'); $('elDownload').click() } }) }
 $('elDownload').addEventListener('click', async () => {
   elSave(); if (!elReady() || elBusy) return elReady() || announce('Włącz lektora i wpisz klucz oraz ID głosu');
   elBusy = true; const all = elAllLines().filter(t => !elNames.has(elName(t))); let done = 0, err = '';
