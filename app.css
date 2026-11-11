@@ -1012,3 +1012,5 @@ body.one-hand .vs-track{bottom:52px!important}
 .pioro-tab b{font-size:15px}
 #bPhotoCalc{display:none!important}
 .tile-ico .kosz-art{width:100%;height:100%}
+.lm-dims{grid-template-columns:repeat(3,1fr)!important;gap:6px}.lm-dims .label{font-size:12px}
+#lmOut{font-size:17px;font-weight:900;color:var(--c1)}

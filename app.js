@@ -1469,21 +1469,22 @@ function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('but
 /* łyżka koparki: szerokość × długość (otwarcie) × głębokość — wystarczą 2 z 3, trzeci szacuję z typowych proporcji */
 const LM_K = { lyzka: .6, taczka: .5 }; // taczka: z katalogu (misa dł×szer×gł → litry) wychodzi ok. 50% // zaokrąglone dno / skośne ścianki — ok. 60% prostopadłościanu
 const LM_TXT = {
-  lyzka: { head: '📏 Pomiar łyżki miarką', hLabel: 'Głębokość (cm)', ph: ['np. 80', 'np. 90', 'np. 75'], hint: 'Szerokość: w środku, między bokami. Długość: od zębów do tylnej ścianki. Głębokość: od krawędzi do dna.', est: { H: l => l * .85, L: (w, h) => h ? h / .85 : w, W: l => l } },
-  taczka: { head: '📏 Pomiar taczki miarką', hLabel: 'Głębokość (cm)', ph: ['np. 60', 'np. 90', 'np. 25'], hint: 'Długość i szerokość: górą, po wewnętrznej krawędzi wanny (± kilka cm nie szkodzi). Głębokość: od krawędzi do dna.', est: { H: l => l * .33, L: (w, h) => w ? w / .7 : h / .33, W: l => l * .7 } },
+  lyzka: { head: '📏 Pomiar łyżki miarką', hLabel: 'Wysokość', ph: ['np. 80', 'np. 90', 'np. 75'], hint: 'Szerokość: w środku, między bokami. Długość: od zębów do tylnej ścianki. Wysokość (= głębokość): od krawędzi do dna. Możesz wpisać w cm albo w metrach.', est: { H: l => l * .85, L: (w, h) => h ? h / .85 : w, W: l => l } },
+  taczka: { head: '📏 Pomiar taczki miarką', hLabel: 'Wysokość', ph: ['np. 60', 'np. 90', 'np. 25'], hint: 'Długość i szerokość: górą, po wewnętrznej krawędzi wanny (± kilka cm nie szkodzi). Wysokość (= głębokość): od krawędzi do dna. Możesz wpisać w cm albo w metrach.', est: { H: l => l * .33, L: (w, h) => w ? w / .7 : h / .33, W: l => l * .7 } },
 };
 function lmCalc() {
-  const W = number($('lmW').value), L = number($('lmL').value), H = number($('lmH').value), ok = v => v > 10 && v < 400, n = [W, L, H].filter(ok).length;
+  const cm = v => { v = number(v); return v > 0 && v < 5 ? v * 100 : v }; // wpisane w metrach (0,8) → cm
+  const W = cm($('lmW').value), L = cm($('lmL').value), H = cm($('lmH').value), ok = v => v > 10 && v < 400, n = [W, L, H].filter(ok).length;
   if (n < 2) { $('lmMatch')?.replaceChildren(); $('lmOut').textContent = 'Wpisz co najmniej 2 wymiary (najlepiej szerokość i długość) — policzę pojemność.'; return 0 }
   const kind = $('bKind').value === 'taczka' ? 'taczka' : 'lyzka', E = LM_TXT[kind].est;
   const l = ok(L) ? L : E.L(ok(W) ? W : 0, ok(H) ? H : 0), w = ok(W) ? W : E.W(l), h = ok(H) ? H : E.H(l), est = n < 3;
   const cap = Math.round(w * l * h / 1e6 * LM_K[kind] * 1000) / 1000;
   catMatch(kind, ok(W) ? W : 0, ok(L) ? L : 0, ok(H) ? H : 0, cap);
-  $('lmOut').textContent = '≈ ' + fmt(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)) + ' m³ betonu ' + (kind === 'taczka' ? 'w taczce (' + Math.round(cap * 1000) + ' l)' : 'w łyżce') + (est ? ' (szacunek — ' + (!ok(H) ? 'głębokość' : !ok(L) ? 'długość' : 'szerokość') + ' ≈ ' + Math.round(!ok(H) ? h : !ok(L) ? l : w) + ' cm; podaj, będzie dokładniej)' : '');
-  $('bReal').value = String(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)).replace('.', ','); if (!$('bShape').value || $('bShape').value === 'cone') $('bShape').value = 'plate';
+  $('lmOut').textContent = '≈ ' + fmt(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)) + ' m³ betonu ' + (kind === 'taczka' ? 'w taczce (' + Math.round(cap * 1000) + ' l)' : 'w łyżce') + (est ? ' (szacunek — ' + (!ok(H) ? 'wysokość' : !ok(L) ? 'długość' : 'szerokość') + ' ≈ ' + Math.round(!ok(H) ? h : !ok(L) ? l : w) + ' cm; podaj, będzie dokładniej)' : '');
+  $('bReal').value = String(Math.round(cap * (kind === 'taczka' ? 1000 : 100)) / (kind === 'taczka' ? 1000 : 100)).replace('.', ','); $('bPlate').value = ''; $('bReal').dispatchEvent(new Event('input', { bubbles: true })); if (!$('bShape').value || $('bShape').value === 'cone') $('bShape').value = 'plate';
   return cap;
 }
-['lmW', 'lmL', 'lmH'].forEach(id => $(id).addEventListener('input', lmCalc));
+['lmW', 'lmL', 'lmH'].forEach(id => ['input', 'change', 'keyup', 'blur'].forEach(ev => $(id).addEventListener(ev, lmCalc)));
 function formSimple() {
   const kind = $('bKind').value, k = kind === 'kosz', lm = kind === 'lyzka' || kind === 'taczka', T = LM_TXT[kind] || LM_TXT.lyzka;
   $('lmBox').classList.toggle('hide', !lm); $('lmHead').textContent = T.head; $('lmHint').textContent = T.hint;
@@ -1496,6 +1497,7 @@ $('bKind').addEventListener('change', () => { formSimple(); dimFields($('bShape'
 function closeBucketForm() { $('bucketForm').classList.add('hide'); $('newBucket').classList.remove('hide'); editingId = '' }
 $('newBucket').addEventListener('click', () => openBucketForm()); $('bCancel').addEventListener('click', closeBucketForm);
 $('bSave').addEventListener('click', () => {
+  if (['lyzka', 'taczka'].includes($('bKind').value) && ($('lmW').value || $('lmL').value || $('lmH').value)) lmCalc();
   const shape = $('bShape').value, dims = shape === 'plate' ? null : formDims(), plate = number($('bPlate').value), real = number($('bReal').value), geo = dims ? geoCapacity(shape, dims) : null;
   if (shape !== 'plate' && !dims && !(real > 0 || plate > 0)) return $('bError').textContent = 'Uzupełnij wymiary albo policz ze zdjęć.';
   const capacity = real > 0 ? real : plate > 0 ? plate : geo;

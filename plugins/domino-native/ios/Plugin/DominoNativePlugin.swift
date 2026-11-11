@@ -183,7 +183,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             nextSay()
         }
         if listening && !inCall && !isSpeaking && !engine.isRunning { resumeAfterBreak() }   // mikrofon padł
-        if UIApplication.shared.applicationState != .active { if active && !inCall && !engine.isRunning { startKeepAlive() } else if !active { stopKeepAlive() } }
+        if !active { stopKeepAlive(); lockTimer?.invalidate(); lockTimer = nil }
+        else if UIApplication.shared.applicationState != .active && !inCall && (!engine.isRunning || headsetButtons) { startKeepAlive() }
     }
     private func pauseForCall() {
         sayQueue.removeAll(); isSpeaking = false
@@ -477,8 +478,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return MPMediaItemArtwork(boundsSize: size) { _ in img }
     }
     // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
-    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus(); self.startKeepAlive() } }
-    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); self.stopKeepAlive() } }
+    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus(); self.startKeepAlive(); self.lockRefresh() } }
+    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); if !self.headsetButtons { self.stopKeepAlive() }; self.updateNowPlaying() } }
 
     // MARK: - Praca w tle bez mikrofonu: cichy dźwięk trzyma apkę przy życiu, żeby pytała o kosz i liczyła czas
     private var keepPlayer: AVAudioPlayer?
@@ -494,14 +495,32 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
     private func startKeepAlive() {
         guard active, !inCall, keepPlayer?.isPlaying != true else { return }
-        if engine.isRunning { return }   // mikrofon i tak trzyma apkę w tle
+        // mikrofon trzyma apkę w tle, ale ekran blokady (karta „teraz odtwarzane”) pokazuje się tylko,
+        // gdy apka coś GRA — więc przy pilocie cichy dźwięk leci zawsze
+        if engine.isRunning && !headsetButtons { return }
         do {
             try configureSession()
             let p = try AVAudioPlayer(data: silentWav())
-            p.numberOfLoops = -1; p.volume = 0
+            p.numberOfLoops = -1; p.volume = headsetButtons ? 0.01 : 0   // dane to cisza — nic nie słychać
             p.prepareToPlay(); p.play()
             keepPlayer = p
         } catch { }
+        lockRefresh()
+    }
+    /// karta na ekranie blokady potrafi zniknąć (inna apka, zmiana sesji) — odświeżamy ją co 15 s w tle
+    private var lockTimer: Timer?
+    private func lockRefresh() {
+        guard headsetButtons, active else { lockTimer?.invalidate(); lockTimer = nil; return }
+        UIApplication.shared.beginReceivingRemoteControlEvents()
+        setupRemote()
+        if lockTimer == nil {
+            lockTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                if !self.active || !self.headsetButtons { self.lockTimer?.invalidate(); self.lockTimer = nil; return }
+                if UIApplication.shared.applicationState != .active && self.keepPlayer?.isPlaying != true && !self.inCall { self.startKeepAlive() }
+                self.updateNowPlaying()
+            }
+        }
     }
     private func stopKeepAlive() { keepPlayer?.stop(); keepPlayer = nil }
     private func statusLine() -> String {
