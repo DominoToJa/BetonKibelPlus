@@ -1003,3 +1003,10 @@ body.m-kosz .kurs-truck,body.m-kosz .kurs-learn{display:none!important}
 #bucketPanel{-webkit-user-select:none;user-select:none}
 body.one-hand .vs-track{bottom:52px!important}
 .cat-flt{margin:4px 0 8px;gap:6px;flex-wrap:wrap}.cat-flt small{width:100%;font-weight:800;opacity:.8}
+
+.pioro-card{display:flex;align-items:center;gap:12px;margin:12px 0 8px;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--c1) 22%,transparent),color-mix(in srgb,var(--c2) 18%,transparent));border:1.5px solid color-mix(in srgb,var(--c1) 55%,transparent)}
+.pioro-ico{font-size:34px;line-height:1}
+.pioro-card b{display:block;font-size:22px;color:var(--c1)}.pioro-card small{opacity:.8;font-weight:700}
+.pioro-tab{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pioro-tab span{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:12px;background:color-mix(in srgb,var(--c1) 8%,transparent);font-size:12px;font-weight:700;opacity:.95}
+.pioro-tab b{font-size:15px}
