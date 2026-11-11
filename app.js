@@ -936,7 +936,17 @@ function makeTaczkaSvg(cap, current, model) {
 }
 function makeKoparkaSvg(cap, current, model) {
   const b = 'M72 100 H292 C322 150 304 226 228 254 L100 256 Q74 256 72 232 Z';
-  return `<svg viewBox="0 0 360 ${SVG_H}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  cap = Math.max(0.01, Number(cap) || .5); const cur = Math.min(cap * 1.1, Math.max(0, Number(current) || 0));
+  const yOf = v => 256 - 156 * (model?.fraction ? model.fraction(v) : v / cap), xIn = y => 76 + (256 - y) * .02; // lewa ścianka łyżki
+  let marks = '', lastY = 1e9;
+  bucketMarks(cap).slice().reverse().forEach((v, ri, arr) => {
+    const last = ri === 0, y = yOf(v), hit = !last && cur >= v - 1e-6, col = last ? '#ff4d5e' : hit ? 'var(--c1)' : '#9aa6b2', x = xIn(y);
+    marks += `<line x1="${x + 4}" y1="${y}" x2="${x + 46}" y2="${y}" style="stroke:${col}" stroke-width="${last ? 3 : 2.2}" ${last ? '' : 'stroke-dasharray="4 5"'}/><circle cx="${x + 18}" cy="${y}" r="${last ? 7 : 5.5}" style="fill:${col}" stroke="#0b1426" stroke-width="2"/>`;
+    if (!last && Math.abs(lastY - y) < 26) return; lastY = y;
+    const t = (last ? 'MAX ' : '') + fmt(v), w = t.length * 10 + 16;
+    marks += `<rect x="${x + 52}" y="${y - 12}" width="${w}" height="24" rx="8" fill="#0b1426" fill-opacity=".85" style="stroke:${col}" stroke-width="1.5"/><text x="${x + 52 + w / 2}" y="${y + 5.5}" text-anchor="middle" font-size="15" font-weight="900" style="fill:${col}">${t}</text>`;
+  });
+  return `<svg viewBox="40 4 318 296" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <ellipse cx="185" cy="300" rx="140" ry="9" fill="#0008"/>
   <path d="M292 100 L352 6" stroke="#ffb703" stroke-width="30" stroke-linecap="round"/><path d="M292 100 L352 6" stroke="#0004" stroke-width="30" stroke-dasharray="2 22"/>
   <path d="M250 98 L318 30" stroke="#5b6672" stroke-width="12" stroke-linecap="round"/><path d="M262 86 L300 48" stroke="#cfd8e0" stroke-width="5" stroke-linecap="round"/>
@@ -946,7 +956,8 @@ function makeKoparkaSvg(cap, current, model) {
   <path d="M66 100 H298" stroke="color-mix(in srgb, var(--c1) 60%, #fff)" stroke-width="9" stroke-linecap="round"/>
   <g fill="#cfd8e0" stroke="#5b6672" stroke-width="2" stroke-linejoin="round"><path d="M74 214 L44 226 L72 232 Z"/><path d="M76 234 L48 250 L80 252 Z"/><path d="M92 254 L70 270 L104 256 Z"/></g>
   <circle cx="292" cy="100" r="13" fill="#2b3340" stroke="#9aa6b2" stroke-width="4"/><circle cx="250" cy="100" r="10" fill="#2b3340" stroke="#9aa6b2" stroke-width="4"/>
-  ${valPill(180, 185, current, cap)}
+  ${marks}
+  ${valPill(214, 226, current, cap)}
 </svg>`;
 }
 function makeBucketSvgHud(cap, current, model) {
@@ -1091,7 +1102,7 @@ function render() {
   $('bucket').setAttribute('aria-label', 'Dodaj ' + fmt(s.dose) + ' m³');
   const ab = $('activeBucket'); ab.replaceChildren();
   const cur = s.bucketProfile; ab.classList.toggle('hide', !cur);
-  if (cur) ab.append(el('div', { class: 'ab-info' }, el('strong', { text: '📐 ' + cur.name + ' · ' + fmt(s.capacity) + ' m³' }), el('small', { text: model.measured ? 'dokładna podziałka z pomiaru / zdjęć' : 'zapisany kosz' })));
+  if (cur) ab.append(el('div', { class: 'ab-info' }, el('strong', { text: '📐 ' + cur.name + ' · ' + fmt(s.capacity) + ' m³' }), el('small', { text: model.measured ? 'dokładna podziałka z pomiaru' : ({ taczka: 'zapisana taczka', inne: 'zapisana łyżka' }[s.method] || 'zapisany kosz') })));
   const q = $('quick'); q.replaceChildren(); q.classList.remove('hide');
   for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!cur && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { customOpen = false; changeCapacity(v, null) } }));
   const isCustom = !cur && !(opts[s.method] || []).some(v => Math.abs(v - s.capacity) < 1e-4);
@@ -1104,6 +1115,7 @@ function render() {
   }
   const KW = s.method === 'inne' ? ['Łyżka', 'łyżki'] : ['Kosz', 'kosza']; $('status').textContent = s.method === 'taczka' ? 'Taczka' : phase === 'away' ? KW[0] + ' w drodze' : phase === 'late' ? KW[0] + (s.method === 'inne' ? ' się spóźnia' : ' się spóźnia') : phase === 'returned' ? (s.method === 'inne' ? 'Łyżka wróciła — ustaw ile wlano i dotknij łyżki' : 'Kosz wrócił — ustaw ile wlano i dotknij kosza') : 'Gotowy';
   cmdRender(s.method);
+  $('ohDoseW').textContent = { taczka: 'w taczce', inne: 'w łyżce' }[s.method] || 'w koszu';
   $('quickCapsLabel').textContent = 'Pojemność ' + ({ taczka: 'taczki', inne: 'łyżki' }[s.method] || 'kosza');
   $('entries').innerHTML = s.entries.length ? s.entries.slice().reverse().map(e => '<div class="history-entry"><span>' + new Date(e.at).toLocaleTimeString('pl-PL') + '</span><strong>+' + fmt(e.amount) + ' m³</strong></div>').join('') : '<div class="help">Brak dolewek</div>';
 }

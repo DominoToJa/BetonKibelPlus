@@ -1014,3 +1014,9 @@ body.one-hand .vs-track{bottom:52px!important}
 .tile-ico .kosz-art{width:100%;height:100%}
 .lm-dims{grid-template-columns:repeat(3,1fr)!important;gap:6px}.lm-dims .label{font-size:12px}
 #lmOut{font-size:17px;font-weight:900;color:var(--c1)}
+
+/* koparka: większa łyżka i suwak */
+.bucket-stage:has(#vslider.m-inne){grid-template-columns:minmax(0,1fr) 112px!important}
+#vslider.m-inne .vs-track{top:7%!important;bottom:14%!important;width:26px!important;left:50%!important;margin-left:-13px}
+#vslider.m-inne .vs-thumb{width:48px!important;height:48px!important;margin-left:-24px!important;margin-bottom:-24px!important}
+#vslider.m-inne .vs-lock{bottom:0}
