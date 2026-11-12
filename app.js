@@ -679,6 +679,7 @@ function finishCurrent(showNotice = true) {
   if (!session) return;
   archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
+  $('site').value = ''; $('load').value = ''; $('load').placeholder = 'np. 7,5'; $('error').textContent = ''; $('status').textContent = 'Gotowy'; // Start od zera na nowe betonowanie
   NATIVE.cancel?.(); syncNative(); if (showNotice) { if (false) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
 }
 $('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return;
@@ -1484,8 +1485,57 @@ function qmCalc() {
   const mt = eichMatch(D, H); $('qmMatch').replaceChildren(...(mt.length ? [el('small', { text: 'Pasuje do katalogu Eichinger:' }), ...mt.map(({ m }) => el('button', { type: 'button', class: 'pill', text: m.typ + ' · ' + (m.l / 1000).toLocaleString('pl-PL') + ' m³', onclick: () => { $('bName').value = $('bName').value || 'Eichinger ' + m.typ + ' · ' + m.l + ' l'; $('bPlate').value = fmt(m.l / 1000); $('bReal').value = ''; announce('Wybrano ' + m.typ + ' — ' + eichMass(m)) } }))] : []));
   return cap;
 }
-function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t[0] === qmType ? ' on' : ''), onclick: () => { qmType = t[0]; qmRender(); qmCalc() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] })))) }
+function qmRender() { $('qmTypes').replaceChildren(...TEMPLATES.map(t => el('button', { type: 'button', class: 'tpl' + (t[0] === qmType ? ' on' : ''), onclick: () => { qmType = t[0]; qmRender(); qmCalc(); qmTapeRender() } }, tplSvg(t[3], t[4]), el('b', { text: t[1] })))) }
 ['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmCalc));
+
+/* ── miarka na rysunku: pokazuje GDZIE mierzyć i wpisane wymiary ── */
+const TAPE = '#ffcc00';
+const tapeH = (x1, x2, y, label) => { const n = Math.max(4, Math.round((x2 - x1) / 8)); let t = `<rect x="${x1}" y="${y - 7}" width="${x2 - x1}" height="14" rx="2" fill="${TAPE}" stroke="#7a5d00" stroke-width="1"/>`;
+  for (let i = 0; i <= n; i++) { const x = x1 + (x2 - x1) * i / n; t += `<path d="M${x.toFixed(1)} ${y - 7}v${i % 2 ? 4 : 7}" stroke="#111" stroke-width="1"/>` }
+  return t + `<path d="M${x1} ${y - 14}v28M${x2} ${y - 14}v28" stroke="${TAPE}" stroke-width="2" stroke-dasharray="3 2"/>` + tapePill((x1 + x2) / 2, y - 22, label) };
+const tapeV = (x, y1, y2, label, side = 1) => { const n = Math.max(4, Math.round((y2 - y1) / 8)); let t = `<rect x="${x - 7}" y="${y1}" width="14" height="${y2 - y1}" rx="2" fill="${TAPE}" stroke="#7a5d00" stroke-width="1"/>`;
+  for (let i = 0; i <= n; i++) { const y = y1 + (y2 - y1) * i / n; t += `<path d="M${x - 7} ${y.toFixed(1)}h${i % 2 ? 4 : 7}" stroke="#111" stroke-width="1"/>` }
+  return t + `<path d="M${x - 16} ${y1}h32M${x - 16} ${y2}h32" stroke="${TAPE}" stroke-width="2" stroke-dasharray="3 2"/>` + tapePill(x + side * 34, (y1 + y2) / 2, label) };
+const tapeLine = (x1, y1, x2, y2, label, px, py) => { const len = Math.hypot(x2 - x1, y2 - y1), ang = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI, n = Math.max(4, Math.round(len / 8));
+  let t = `<g transform="translate(${x1} ${y1}) rotate(${ang.toFixed(1)})"><rect x="0" y="-7" width="${len.toFixed(1)}" height="14" rx="2" fill="${TAPE}" stroke="#7a5d00" stroke-width="1"/>`;
+  for (let i = 0; i <= n; i++) t += `<path d="M${(len * i / n).toFixed(1)} -7v${i % 2 ? 4 : 7}" stroke="#111" stroke-width="1"/>`;
+  return t + '</g>' + tapePill(px, py, label) };
+const tapePill = (x, y, label) => { const w = label.length * 7.2 + 14; return `<rect x="${(x - w / 2).toFixed(1)}" y="${y - 10}" width="${w.toFixed(1)}" height="20" rx="7" fill="#0b1426" stroke="${TAPE}" stroke-width="1.5"/><text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="12.5" font-weight="900" fill="${TAPE}">${label}</text>` };
+const tapeWrap = inner => { const d = el('div', { class: 'tape-view' }); d.innerHTML = `<svg viewBox="0 0 260 210" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`; return d };
+const v = (x, unit = 'cm') => (x > 0 ? fmt(x) + ' ' + unit : '?');
+function qmTapeRender() {
+  const box = $('qmTape'); if (!box || box.classList.contains('hide')) return;
+  const t = TEMPLATES.find(x => x[0] === qmType) || TEMPLATES[0], d = t[4], D = number($('qmD').value), H = number($('qmH').value), rect = t[3] === 'rect';
+  let pts; if (t[3] === 'cone') pts = [[0, d.dTop / 2], [d.h, d.dBottom / 2]]; else if (t[3] === 'cylcone') pts = [[0, d.d / 2], [d.hCyl, d.d / 2], [d.hCyl + d.hCone, d.dOut / 2]]; else if (t[3] === 'cylinder') pts = [[0, d.d / 2], [d.h, d.d / 2]]; else pts = [[0, d.lTop / 2], [d.h, d.lBottom / 2]];
+  const Hh = pts.at(-1)[0], Wm = Math.max(...pts.map(p => p[1])), k = Math.min(110 / Hh, 62 / Wm), top = 62, ox = 104;
+  const L = pts.map(([y, w]) => [ox - w * k, top + y * k]), R = pts.map(([y, w]) => [ox + w * k, top + y * k]), bot = L.at(-1)[1], wt = R[0][0] - ox, wb = R.at(-1)[0] - ox;
+  const f = a => a.map(p => p.map(q => q.toFixed(1)).join(',')).join(' ');
+  let g = `<polygon points="${f([...L, ...R.slice().reverse()])}" fill="color-mix(in srgb,var(--c1) 28%,transparent)" stroke="var(--c1)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  g += `<rect x="${ox - Math.max(6, wb)}" y="${bot}" width="${2 * Math.max(6, wb)}" height="6" rx="2" fill="#555" stroke="var(--c1)"/>`; // zamknięcie
+  g += `<path d="M${ox - wt * .6} ${top + (bot - top) * .6}L${ox - wt * .6 - 8} 204M${ox + wt * .6} ${top + (bot - top) * .6}L${ox + wt * .6 + 8} 204" stroke="#777" stroke-width="3" stroke-dasharray="5 4"/><text x="${ox}" y="203" text-anchor="middle" font-size="10" font-weight="800" fill="#ff6b6b">nogi / rama — nie mierz</text>`;
+  g += tapeH(ox - wt, ox + wt, top - 12, (rect ? 'dł. ' : 'Ø ') + v(D)).replace('rx="7"', 'rx="7"');
+  const tx = ox + wt + 20; g += tapeV(tx, top, bot, v(H), 1).replace(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="20" rx="7"([^>]*)><text x="([\d.]+)"/, (m, a, b, w, rest, x) => `<rect x="${tx + 12}" y="${b}" width="${w}" height="20" rx="7"${rest}><text x="${tx + 12 + Number(w) / 2}"`);
+  g += `<text x="${tx}" y="${top - 6}" text-anchor="middle" font-size="11" font-weight="900" fill="${TAPE}">wys.</text><text x="130" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="var(--c1)">Ø górą, po wewn. krawędzi · wys. od wylotu</text>`;
+  box.replaceChildren(tapeWrap(g));
+}
+function lmTapeRender() {
+  const box = $('lmTape'); if (!box || box.classList.contains('hide')) return;
+  const cm = x => { x = number(x); return x > 0 && x < 5 ? x * 100 : x };
+  const L = cm($('lmL').value), W = cm($('lmW').value), H = cm($('lmH').value), tacz = $('bKind').value === 'taczka';
+  // pudełko w rzucie 3D: przód 40..170 × 70..150, głębia +50,-30
+  let g = `<path d="M40 70h130l50-30H90z" fill="color-mix(in srgb,var(--c1) 18%,transparent)" stroke="var(--c1)" stroke-width="2"/>`;
+  g += tacz ? `<path d="M40 70h130l-18 70H58z" fill="color-mix(in srgb,var(--c1) 30%,transparent)" stroke="var(--c1)" stroke-width="2.5"/><path d="M170 70l50-30-16 68-52 32" fill="color-mix(in srgb,var(--c1) 22%,transparent)" stroke="var(--c1)" stroke-width="2"/><circle cx="40" cy="168" r="16" fill="#333" stroke="var(--c1)" stroke-width="2"/><path d="M152 140l60 44M58 140l-14 14" stroke="#888" stroke-width="3"/>`
+    : `<path d="M40 70h130q8 50-24 80H66q-34-30-26-80z" fill="color-mix(in srgb,var(--c1) 30%,transparent)" stroke="var(--c1)" stroke-width="2.5"/><path d="M170 70l50-30q8 46-22 74l-52 36" fill="color-mix(in srgb,var(--c1) 22%,transparent)" stroke="var(--c1)" stroke-width="2"/>` + [0, 1, 2, 3].map(i => `<path d="M${74 + i * 22} 150l5 12l5-12" fill="var(--c1)"/>`).join('');
+  g += tapeH(40, 170, 56, 'dł. ' + v(L));
+  g += tapeLine(176, 78, 226, 48, 'szer. ' + v(W), 192, 100);
+  g += tapeV(26, 70, tacz ? 140 : 150, '', -1).replace(/<rect x="[^"]*" y="[^"]*" width="[^"]*" height="20"[^>]*><text[^>]*><\/text>/, '') + tapePill(26, (tacz ? 140 : 150) + 20, 'wys. ' + v(H));
+  g = `<g transform="translate(14 8)">${g}</g>`;
+  g += `<text x="130" y="204" text-anchor="middle" font-size="11" font-weight="800" fill="var(--c1)">mierz w środku · wys. = od krawędzi do dna</text>`;
+  box.replaceChildren(tapeWrap(g));
+}
+const tapeToggle = (btn, box, draw) => { $(btn).addEventListener('click', () => { const on = $(box).classList.toggle('hide') === false; $(btn).textContent = on ? '📏 Schowaj miarkę' : '📏 Pokaż miarkę — gdzie mierzyć'; $(btn).classList.toggle('on', on); draw() }) };
+tapeToggle('qmTapeBtn', 'qmTape', qmTapeRender); tapeToggle('lmTapeBtn', 'lmTape', lmTapeRender);
+['qmD', 'qmH', 'qmW'].forEach(id => $(id).addEventListener('input', qmTapeRender)); ['lmL', 'lmW', 'lmH'].forEach(id => $(id).addEventListener('input', lmTapeRender));
 /** kosz = tylko nazwa i pojemność (bez kształtu, zdjęć do liczenia i wymiarów) */
 /* łyżka koparki: szerokość × długość (otwarcie) × głębokość — wystarczą 2 z 3, trzeci szacuję z typowych proporcji */
 const LM_K = { lyzka: .6, taczka: .5 }; // taczka: z katalogu (misa dł×szer×gł → litry) wychodzi ok. 50% // zaokrąglone dno / skośne ścianki — ok. 60% prostopadłościanu

@@ -1038,3 +1038,7 @@ body.one-hand .vs-track{bottom:52px!important}
 .drum-labels b{display:block;min-width:26px;padding:1px 4px;border-radius:7px;background:var(--c1);color:#071018;font-size:18px;font-weight:900;line-height:1.15;text-align:center;box-shadow:0 2px 6px #0009}
 .drum-labels span::after{content:"";width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--c1);margin-top:-1px}
 .drum-unit{text-align:center;font-size:12px;font-weight:800;opacity:.75;margin-top:4px}
+
+.tape-btn{width:100%;margin:8px 0 4px;font-weight:900}.tape-btn.on{border-color:#ffcc00!important;color:#ffcc00}
+.tape-view{margin:4px 0 8px;border-radius:14px;background:#0b1426;border:1px solid color-mix(in srgb,#ffcc00 40%,transparent);padding:4px}
+.tape-view svg{width:100%;height:auto;display:block}

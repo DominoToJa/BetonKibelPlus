@@ -38,7 +38,7 @@
 
 <section id="setup" class="hide"><div class="panel"><h2>Nowe betonowanie</h2>
 <label class="label" for="site">Nazwa budowy</label><input id="site" list="knownSites" placeholder="np. Mindelheim — fundamenty" autocomplete="off"><datalist id="knownSites"></datalist><p class="hint" id="autoBucketHint"></p>
-<label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5">
+<label class="label" for="load">Załadowano (m³)</label><input id="load" type="text" inputmode="decimal" value="7,5" placeholder="np. 7,5">
 <div class="label">Rozładunek</div><div class="grid three"><button class="method on" data-method="kibel" type="button">🏗<br>Kosz</button><button class="method" data-method="taczka" type="button">🛒<br>Taczka</button><button class="method" data-method="inne" type="button">🚜<br>Koparka</button></div>
 <div class="label" id="presetsLabel">Kosz</div><button type="button" id="bucketPick" class="bucket-pick"></button><div id="presets" class="chips"></div>
 <button type="button" class="link-btn" data-go="buckets" id="setupBucketsLink">Zmierz / dodaj własny kosz ›</button>
@@ -68,7 +68,7 @@
   <div id="lmBox" class="qm-box hide">
    <div class="qm-head"><span id="lmHead">📏 Pomiar łyżki miarką</span> <span class="muted">(długość × szerokość × wysokość · wystarczą 2)</span></div>
    <div class="grid three lm-dims"><label class="label">Długość<input id="lmL" inputmode="decimal" placeholder="np. 90"></label><label class="label">Szerokość<input id="lmW" inputmode="decimal" placeholder="np. 80"></label><label class="label"><span id="lmHLabel">Wysokość (cm)</span><input id="lmH" inputmode="decimal" placeholder="np. 75"></label></div>
-   <div class="qm-match chips" id="lmMatch"></div><p class="qm-out" id="lmOut">Wpisz co najmniej 2 wymiary — policzę pojemność.</p>
+   <button type="button" class="secondary tape-btn" id="lmTapeBtn">📏 Pokaż miarkę — gdzie mierzyć</button><div id="lmTape" class="hide"></div><div class="qm-match chips" id="lmMatch"></div><p class="qm-out" id="lmOut">Wpisz co najmniej 2 wymiary — policzę pojemność.</p>
    <p class="hint" id="lmHint"></p>
   </div>
   <div id="qmBox" class="qm-box">
@@ -76,7 +76,7 @@
    <div class="qm-types" id="qmTypes"></div>
    <div class="grid two"><label class="label"><span id="qmDLabel">Średnica górą (cm)</span><input id="qmD" inputmode="decimal" placeholder="np. 120"></label><label class="label">Wysokość leja (cm)<input id="qmH" inputmode="decimal" placeholder="np. 100"></label></div>
    <label class="label hide" id="qmWRow">Szerokość górą (cm) <span class="muted">opcjonalnie</span><input id="qmW" inputmode="decimal" placeholder="np. 80"></label>
-   <p class="hint" id="qmHHint">📏 Wysokość: od wylotu (zamknięcia na dole) do górnej krawędzi kosza. Bez nóg i ramy, nie od ziemi.</p><div class="qm-match chips" id="qmMatch"></div>
+   <button type="button" class="secondary tape-btn" id="qmTapeBtn">📏 Pokaż miarkę — gdzie mierzyć</button><div id="qmTape" class="hide"></div><p class="hint" id="qmHHint">📏 Wysokość: od wylotu (zamknięcia na dole) do górnej krawędzi kosza. Bez nóg i ramy, nie od ziemi.</p><div class="qm-match chips" id="qmMatch"></div>
    <p class="qm-out" id="qmOut">Wybierz rodzaj i wpisz wymiary — policzę pojemność.</p>
    <p class="hint">Wysokość: od dołu wylewu do górnej krawędzi. Możesz zmierzyć apką Miarka w iPhonie.</p>
   </div>
@@ -268,7 +268,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.6.1 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.6.2 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
