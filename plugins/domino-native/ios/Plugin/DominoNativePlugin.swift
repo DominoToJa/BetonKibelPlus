@@ -123,7 +123,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var loadM3: Double = 0
     private var fired: Set<String> = []
     private var askTimer: Timer?
-    private var reminders = 0
+    private var reminders = 0, remindSec = 45.0, remindMax = 5
     private var pending: [[String: Any]] = []
     private let callObserver = CXCallObserver()
     private var inCall = false
@@ -641,6 +641,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let u = call.getBool("useClips") { self.useClips = u }
             if let e = call.getBool("elOn") { self.elOn = e }
             if let g = call.getString("elTag") { self.elTag = g }
+            if let v = call.getDouble("remindSec") { self.remindSec = max(10, v) }
+            if let v = call.getInt("remindMax") { self.remindMax = max(0, v) }
             if let v = call.getDouble("elSpeed") { self.elSpeed = max(0.7, min(1.2, v)) }
             if let v = call.getDouble("elStab") { self.elStab = v }
             if let v = call.getDouble("elSim") { self.elSim = v }
@@ -1049,11 +1051,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let first = phase == "away"
         phase = "late"
         reminders += 1
-        deadline = nowMs() + 20000
+        if !first && reminders > remindMax + 1 { deadline = 0; return }   // limit przypomnień — dalej cisza, pytanie czeka na ekranie
+        deadline = nowMs() + remindSec * 1000
         pending.append(["type": "alarm", "at": nowMs()])
         say(key: first ? "ask" : "remind", text: nil)
         vibrateBurst()
-        if reminders < 40 { scheduleAsk() }
+        if reminders <= remindMax { scheduleAsk() }
     }
 
     private func norm(_ s: String) -> String {

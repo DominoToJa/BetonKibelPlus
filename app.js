@@ -162,8 +162,9 @@ const saveTexts = () => { try { localStorage.setItem(TEXT_KEY, JSON.stringify(TE
 let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
+  window.__bkpRemind = { gap: remindCfg().gap, cycles: remindCfg().max + 1, burst: remindCfg().burst };
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -374,7 +375,10 @@ const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1],
 // ───────────────────────── stan ─────────────────────────
 let session = null, archive = [], method = 'kibel', chosenProfileId = '';
 let phase = 'ready', departed = 0, deadline = 0, alarmVisible = false, nextReminder = 0;
-const REMIND_MS = 20000; // co ile przypominać „Czy kosz już jest?”
+/* przypomnienia „Czy kosz już jest?” — ile i jak często (Opcje → Przypomnienia) */
+const REMIND = { czesto: { gap: 20000, max: 40, burst: 3, label: 'Często — co 20 s, bez końca' }, normal: { gap: 45000, max: 5, burst: 1, label: 'Normalnie — co 45 s, max 5 razy' }, rzadko: { gap: 90000, max: 2, burst: 1, label: 'Rzadko — co 1,5 min, max 2 razy' } };
+const remindCfg = () => REMIND[settings.remindMode] || REMIND.normal;
+let REMIND_MS = 45000, remindN = 0;
 let alarmSince = 0;
 /** mocne przypomnienie: dźwięk + wibracja + głos */
 function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (key === 'ask') setTimeout(() => { if (alarmVisible) { beep(); sayBot('remind') } }, 6000); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
@@ -719,7 +723,7 @@ $('new').addEventListener('click', async () => { if (session && !(await ask('Zak
 function depart({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
   if ((phase === 'away' || phase === 'late') && !silent) return announce('Kosz już jest w drodze');
-  departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; alarmVisible = false; nextReminder = 0;
+  departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; remindN = 0; alarmVisible = false; nextReminder = 0;
   remember(); render(); NATIVE.schedule?.(deadline, SHORT.ask); if (!silent) sayBot('depart');
 }
 function returned({ at = Date.now(), silent = false } = {}) {
@@ -730,7 +734,7 @@ function returned({ at = Date.now(), silent = false } = {}) {
 }
 function delay({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
-  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + REMIND_MS; deadline = nextReminder;
+  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + remindCfg().gap; deadline = nextReminder;
   remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind); if (!silent) sayBot('late');
 }
 window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
@@ -748,7 +752,7 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   if (session.method !== 'taczka') {
     if (departed && (phase === 'away' || phase === 'late')) session.trips.push({ seconds: Math.max(1, Math.round((at - departed) / 1000)), at });
     if (amount >= before - 0.00001 && !(koszM && before <= 0.0001)) { resetTrip(); NATIVE.cancel?.() }
-    else { departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; alarmVisible = false; nextReminder = 0; NATIVE.schedule?.(deadline, SHORT.ask) }
+    else { departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; remindN = 0; alarmVisible = false; nextReminder = 0; NATIVE.schedule?.(deadline, SHORT.ask) }
   }
   session.entries.push({ amount, at, prevState, prevMilestones }); if (koszM) session.nextPct = null;
   const remaining = left(); session.milestonesFired = session.milestonesFired || {};
@@ -886,7 +890,7 @@ $('more').addEventListener('click', () => { if (session) changeDose(Math.min(dos
 
 function triggerAlarm(force = false) {
   if (!session || session.method === 'taczka') return; if (alarmVisible && !force) return;
-  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + REMIND_MS; deadline = nextReminder;
+  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + remindCfg().gap; deadline = nextReminder;
   remember(); render(); alarmKick('ask'); NATIVE.schedule?.(nextReminder, SHORT.remind);
 }
 $('testAlarm').addEventListener('click', () => { if (!session) return announce('Najpierw rozpocznij betonowanie'); triggerAlarm(true) });
@@ -1167,7 +1171,7 @@ function tick() {
   if (alarmVisible) { const t = Math.floor((Date.now() - (alarmSince || Date.now())) / 1000); $('alertLate').textContent = t > 2 ? 'Pytam od ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') + ' — zaznacz, żeby licznik się zgadzał' : 'Zaznacz, czy kosz wrócił' }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
-  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { alarmVisible = true; nextReminder = now + REMIND_MS; deadline = nextReminder; remember(); render(); alarmKick('remind') }
+  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + rc.gap; deadline = nextReminder; remember(); render(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
@@ -1279,7 +1283,7 @@ async function drainNative() {
       else if (e.type === 'truckEmpty') truckEmpty({ silent: true });
       else if (e.type === 'newTruck' && Number(e.m3) > 0) newTruck(Number(e.m3));
       else if (e.type === 'dose') { session.dose = Math.min(doseMax(session.capacity), Number(e.amount) || session.dose) }
-      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + REMIND_MS; deadline = nextReminder }
+      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + remindCfg().gap; deadline = nextReminder }
     }
     remember(); render(); tick();
     announce('Z zablokowanego ekranu: ' + evs.length + ' zdarzeń');
@@ -2134,6 +2138,8 @@ const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) 
   sh.addEventListener('input', () => { const sg = cur(); settings.songShift = { ...(settings.songShift || {}), [sg.id]: Number(sh.value) }; saveSettings(); shDraw() });
   $('introReplay').addEventListener('click', () => { if ($('intro') || !INTRO_TPL || session) return announce(session ? 'Najpierw zakończ betonowanie' : 'Intro już leci'); const b = INTRO_TPL.cloneNode(true); document.body.prepend(b); runIntro(b); setTimeout(shDraw, 100) });
   shDraw() }
+{ const rs = $('remindMode'); rs.replaceChildren(...Object.entries(REMIND).map(([k, v]) => el('option', { value: k, text: v.label }))); rs.value = settings.remindMode || 'normal';
+  rs.addEventListener('change', () => { settings.remindMode = rs.value; saveSettings(); configureNative(); if (session && (phase === 'away' || phase === 'late')) NATIVE.schedule?.(deadline, SHORT.ask); announce('🔔 Przypomnienia: ' + remindCfg().label) }) }
 $('introEvery').checked = settings.introEvery !== false; $('introEvery').addEventListener('change', () => { settings.introEvery = $('introEvery').checked; saveSettings() });
 { const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });

@@ -12,16 +12,18 @@ async function permission() {
   catch (e) { console.warn('Notifications permissions', e); return false }
 }
 /* przypomnienie „Czy kosz już jest?” — seria powiadomień co 20 s (z dźwiękiem i wibracją), aż zaznaczysz */
-const CYCLES = 12, BURST = 3, GAP = 20000, BURST_GAP = 2500, CHAIN = CYCLES * BURST; // każde przypomnienie = 3 mignięcia ekranu z wibracją
+const BURST_GAP = 2500, CHAIN_MAX = 36; // id-ki do kasowania
+const rcfg = () => { const r = window.__bkpRemind || { gap: 45000, cycles: 6, burst: 1 }; return { GAP: r.gap, BURST: r.burst, CHAIN: Math.min(CHAIN_MAX, r.cycles * r.burst) } };
 async function schedule(at, body) {
   if (!isNative) return; if (!(await permission())) return;
   try {
-    await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) });
+    await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN_MAX }, (_, i) => ({ id: ID + i })) });
+    const { GAP, BURST, CHAIN } = rcfg();
     const t0 = Math.max(Date.now() + 1000, at);
     await LocalNotifications.schedule({ notifications: Array.from({ length: CHAIN }, (_, k) => { const i = Math.floor(k / BURST), j = k % BURST; return { id: ID + k, title: (j === 0 ? '🔔' : j === 1 ? '🚨' : '⚠️') + (i ? ' KOSZ WRÓCIŁ? (' + (i + 1) + ')' : ' Czy kosz już jest?'), body: (i ? 'Nie zaznaczyłeś powrotu kosza. ' : '') + 'Przytrzymaj i wybierz: Kosz jest / Jeszcze nie', schedule: { at: new Date(t0 + i * GAP + j * BURST_GAP), allowWhileIdle: true }, sound: 'default', actionTypeId: 'KOSZ', threadIdentifier: 'kosz', extra: { kind: 'bucket' } } }) });
   } catch (e) { console.warn('Schedule notification', e) }
 }
-async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN }, (_, i) => ({ id: ID + i })) }) } catch (e) { console.warn('Cancel notification', e) } }
+async function cancel() { if (!isNative) return; try { await LocalNotifications.cancel({ notifications: Array.from({ length: CHAIN_MAX }, (_, i) => ({ id: ID + i })) }) } catch (e) { console.warn('Cancel notification', e) } }
 
 const safe = (fn, fallback) => async (...args) => { if (!isNative) return fallback; try { return await fn(...args) } catch (e) { console.warn('DOMINO native', e); throw e } };
 
@@ -58,6 +60,6 @@ window.BKPnative = { schedule, cancel, isNative, voice };
 if (isNative) {
   LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: 'Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }] }] }).catch(e => console.warn('Actions', e));
   LocalNotifications.addListener('localNotificationActionPerformed', event => {
-    if (event.notification?.id >= ID && event.notification?.id < ID + CHAIN) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
+    if (event.notification?.id >= ID && event.notification?.id < ID + CHAIN_MAX) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
   }).catch(e => console.warn('Notification listener', e));
 }
