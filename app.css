@@ -1073,3 +1073,15 @@ body.one-hand .vs-track{bottom:52px!important}
 .pm-fav,.pm-del{position:absolute;top:8px;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#0b1426cc;font-size:20px}
 .pm-fav{left:8px;color:#9aa6b2}.pm-fav.on{color:#ffc93a}.pm-del{right:8px;font-size:16px;opacity:.8}
 .pm-dots{display:flex;justify-content:center;gap:6px;margin:-2px 0 6px}.pm-dots i{width:7px;height:7px;border-radius:50%;background:#3a4560}.pm-dots i.on{background:var(--c1)}.pm-dots i.cur{transform:scale(1.4);background:#cfd8e3}.pm-dots i.on.cur{background:var(--c1)}
+
+/* koniec betonowania */
+.fin-out{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.fin-out>div{display:flex;flex-direction:column;align-items:center;padding:10px 6px;border-radius:14px;background:color-mix(in srgb,var(--c1) 8%,transparent);border:1px solid color-mix(in srgb,var(--c1) 25%,transparent)}
+.fin-out b{font-size:24px;font-weight:950}.fin-out small{font-size:11px;font-weight:700;opacity:.8;text-align:center}.fin-real{color:var(--c1)}
+.fin-row{display:grid;grid-template-columns:72px 1fr 72px;gap:8px}
+.fin-step{font-size:20px;font-weight:900;min-height:54px;padding:0}
+.fin-rest{font-size:28px!important;font-weight:900;text-align:center;min-height:54px}
+.fin-chips{margin:8px 0 10px;gap:6px;flex-wrap:wrap}
+.fin-fix{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:14px;background:color-mix(in srgb,#ffc93a 10%,transparent);border:1px solid color-mix(in srgb,#ffc93a 45%,transparent)}
+.fin-fix input{width:26px;height:26px;margin-top:2px;flex:none}.fin-fix span{display:flex;flex-direction:column}.fin-fix small{opacity:.85;font-weight:700}
+.fin-ok{font-weight:800;color:#5be39b}.warn-t{color:#ffb02e}

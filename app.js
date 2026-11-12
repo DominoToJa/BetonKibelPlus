@@ -706,16 +706,45 @@ $('start').addEventListener('click', start);
 $('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
 function finishCurrent(showNotice = true) {
   if (!session) return;
-  archive.unshift({ ...session, endedAt: Date.now(), total: Math.round(entriesSum() * 100) / 100 }); storeHistory();
+  const counted = Math.round(entriesSum() * 100) / 100; archive.unshift({ ...session, endedAt: Date.now(), counted, total: session.poured ?? counted }); storeHistory();
   session = null; resetTrip(); try { localStorage.removeItem(KEY) } catch (err) { }
   $('site').value = ''; $('load').value = ''; $('load').placeholder = 'np. 7,5'; $('error').textContent = ''; $('status').textContent = 'Gotowy'; // Start od zera na nowe betonowanie
   NATIVE.cancel?.(); syncNative(); if (showNotice) { if (false) playSong('finish').then(ok => { const w = ok ? SONG_LEN.finish : playJingle('finish'); if (w) setTimeout(() => sayBot('finish'), ok ? w : 1500); else sayBot('finish') }); else sayBot('finish') }
 }
-$('finish').addEventListener('click', async () => { if (!session) return; if (!(await ask('Zakończyć betonowanie i zapisać w historii?', '✓ Zakończ'))) return;
-  const bp = session.method !== 'taczka' && session.bucketProfile?.id ? getProfile(session.bucketProfile.id) : null, sum = entriesSum(), load = Number(session.load) || 0;
-  if (bp && load > 0 && session.entries.length >= 2 && sum > 0) { const r = load / sum; if (Math.abs(r - 1) > .03 && Math.abs(r - 1) < .4) {
-    const nc = bp.capacity * r, v = await askChoice('⚖️ Licznik policzył ' + fmt(Math.round(sum * 100) / 100) + ' m³, a gruszka miała ' + fmt(load) + ' m³. Jeśli wylałeś CAŁĄ gruszkę, poprawię kosz „' + bp.name + '”: ' + fmt(bp.capacity) + ' → ' + fmt(Math.round(nc * 1000) / 1000) + ' m³, żeby następnym razem się zgadzało.', [['⚖️ Tak, popraw kosz', 'yes', 'primary', 'wylałem całą gruszkę'], ['Nie — zostało albo zabrakło betonu', 'no', '']]);
-    if (v === 'yes') applyCalib(bp, nc, { poured: load, counted: sum, auto: true }) } }
+/* koniec betonowania: ile zostało w gruszce (±) → ile naprawdę wylano → poprawka pojemności kosza */
+$('finish').addEventListener('click', async () => {
+  if (!session) return;
+  const s = session, sum = Math.round(entriesSum() * 1000) / 1000, load = Number(s.load) || 0, n = s.entries.length;
+  const bp = s.bucketProfile?.id ? getProfile(s.bucketProfile.id) : null, PI = .06;
+  let rest = 0, fix = true;
+  const restI = el('input', { inputmode: 'decimal', class: 'fin-rest', value: '0', 'aria-label': 'Ile zostało w gruszce (m³)' });
+  const out = el('div', { class: 'fin-out' }), calib = el('div', { class: 'fin-calib' });
+  const setRest = v => { rest = Math.max(0, Math.min(load, Math.round(v * 100) / 100)); restI.value = fmt(rest); draw() };
+  const step = d => el('button', { type: 'button', class: 'fin-step', text: (d > 0 ? '+' : '−') + fmt(Math.abs(d)), onclick: () => setRest(rest + d) });
+  const draw = () => {
+    const poured = Math.max(0, Math.round((load - rest) * 100) / 100), diff = Math.round((poured - sum) * 100) / 100;
+    out.replaceChildren(
+      el('div', {}, el('small', { text: 'Licznik policzył' }), el('b', { text: fmt(Math.round(sum * 100) / 100) + ' m³' }), el('small', { text: n + ' ' + (n === 1 ? 'kurs' : n < 5 ? 'kursy' : 'kursów') })),
+      el('div', {}, el('small', { text: 'Naprawdę wylane' }), el('b', { class: 'fin-real', text: fmt(poured) + ' m³' }), el('small', { text: fmt(load) + (rest ? ' − ' + fmt(rest) + ' w gruszce' : ' · cała gruszka') })));
+    calib.replaceChildren();
+    if (!bp || !(sum > 0) || n < 2 || !(poured > 0)) { calib.append(el('p', { class: 'hint', text: !bp ? 'Bez zapisanego kosza — nic nie poprawiam.' : 'Za mało kursów, żeby poprawić kosz.' })); return }
+    const r = poured / sum, est = bp.capacity * r, cn = bp.calibN || 0, w = cn ? Math.max(.4, 1 / (cn + 1)) : 1, nc = Math.round((bp.capacity * (1 - w) + est * w) * 1000) / 1000, pct = Math.round((r - 1) * 1000) / 10;
+    if (Math.abs(r - 1) <= .03) { fix = false; calib.append(el('p', { class: 'fin-ok', text: '✓ Zgadza się co do ' + fmt(Math.abs(pct)) + '% — kosz „' + bp.name + '” zostaje ' + fmt(bp.capacity) + ' m³' })); return }
+    if (Math.abs(r - 1) >= .4) { fix = false; calib.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(pct) + '% — za duża, to raczej pomyłka w kursach niż kosz. Nie poprawiam.' })); return }
+    const cb = el('input', { type: 'checkbox' }); cb.checked = fix; cb.addEventListener('change', () => { fix = cb.checked });
+    calib.append(el('label', { class: 'fin-fix' }, cb, el('span', {}, el('b', { text: '⚖️ Popraw kosz „' + bp.name + '”' }), el('small', { text: fmt(bp.capacity) + ' → ' + fmt(nc) + ' m³ (' + (pct > 0 ? '+' : '') + fmt(pct) + '% wg tej gruszki' + (cn ? ', uśrednione z ' + cn + ' poprzednimi' : '') + ')' }))));
+    calib.dataset.nc = nc; calib.dataset.poured = poured;
+  };
+  restI.addEventListener('input', () => { rest = Math.max(0, number(restI.value) || 0); draw() });
+  const body = el('div', { class: 'fin' }, out,
+    el('label', { class: 'label', text: '🛢 Zostało w gruszce (m³)?' }),
+    el('div', { class: 'fin-row' }, step(-.1), restI, step(.1)),
+    el('div', { class: 'chips fin-chips' }, ...[['Nic', 0], ['0,25', .25], ['0,5', .5], ['1', 1]].map(([t, v]) => el('button', { type: 'button', class: 'pill', text: t, onclick: () => setRest(v) })), el('button', { type: 'button', class: 'pill', text: '🪶 +1 pióro', onclick: () => setRest(rest + PI) })),
+    calib);
+  draw();
+  if (!(await formModal('🏁 Koniec betonowania', body, '✓ Zakończ i zapisz'))) return;
+  s.rest = rest; s.poured = Math.max(0, Math.round((load - rest) * 100) / 100);
+  if (fix && bp && calib.dataset.nc) { applyCalib(bp, Number(calib.dataset.nc), { poured: s.poured, counted: sum, rest, auto: true }); bp.calibN = (bp.calibN || 0) + 1; saveProfiles() }
   finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
 
