@@ -594,15 +594,40 @@ function sheetRender() {
   $('pickTitle').textContent = { taczka: 'Wybierz taczkę', inne: 'Wybierz łyżkę / osprzęt' }[method] || 'Wybierz kosz';
   const sw = $('pickMethods'); sw.replaceChildren(...[['kibel', '🏗 Kosz'], ['taczka', '🛒 Taczka'], ['inne', '🚜 Koparka']].map(([m, t]) => el('button', { type: 'button', class: method === m ? 'on' : '', text: t, onclick: () => { if (method !== m) selectMethod(m); sheetRender() } })));
   const pick = fn => () => { fn(); tab('setup') };
-  const mine = byRecent(profilesFor(method)), SHOW = 3;
-  const visible = pickAll ? mine : mine.filter((p, i) => i < SHOW || p.id === chosenProfileId);
-  for (const p of visible) {
-    const pic = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', loading: 'lazy' }) : kindIcon(kindOf(p));
-    const x = el('span', { class: 'tile-del', role: 'button', 'aria-label': 'Usuń ' + p.name, text: '✕', onclick: e => { e.stopPropagation(); deleteProfile(p, sheetRender) } });
-    r.append(el('button', { type: 'button', class: 'tile saved' + (p.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(p.id)) },
-      x, el('div', { class: 'tile-pic' }, pic), el('strong', { text: p.name }), el('b', { text: fmt(p.capacity) + ' m³' }), el('small', { text: p.dims ? '📐 dokładna podziałka' : 'zapisany' })));
+  const mine = byRecent(profilesFor(method)).sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0));
+  /* statystyki z historii: ile razy i kiedy ostatnio */
+  const stat = {}; for (const a of archive) { const id = a.bucketProfile?.id; if (!id) continue; const t = stat[id] || (stat[id] = { n: 0, last: 0, m3: 0 }); t.n++; t.last = Math.max(t.last, a.endedAt || a.startedAt || 0); t.m3 += Number(a.total) || 0 }
+  const ago = t => { if (!t) return ''; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'dziś' : d === 1 ? 'wczoraj' : d < 7 ? d + ' dni temu' : d < 30 ? Math.floor(d / 7) + ' tyg. temu' : Math.floor(d / 30) + ' mies. temu' };
+  const capTxt = p => kindOf(p) === 'taczka' ? Math.round(p.capacity * 1000) + ' l' : fmt(p.capacity) + ' m³';
+  const picOf = p => p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', loading: 'lazy' }) : kindIcon(kindOf(p));
+  /* 📍 podpowiedź z tej budowy */
+  const sid = siteAssignments[siteKey($('site').value)], sp = sid && sid !== 'manual' ? getProfile(sid) : null;
+  if (sp && profilesFor(method).includes(sp)) r.append(el('button', { type: 'button', class: 'pick-hero' + (sp.id === chosenProfileId ? ' on' : ''), onclick: pick(() => chooseProfile(sp.id)) },
+    el('div', { class: 'ph-pic' }, picOf(sp)), el('div', { class: 'ph-txt' }, el('small', { text: '📍 Na budowie „' + $('site').value.trim() + '” używałeś' }), el('strong', { text: sp.name }), el('b', { text: capTxt(sp) })), el('span', { class: 'ph-go', text: sp.id === chosenProfileId ? '✓' : '▶' })));
+  if (mine.length) {
+    let q = '';
+    const wrap = el('div', { class: 'pick-mine' }), head = el('div', { class: 'pm-head' }, el('b', { text: { taczka: '🛒 Moje taczki', inne: '🚜 Moje łyżki' }[method] || '🏗 Moje kosze' }), el('small', { text: mine.length + ' · przesuń ←→' }));
+    const strip = el('div', { class: 'pm-strip' }), dots = el('div', { class: 'pm-dots' });
+    const draw = () => {
+      const ql = q.trim().toLowerCase(), list = mine.filter(p => !ql || p.name.toLowerCase().includes(ql) || capTxt(p).includes(ql.replace('.', ',')));
+      strip.replaceChildren(...list.map(p => {
+        const st = stat[p.id], on = p.id === chosenProfileId;
+        const fav = el('span', { class: 'pm-fav' + (p.fav ? ' on' : ''), role: 'button', 'aria-label': p.fav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych', text: p.fav ? '★' : '☆', onclick: e => { e.stopPropagation(); p.fav = !p.fav; saveProfiles(); buzz?.('light'); sheetRender() } });
+        const del = el('span', { class: 'pm-del', role: 'button', 'aria-label': 'Usuń ' + p.name, text: '🗑', onclick: e => { e.stopPropagation(); deleteProfile(p, sheetRender) } });
+        return el('button', { type: 'button', class: 'pm-card' + (on ? ' on' : '') + (p.fav ? ' fav' : ''), onclick: pick(() => chooseProfile(p.id)) },
+          fav, del, el('div', { class: 'pm-pic' }, picOf(p)), el('b', { class: 'pm-cap', text: capTxt(p) }), el('strong', { text: p.name }),
+          el('small', { text: st ? '🔁 ' + st.n + '× · ' + ago(st.last) + (st.m3 ? ' · ' + fmt(Math.round(st.m3 * 10) / 10) + ' m³ razem' : '') : (p.catalog ? '🏷 z katalogu' : '✨ jeszcze nie używany') }),
+          el('span', { class: 'pm-sel', text: on ? '✓ WYBRANY' : 'Wybierz' }));
+      }));
+      dots.replaceChildren(...list.map((p, i) => el('i', { class: p.id === chosenProfileId ? 'on' : '' })));
+      if (!list.length) strip.append(el('p', { class: 'hint', text: 'Nic nie pasuje do „' + q + '”.' }));
+    };
+    wrap.append(head);
+    if (mine.length > 5) { const si = el('input', { type: 'search', class: 'pm-search', placeholder: '🔍 Szukaj po nazwie albo pojemności' }); si.addEventListener('input', () => { q = si.value; draw() }); wrap.append(si) }
+    wrap.append(strip, dots); r.append(wrap); draw();
+    requestAnimationFrame(() => { const c = strip.querySelector('.pm-card.on'); if (c) strip.scrollLeft = c.offsetLeft - (strip.clientWidth - c.clientWidth) / 2 });
+    strip.addEventListener('scroll', () => { const i = Math.round(strip.scrollLeft / (strip.firstChild?.clientWidth + 12 || 1)); [...dots.children].forEach((d, j) => d.classList.toggle('cur', j === i)) }, { passive: true });
   }
-  if (mine.length > visible.length || (pickAll && mine.length > SHOW)) r.append(el('button', { type: 'button', class: 'tile more-saved', onclick: () => { pickAll = !pickAll; sheetRender() } }, el('b', { text: pickAll ? '▴ Zwiń moje' : '▾ Pokaż wszystkie moje (' + mine.length + ')' }), el('small', { text: pickAll ? 'pokaż tylko ostatnio używane' : 'ukryte: ' + (mine.length - visible.length) })));
   if (false) r.append(el('button', { type: 'button', class: 'tile tpl-add', onclick: async () => { const p = await templatePick(); if (p) { chooseProfile(p.id); tab('setup') } } }, el('b', { text: '⚡ Gotowy model kosza' }), el('small', { text: 'kształt + tabliczka, bez zdjęć' })));
   if (method === 'taczka' || method === 'inne') r.append(el('button', { type: 'button', class: 'tile tpl-add eich-tile', onclick: async () => { const p = await (method === 'taczka' ? taczPick() : lyzPick()); if (p) { chooseProfile(p.id); sheetRender?.(); tab('setup') } } }, el('b', { text: method === 'taczka' ? '🏷 Taczka z katalogu' : '🏷 Łyżka z katalogu' }), el('small', { text: method === 'taczka' ? '6 rodzajów · Altrad, mefro, CAPITO, Olejnik…' : '6 rodzajów · 496 łyżek: Lehnhoff, Sieruta, Solid Hitch…' })));
   if (method === 'kibel') r.append(el('button', { type: 'button', class: 'tile tpl-add eich-tile', onclick: async () => { const p = await eichPick(); if (p) { chooseProfile(p.id); sheetRender?.(); tab('setup') } } }, el('b', { text: '🏷 Kosz Eichinger z katalogu' }), el('small', { text: 'seria z tabliczki (1011, 1012, 1021…) + pojemność' })));
