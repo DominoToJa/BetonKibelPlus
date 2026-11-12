@@ -2328,9 +2328,9 @@ function runIntro(box) {
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 }
 
-/* diagram: licznik piór (małe pióro = 0,07 m³) */
+/* diagram: licznik piór (małe pióro = 0,06 m³) */
 (() => {
-  const PIORO = .07, inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
+  const PIORO = .06, inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
   const word = n => { const k = Math.abs(n) % 100, j = k % 10; return n % 1 ? 'pióra' : n === 1 ? 'pióro' : (j >= 2 && j <= 4 && (k < 12 || k > 14)) ? 'pióra' : 'piór' };
   const calc = () => { const n = number(inp.value); if (!(n > 0)) { out.textContent = 'Wpisz liczbę piór — policzę m³.'; return }
     const m3 = Math.round(n * PIORO * 100) / 100; out.innerHTML = '';
