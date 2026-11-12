@@ -1042,3 +1042,10 @@ body.one-hand .vs-track{bottom:52px!important}
 .tape-btn{width:100%;margin:8px 0 4px;font-weight:900}.tape-btn.on{border-color:#ffcc00!important;color:#ffcc00}
 .tape-view{margin:4px 0 8px;border-radius:14px;background:#0b1426;border:1px solid color-mix(in srgb,#ffcc00 40%,transparent);padding:4px}
 .tape-view svg{width:100%;height:auto;display:block}
+/* lista koszy: nazwa obok zdjęcia, przyciski w osobnym rzędzie (nie ściskają nazwy) */
+.bucket-row{grid-template-columns:56px minmax(0,1fr)!important;row-gap:8px!important}
+.bucket-row .bucket-info{min-width:0}
+.bucket-row .bucket-info strong{display:block;word-break:normal;overflow-wrap:anywhere;font-size:16px;line-height:1.2}
+.bucket-row .bucket-acts{grid-column:1/-1;display:flex!important;gap:8px;flex-wrap:nowrap}
+.bucket-row .bucket-acts button{flex:1 1 0;min-width:0;min-height:44px;padding:6px 4px}
+.bucket-row .bucket-acts button.primary{flex:2.2 1 0}

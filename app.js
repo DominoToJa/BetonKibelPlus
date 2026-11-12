@@ -1605,10 +1605,10 @@ function bucketListRender() {
     const list = byRecent(profiles.filter(p => kindOf(p) === kind && match(p))); if (!list.length) continue;
     const open = ql ? true : bucketOpen[kind] ?? (profiles.length <= 6);
     const det = el('details', { class: 'bucket-group' }); det.open = open; det.addEventListener('toggle', () => { bucketOpen[kind] = det.open });
-    det.append(el('summary', {}, el('span', { text: ico + ' ' + ({ kosz: 'Kosze', taczka: 'Taczki', lyzka: 'Łyżki / osprzęt' }[kind] || label) }), el('b', { text: String(list.length) })));
+    det.append(el('summary', {}, el('span', { text: ico + ' ' + ({ kosz: 'Kosze', taczka: 'Taczki', lyzka: 'Łyżki' }[kind] || label) }), el('b', { text: String(list.length) })));
     for (const p of list) {
       const img = p.photos?.[0]?.data ? el('img', { src: p.photos[0].data, alt: '', class: 'bucket-thumb', loading: 'lazy' }) : (() => { const d = el('div', { class: 'bucket-thumb ph' }); d.append(kindIcon(kindOf(p))); return d })();
-      const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: fmt(p.capacity) + ' m³' + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.calib ? ' · ⚖️ skalibrowany' : p.template ? ' · gotowy model' : p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
+      const info = el('div', { class: 'bucket-info' }, el('strong', { text: p.name }), el('small', { text: (kindOf(p) === 'taczka' ? Math.round(p.capacity * 1000) + ' l' : fmt(p.capacity) + ' m³') + (p.plate && Math.abs(p.plate - p.capacity) > .005 ? ' (tabliczka ' + fmt(p.plate) + ')' : '') + ' · ' + (SHAPES[p.shape]?.label || 'tabliczka') + (p.calib ? ' · ⚖️ skalibrowany' : p.template ? ' · gotowy model' : p.estimated ? ' · ze zdjęć' : p.dims ? ' · zmierzony' : '') }));
       const acts = el('div', { class: 'bucket-acts' });
       if (bucketReturn === 'setup') acts.append(el('button', { type: 'button', class: 'primary', text: 'Wybierz', onclick: () => { const w = KINDS[kindOf(p)][2]; if (method !== w && !(w === 'kibel' && method === 'inne')) selectMethod(w); chooseProfile(p.id); rememberSiteBucket($('site').value, p.id); tab('setup') } }));
       if (kind !== 'taczka') acts.append(el('button', { type: 'button', text: '⚖️', 'aria-label': 'Kalibruj z gruszki', title: 'Kalibruj z gruszki', onclick: () => calibrateProfile(p) }));
