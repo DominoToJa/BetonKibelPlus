@@ -8,46 +8,49 @@ const nativeVoice = !!(NATIVE.isNative && NV.available);
 
 // ───────────────────────── teksty lektora ─────────────────────────
 const DEFAULT_TEXTS = {
-  start: 'Zaczynamy betonowanie. Powodzenia!\nRuszamy z betonowaniem.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!',
-  depart: 'Kosz w drodze.\nKosz pojechał.\nPrzyjąłem, kosz w trasie.\nDobra, kosz jedzie.',
-  ask: 'Czy kosz już wrócił?\nKosz jest już na miejscu?\nPrzyjechał już kosz?\nJest kosz?',
-  arrived: 'Dobrze, lejemy dalej.\nŚwietnie, można lać.\nSuper, zalewamy.\nPrzyjąłem, lejemy.',
-  late: 'W porządku, zapytam za kilka chwil.\nDobrze, poczekam.\nJasne, odezwę się za moment.\nRozumiem, zapytam ponownie.',
-  remind: 'Kosz już jest?\nHalo, czy kosz wrócił?\nDaj znać, czy kosz jest.\nCzekam na informację o koszu.',
-  added: 'Kosz zalany.\nZalane, policzone.\nDodane.\nMamy kolejny kosz.',
-  undo: 'Cofnięte.\nOstatni kosz usunięty.\nGotowe, cofnąłem.\nUsunięte z licznika.',
-  reportLeft: 'Zostało jeszcze X metra sześciennego.\nDo końca X metra sześciennego.\nPozostało X metra sześciennego.\nJeszcze X metra sześciennego do wylania.',
-  reportPoured: 'Wylano już X metra sześciennego.\nNa razie X metra sześciennego.\nMamy wylane X metra sześciennego.\nDo tej pory X metra sześciennego.',
-  reportBuckets: 'Zostało jeszcze X.\nDo końca X.\nPrzed nami X.\nJeszcze X.',
-  reportTime: 'Betonowanie trwa X minut.\nPracujemy już X minut.\nOd startu minęło X minut.\nBetonujemy od X minut.',
-  capacityChanged: 'Pojemność kosza ustawiona.\nKosz zmieniony.\nUstawione, nowy kosz.\nZapisałem pojemność kosza.',
-  doseSet: 'Ilość do kosza ustawiona.\nZapisane, tyle lejemy.\nIlość zmieniona.\nGotowe, ustawione.',
-  fullBucket: 'Pełny kosz.\nLejemy do pełna.\nCały kosz.\nUstawione na pełny.',
-  halfBucket: 'Pół kosza.\nLejemy połowę.\nPołowa kosza.\nUstawione na pół.',
-  error: 'Nie zrozumiałem, powtórz proszę.\nMożesz powtórzyć?\nNie dosłyszałem.\nSłucham? Powtórz jeszcze raz.',
-  left75: 'Zostały trzy czwarte betonu.\nĆwiartka za nami, jedziemy dalej.\nPierwsza ćwiartka wylana.\nZostało jeszcze trzy czwarte.',
-  left50: 'Połowa betonu wylana.\nJesteśmy w połowie.\nPół za nami, pół przed nami.\nZostało jeszcze pół betonu.',
-  left3: 'Zostały jeszcze trzy metry sześcienne.\nJeszcze trzy kubiki.\nDo końca trzy metry.\nTrzy metry sześcienne do końca.',
-  left15: 'Zostało półtora metra sześciennego.\nJeszcze półtora kubika.\nPółtora metra do końca.\nZostało półtora, dajemy radę.',
-  left05: 'Zostało pół metra. Ostatni kosz.\nJeszcze pół kubika.\nOstatnie pół metra.\nKońcówka, zostało pół metra.',
-  low: 'Uwaga, beton się kończy.\nBetonu zostało niewiele.\nZbliżamy się do końca.\nUwaga, końcówka betonu.',
-  finish: 'Koniec betonowania. Dobra robota!\nGotowe, beton wylany.\nSkończone. Dziękuję za pracę!\nTo już wszystko. Brawo!',
-  micOn: 'Mikrofon włączony.\nSłucham.\nJestem gotowy.\nMikrofon działa, słucham.',
-  start_taczka: 'Zaczynamy, taczki w ruch!\nLejemy taczkami. Powodzenia!\nBetonowanie taczką rozpoczęte.\nNo to wozimy. Do roboty!',
-  added_taczka: 'Taczka wylana.\nKolejna taczka.\nTaczka policzona.\nJest taczka, jedziemy dalej.',
-  capacityChanged_taczka: 'Pojemność taczki ustawiona.\nTaczka zmieniona.\nUstawione, nowa taczka.\nZapisałem pojemność taczki.',
-  finish_taczka: 'Koniec wożenia. Dobra robota!\nOstatnia taczka, beton wylany.\nSkończone. Odstaw taczkę!\nTo już wszystko. Brawo!',
-  start_koparka: 'Zaczynamy z koparką. Powodzenia!\nKoparka gotowa, lejemy.\nBetonowanie koparką rozpoczęte.\nŁyżka w ruch, zaczynamy!',
-  depart_koparka: 'Łyżka w drodze.\nKoparka jedzie z betonem.\nPrzyjąłem, łyżka w trasie.\nDobra, koparka jedzie.',
-  ask_koparka: 'Czy koparka już wróciła?\nŁyżka jest już na miejscu?\nWróciła koparka?\nJest łyżka?',
-  remind_koparka: 'Koparka już jest?\nHalo, czy łyżka wróciła?\nDaj znać, czy koparka jest.\nCzekam na informację o koparce.',
-  arrived_koparka: 'Dobrze, lejemy z łyżki.\nŚwietnie, łyżka na miejscu.\nSuper, wysypujemy.\nPrzyjąłem, lejemy.',
-  late_koparka: 'W porządku, zapytam o koparkę za chwilę.\nDobrze, czekamy na łyżkę.\nJasne, odezwę się za moment.\nRozumiem, koparka jeszcze jedzie.',
-  added_koparka: 'Łyżka wylana.\nKolejna łyżka.\nŁyżka policzona.\nMamy kolejną łyżkę.',
-  capacityChanged_koparka: 'Pojemność łyżki ustawiona.\nŁyżka zmieniona.\nUstawione, nowa łyżka.\nZapisałem pojemność łyżki.',
-  finish_koparka: 'Koniec betonowania koparką. Dobra robota!\nGotowe, łyżka odstawiona.\nSkończone. Dziękuję operatorowi!\nTo już wszystko. Brawo!',
-  heardOk: 'Przyjęłam.\nOkej.\nJasne.\nZrobione.',
+  "start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\nRuszamy z betonem. Jestem z wami.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!\nStartujemy. Ja liczę, wy lejecie.\nGruszka podjechała, to lecimy z tematem.\nDobra, panowie, zaczynamy. Trzymam licznik.\nBeton czeka. Zaczynamy!\nZaczynamy. Spokojnie i równo, dacie radę.\nDo roboty! Liczę każdy kosz.",
+  "depart": "Kosz w drodze.\nKosz pojechał.\nPrzyjęłam, kosz w trasie.\nDobra, kosz jedzie.\nKosz poleciał.\nJedzie kosz, czekam.\nKosz w powietrzu.\nOk, kosz w drodze, liczę czas.\nPoszedł kosz.\nKosz wyjechał, daj znać jak wróci.",
+  "ask": "Czy kosz już wrócił?\nKosz jest już na miejscu?\nPrzyjechał już kosz?\nJest kosz?\nKosz już wisi?\nHalo, kosz wrócił?\nMamy już kosz z powrotem?\nI jak, jest kosz?\nKosz z powrotem?\nWrócił kosz, czy jeszcze lata?",
+  "arrived": "Dobrze, lejemy dalej.\nŚwietnie, można lać.\nSuper, zalewamy.\nPrzyjęłam, lejemy.\nJest kosz, ładujemy.\nNo to lejemy.\nPięknie, kosz na miejscu.\nOkej, dawaj beton.\nSuper, zalewaj.\nJest, jedziemy dalej.",
+  "late": "W porządku, zapytam za kilka chwil.\nDobrze, poczekam.\nJasne, odezwę się za moment.\nRozumiem, zapytam ponownie.\nSpokojnie, czekamy.\nOkej, dam mu chwilę.\nNie ma sprawy, poczekam na kosz.\nDobra, zapytam za chwilkę.\nRozumiem, kosz jeszcze lata.\nJasne, cierpliwie czekam.",
+  "remind": "Kosz już jest?\nHalo, czy kosz wrócił?\nDaj znać, czy kosz jest.\nCzekam na informację o koszu.\nKosz wrócił?\nHej, kosz już na miejscu?\nJak tam kosz?\nPrzypominam się. Jest kosz?\nKosz już czeka?\nWrócił już ten kosz?",
+  "added": "Kosz zalany.\nZalane, policzone.\nDodane.\nMamy kolejny kosz.\nKosz policzony.\nJest, zapisałam.\nKolejny kosz na liczniku.\nZalany, liczę dalej.\nPięknie, następny.\nZapisany kosz.\nDobra robota, kosz poszedł.\nPoliczone, lecimy dalej.",
+  "undo": "Cofnięte.\nOstatni kosz usunięty.\nGotowe, cofnęłam.\nUsunięte z licznika.\nCofam, nie ma sprawy.\nSkasowane.\nOkej, ostatni odpada.\nZrobione, cofnęłam ostatni.",
+  "reportLeft": "Zostało jeszcze X metra sześciennego.\nDo końca X metra sześciennego.\nPozostało X metra sześciennego.\nJeszcze X metra sześciennego do wylania.\nW gruszce jeszcze X kubika.\nZostało X kubika.\nJeszcze X metra do końca.\nPrzed nami X metra sześciennego.",
+  "reportPoured": "Wylano już X metra sześciennego.\nNa razie X metra sześciennego.\nMamy wylane X metra sześciennego.\nDo tej pory X metra sześciennego.\nPoszło już X kubika.\nWylane X metra.\nNa liczniku X metra sześciennego.\nZrobione X kubika.",
+  "reportBuckets": "Zostało jeszcze X.\nDo końca X.\nPrzed nami X.\nJeszcze X.\nLiczę, że zostało X.\nZostaje X.",
+  "reportTime": "Betonowanie trwa X minut.\nPracujemy już X minut.\nOd startu minęło X minut.\nBetonujemy od X minut.\nLecimy już X minut.\nNa zegarze X minut.",
+  "capacityChanged": "Pojemność kosza ustawiona.\nKosz zmieniony.\nUstawione, nowy kosz.\nZapisałam pojemność kosza.\nOkej, nowy kosz.\nZmieniłam kosz.",
+  "doseSet": "Ilość do kosza ustawiona.\nZapisane, tyle lejemy.\nIlość zmieniona.\nGotowe, ustawione.\nOkej, tyle do kosza.\nUstawiłam.",
+  "fullBucket": "Pełny kosz.\nLejemy do pełna.\nCały kosz.\nUstawione na pełny.\nDo pełna, jedziemy.\nPełniutki kosz.",
+  "halfBucket": "Pół kosza.\nLejemy połowę.\nPołowa kosza.\nUstawione na pół.\nOkej, pół.\nPołówka.",
+  "error": "Nie zrozumiałam, powtórz proszę.\nMożesz powtórzyć?\nNie dosłyszałam.\nSłucham? Powtórz jeszcze raz.\nCoś mi uciekło, powtórz.\nGłośno tu, powtórz proszę.",
+  "left75": "Zostały trzy czwarte betonu.\nĆwiartka za nami, jedziemy dalej.\nPierwsza ćwiartka wylana.\nZostało jeszcze trzy czwarte.\nĆwierć zrobione, tak trzymać.\nPierwsza ćwiartka poszła.",
+  "left50": "Połowa betonu wylana.\nJesteśmy w połowie.\nPół za nami, pół przed nami.\nZostało jeszcze pół betonu.\nPółmetek, dobra robota.\nPołowa gruszki pusta.",
+  "left3": "Zostały jeszcze trzy metry sześcienne.\nJeszcze trzy kubiki.\nDo końca trzy metry.\nTrzy metry sześcienne do końca.\nTrzy kubiki, widać koniec.\nZostały trzy metry, dajemy.",
+  "left15": "Zostało półtora metra sześciennego.\nJeszcze półtora kubika.\nPółtora metra do końca.\nZostało półtora, dajemy radę.\nPółtora kubika, końcówka blisko.\nJeszcze tylko półtora.",
+  "left05": "Zostało pół metra. Ostatni kosz.\nJeszcze pół kubika.\nOstatnie pół metra.\nKońcówka, zostało pół metra.\nPół kubika, ostatnia prosta.\nTo już prawie koniec, pół metra.",
+  "low": "Uwaga, beton się kończy.\nBetonu zostało niewiele.\nZbliżamy się do końca.\nUwaga, końcówka betonu.\nKońcówka gruszki, uważajcie.\nMało betonu, ostrożnie z ostatnim koszem.",
+  "finish": "Koniec betonowania. Dobra robota!\nGotowe, beton wylany.\nSkończone. Dziękuję za pracę!\nTo już wszystko. Brawo!\nFajrant z betonem. Super robota!\nZrobione. Jestem z was dumna!\nKoniec. Kawa się należy.\nBeton wylany, panowie. Szacun!",
+  "micOn": "Mikrofon włączony.\nSłucham.\nJestem gotowa.\nMikrofon działa, słucham.\nSłucham cię uważnie.\nJestem, mów.",
+  "start_taczka": "Zaczynamy, taczki w ruch!\nLejemy taczkami. Powodzenia!\nBetonowanie taczką rozpoczęte.\nNo to wozimy. Do roboty!\nTaczki gotowe, jedziemy.\nWozimy beton. Liczę każdą taczkę.",
+  "added_taczka": "Taczka wylana.\nKolejna taczka.\nTaczka policzona.\nJest taczka, jedziemy dalej.\nZapisałam taczkę.\nTaczka poszła.\nNastępna taczka na liczniku.\nPięknie, kolejna.",
+  "capacityChanged_taczka": "Pojemność taczki ustawiona.\nTaczka zmieniona.\nUstawione, nowa taczka.\nZapisałam pojemność taczki.",
+  "finish_taczka": "Koniec wożenia. Dobra robota!\nOstatnia taczka, beton wylany.\nSkończone. Odstaw taczkę!\nTo już wszystko. Brawo!\nFajrant, taczki do mycia.",
+  "start_koparka": "Zaczynamy z koparką. Powodzenia!\nKoparka gotowa, lejemy.\nBetonowanie koparką rozpoczęte.\nŁyżka w ruch, zaczynamy!\nOperator gotowy? Zaczynamy.",
+  "depart_koparka": "Łyżka w drodze.\nKoparka jedzie z betonem.\nPrzyjęłam, łyżka w trasie.\nDobra, koparka jedzie.\nŁyżka poleciała.\nKoparka w drodze, czekam.",
+  "ask_koparka": "Czy koparka już wróciła?\nŁyżka jest już na miejscu?\nWróciła koparka?\nJest łyżka?\nŁyżka z powrotem?\nHalo, jest koparka?",
+  "remind_koparka": "Koparka już jest?\nHalo, czy łyżka wróciła?\nDaj znać, czy koparka jest.\nCzekam na informację o koparce.\nJak tam łyżka?\nWróciła już koparka?",
+  "arrived_koparka": "Dobrze, lejemy z łyżki.\nŚwietnie, łyżka na miejscu.\nSuper, wysypujemy.\nPrzyjęłam, lejemy.\nJest łyżka, dawaj.\nOkej, wysypujemy beton.",
+  "late_koparka": "W porządku, zapytam o koparkę za chwilę.\nDobrze, czekamy na łyżkę.\nJasne, odezwę się za moment.\nRozumiem, koparka jeszcze jedzie.\nSpokojnie, czekam na koparkę.",
+  "added_koparka": "Łyżka wylana.\nKolejna łyżka.\nŁyżka policzona.\nMamy kolejną łyżkę.\nZapisałam łyżkę.\nŁyżka poszła, liczę dalej.",
+  "capacityChanged_koparka": "Pojemność łyżki ustawiona.\nŁyżka zmieniona.\nUstawione, nowa łyżka.\nZapisałam pojemność łyżki.",
+  "finish_koparka": "Koniec betonowania koparką. Dobra robota!\nGotowe, łyżka odstawiona.\nSkończone. Dziękuję operatorowi!\nTo już wszystko. Brawo!\nFajrant, koparka zasłużyła na odpoczynek.",
+  "heardOk": "Przyjęłam.\nOkej.\nJasne.\nZrobione.\nJuż.\nMam to.\nSię robi.\nDobra.\nZałatwione.",
+  "ofeo": "Pamiętaj kliknąć Entladung w OFEO.\nKliknąłeś Entladung w OFEO?\nNie zapomnij o Entladung w OFEO.\nEntladung w OFEO kliknięty?"
 };
+/* stare domyślne teksty (do 4.8) — jeśli ktoś ich nie zmieniał, dostaje nowe (więcej wariantów, lektorka mówi w rodzaju żeńskim) */
+const LEGACY_TEXTS = {"start": "Zaczynamy betonowanie. Powodzenia!\nRuszamy z betonowaniem.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!", "depart": "Kosz w drodze.\nKosz pojechał.\nPrzyjąłem, kosz w trasie.\nDobra, kosz jedzie.", "ask": "Czy kosz już wrócił?\nKosz jest już na miejscu?\nPrzyjechał już kosz?\nJest kosz?", "arrived": "Dobrze, lejemy dalej.\nŚwietnie, można lać.\nSuper, zalewamy.\nPrzyjąłem, lejemy.", "late": "W porządku, zapytam za kilka chwil.\nDobrze, poczekam.\nJasne, odezwę się za moment.\nRozumiem, zapytam ponownie.", "remind": "Kosz już jest?\nHalo, czy kosz wrócił?\nDaj znać, czy kosz jest.\nCzekam na informację o koszu.", "added": "Kosz zalany.\nZalane, policzone.\nDodane.\nMamy kolejny kosz.", "undo": "Cofnięte.\nOstatni kosz usunięty.\nGotowe, cofnąłem.\nUsunięte z licznika.", "reportLeft": "Zostało jeszcze X metra sześciennego.\nDo końca X metra sześciennego.\nPozostało X metra sześciennego.\nJeszcze X metra sześciennego do wylania.", "reportPoured": "Wylano już X metra sześciennego.\nNa razie X metra sześciennego.\nMamy wylane X metra sześciennego.\nDo tej pory X metra sześciennego.", "reportBuckets": "Zostało jeszcze X.\nDo końca X.\nPrzed nami X.\nJeszcze X.", "reportTime": "Betonowanie trwa X minut.\nPracujemy już X minut.\nOd startu minęło X minut.\nBetonujemy od X minut.", "capacityChanged": "Pojemność kosza ustawiona.\nKosz zmieniony.\nUstawione, nowy kosz.\nZapisałem pojemność kosza.", "doseSet": "Ilość do kosza ustawiona.\nZapisane, tyle lejemy.\nIlość zmieniona.\nGotowe, ustawione.", "fullBucket": "Pełny kosz.\nLejemy do pełna.\nCały kosz.\nUstawione na pełny.", "halfBucket": "Pół kosza.\nLejemy połowę.\nPołowa kosza.\nUstawione na pół.", "error": "Nie zrozumiałem, powtórz proszę.\nMożesz powtórzyć?\nNie dosłyszałem.\nSłucham? Powtórz jeszcze raz.", "left75": "Zostały trzy czwarte betonu.\nĆwiartka za nami, jedziemy dalej.\nPierwsza ćwiartka wylana.\nZostało jeszcze trzy czwarte.", "left50": "Połowa betonu wylana.\nJesteśmy w połowie.\nPół za nami, pół przed nami.\nZostało jeszcze pół betonu.", "left3": "Zostały jeszcze trzy metry sześcienne.\nJeszcze trzy kubiki.\nDo końca trzy metry.\nTrzy metry sześcienne do końca.", "left15": "Zostało półtora metra sześciennego.\nJeszcze półtora kubika.\nPółtora metra do końca.\nZostało półtora, dajemy radę.", "left05": "Zostało pół metra. Ostatni kosz.\nJeszcze pół kubika.\nOstatnie pół metra.\nKońcówka, zostało pół metra.", "low": "Uwaga, beton się kończy.\nBetonu zostało niewiele.\nZbliżamy się do końca.\nUwaga, końcówka betonu.", "finish": "Koniec betonowania. Dobra robota!\nGotowe, beton wylany.\nSkończone. Dziękuję za pracę!\nTo już wszystko. Brawo!", "micOn": "Mikrofon włączony.\nSłucham.\nJestem gotowy.\nMikrofon działa, słucham.", "start_taczka": "Zaczynamy, taczki w ruch!\nLejemy taczkami. Powodzenia!\nBetonowanie taczką rozpoczęte.\nNo to wozimy. Do roboty!", "added_taczka": "Taczka wylana.\nKolejna taczka.\nTaczka policzona.\nJest taczka, jedziemy dalej.", "capacityChanged_taczka": "Pojemność taczki ustawiona.\nTaczka zmieniona.\nUstawione, nowa taczka.\nZapisałem pojemność taczki.", "finish_taczka": "Koniec wożenia. Dobra robota!\nOstatnia taczka, beton wylany.\nSkończone. Odstaw taczkę!\nTo już wszystko. Brawo!", "start_koparka": "Zaczynamy z koparką. Powodzenia!\nKoparka gotowa, lejemy.\nBetonowanie koparką rozpoczęte.\nŁyżka w ruch, zaczynamy!", "depart_koparka": "Łyżka w drodze.\nKoparka jedzie z betonem.\nPrzyjąłem, łyżka w trasie.\nDobra, koparka jedzie.", "ask_koparka": "Czy koparka już wróciła?\nŁyżka jest już na miejscu?\nWróciła koparka?\nJest łyżka?", "remind_koparka": "Koparka już jest?\nHalo, czy łyżka wróciła?\nDaj znać, czy koparka jest.\nCzekam na informację o koparce.", "arrived_koparka": "Dobrze, lejemy z łyżki.\nŚwietnie, łyżka na miejscu.\nSuper, wysypujemy.\nPrzyjąłem, lejemy.", "late_koparka": "W porządku, zapytam o koparkę za chwilę.\nDobrze, czekamy na łyżkę.\nJasne, odezwę się za moment.\nRozumiem, koparka jeszcze jedzie.", "added_koparka": "Łyżka wylana.\nKolejna łyżka.\nŁyżka policzona.\nMamy kolejną łyżkę.", "capacityChanged_koparka": "Pojemność łyżki ustawiona.\nŁyżka zmieniona.\nUstawione, nowa łyżka.\nZapisałem pojemność łyżki.", "finish_koparka": "Koniec betonowania koparką. Dobra robota!\nGotowe, łyżka odstawiona.\nSkończone. Dziękuję operatorowi!\nTo już wszystko. Brawo!", "heardOk": "Przyjęłam.\nOkej.\nJasne.\nZrobione."};
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
@@ -59,14 +62,17 @@ const TEXT_GROUPS = [
 const SHORT = { start: 'Start betonowania', depart: 'Kosz wyjechał', ask: 'Czy kosz wrócił?', arrived: 'Kosz jest', late: 'Kosza jeszcze nie ma', remind: 'Sprawdź powrót kosza', added: 'Naliczono kosz', undo: 'Cofnięto', low: 'Kończy się beton', finish: 'Koniec betonowania', error: 'Nie rozpoznano komendy', left75: 'Zostało 75% betonu', left50: 'Zostało 50% betonu', left3: 'Zostały 3 m³', left15: 'Zostało 1,5 m³', left05: 'Zostało 0,5 m³', capacityChanged: 'Kosz zmieniony', doseSet: 'Ilość ustawiona', fullBucket: 'Pełny kosz', halfBucket: 'Pół kosza', micOn: 'Mikrofon włączony' };
 const TEXT_KEY = 'beton_texts_v2', SETTINGS_KEY = 'beton_settings_v2';
 /** losowy wariant (każda linia = wariant), bez powtórzenia poprzedniego */
-const lastPick = {};
+const lastPick = {}, bags = {};
+/** losowy wariant bez powtórek: każda linia pada raz, zanim któraś się powtórzy (worek z tasowaniem) */
 function pickVariant(key, txt) {
   const lines = String(txt ?? TEXTS[key] ?? '').split('\n').map(x => x.trim()).filter(Boolean); if (!lines.length) return '';
-  let i = Math.floor(Math.random() * lines.length); if (lines.length > 1 && i === lastPick[key]) i = (i + 1) % lines.length; lastPick[key] = i; return lines[i];
+  const sig = key + '|' + lines.length; let bag = bags[sig];
+  if (!bag || !bag.length) { bag = bags[sig] = lines.map((_, i) => i).sort(() => Math.random() - .5); if (lines.length > 1 && bag[bag.length - 1] === lastPick[key]) bag.unshift(bag.pop()) }
+  const i = bag.pop(); lastPick[key] = i; return lines[i];
 }
 let TEXTS = { ...DEFAULT_TEXTS };
-try { Object.assign(TEXTS, JSON.parse(localStorage.getItem(TEXT_KEY) || '{}')) } catch (e) { }
-let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.95, pitch: 1.02, lektor: 'ewa', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'low', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
+try { const sv = JSON.parse(localStorage.getItem(TEXT_KEY) || '{}'); for (const [k, v] of Object.entries(sv)) if (v !== LEGACY_TEXTS[k]) TEXTS[k] = v } catch (e) { } // zmienione przez Ciebie zostają, nietknięte → nowe
+let settings = { mode: 'full', voice: '', rate: 0.47, tempo: 0.95, pitch: 1.02, lektor: 'ewa', alarm: true, confirm: true, theme: 'hopper', themeChosen: false, texture: 'none', layout: 'classic', tabsBottom: false, ui: 'hud', music: true, musicVol: 0.6, askOnly: true, micSens: 'mid', bgm: true, clicks: true, introVoice: true, startForm: true, holdAdd: true, oneHand: false, lockStatus: true, headsetBtn: false, keepAwake: true, haptics: true, el: false, elKey: '', elVoice: 'qVCMNCiCMS3amhcNBMwc', elModel: 'eleven_multilingual_v2', elStab: 0.5, elSim: 0.75 };
 const F = [/zosia/i, /zofia/i, /google/i, /paulina/i, /ewa/i, /agnieszka/i, /maja/i];
 const M = [/krzysztof/i, /marek/i, /jacek/i, /adam/i, /jan/i];
 // [id, nazwa, opis, płeć, preferowane głosy, tempo, wysokość]
@@ -92,6 +98,7 @@ function resolvedVoiceId() { if (settings.voice) return settings.voice; const L 
 try {
   const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (s) Object.assign(settings, s);
+  if (!settings.micSensV2) { if (!settings.micSens || settings.micSens === 'low') settings.micSens = 'mid'; settings.micSensV2 = true } // 4.9: czulszy mikrofon domyślnie (komendy nie giną)
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
 /* jednorazowo: naturalniejszy lektor — bez skrajnej wysokości i tempa, które „rozjeżdżały” głos */
@@ -164,7 +171,7 @@ let clipKeys = new Set(), recordingKey = '';
 function configureNative() {
   window.__bkpRemind = { gap: remindCfg().gap, cycles: remindCfg().max + 1, burst: remindCfg().burst };
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'low'] ?? -27, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: TEXTS, elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -701,6 +708,7 @@ async function start() {
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
   remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (voiceEl) { voiceEl.pause(); voiceEl = null } if (false) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
+  if (settings.ofeo !== false) setTimeout(ofeoPrompt, 2600);
 }
 $('start').addEventListener('click', start);
 $('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
@@ -798,6 +806,17 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   const note = reached.length ? reached[reached.length - 1].key : (lowNow ? 'low' : null), jobId = session.id;
   if (note) setTimeout(() => { if (session?.id === jobId) sayBot(note) }, nativeVoice ? 0 : 1900);
   endPromptCheck();
+}
+/* przypomnienie: Entladung w OFEO (przy starcie, przypomina co 2 min aż klikniesz „Kliknięte”) */
+let ofeoT = 0;
+function ofeoPrompt() {
+  clearTimeout(ofeoT); if (!session || document.querySelector('.ofeo-prompt')) return;
+  const card = el('div', { class: 'end-prompt ofeo-prompt', role: 'dialog' }, el('b', { text: '📲 Kliknąłeś Entladung w OFEO?' }),
+    el('div', { class: 'ep-row' },
+      el('button', { type: 'button', class: 'primary', text: '✓ Kliknięte', onclick: () => { card.remove(); if (session) { session.ofeo = Date.now(); remember() } announce('👍 Entladung odhaczony') } }),
+      el('button', { type: 'button', text: '⏰ Za 2 min', onclick: () => { card.remove(); ofeoT = setTimeout(() => { if (session && !session.ofeo) ofeoPrompt() }, 120000) } })));
+  document.body.append(card); buzz?.('warning'); sayBot?.('ofeo');
+  NATIVE.notify?.('📲 Entladung w OFEO', 'Kliknij Entladung w OFEO, jeśli jeszcze nie.');
 }
 /* końcówka gruszki: licznik mówi „zostało mniej niż kosz” albo „wyszło ponad” → pytamy, co naprawdę jest */
 function endPromptCheck() {
@@ -1236,7 +1255,12 @@ function cmdRender(m) {
   $('returned').textContent = '✓ ' + (m === 'taczka' ? 'Taczka już jest' : m === 'inne' ? 'Łyżka już jest' : 'Kosz już jest');
 }
 cmdRender('kibel');
-function normalise(t) { return t.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d)\s*[,./\\]\s*(\d)/g, '$1.$2').replace(/\b0 (\d{1,2})\b/g, '0.$1').replace(/[^a-z0-9.\s]/g, ' ').replace(/\s+/g, ' ').trim() }
+const WORD_FIX = [[/\b(kos|kosc|kosza?k|kasz|kocz|gosz|koszt|kozz|kosch|kosik|koszyk)\b/g, 'kosz'], [/\b(kubel|kubelek|kibelek|kible|gibel|kiebel|kiebl|kibl|kebel)\b/g, 'kibel'], [/\b(toda|doda|dodac|dodal|dodam|dodajcie|dodajmy|do daj|dodej|dodaj?y)\b/g, 'dodaj'],
+  [/\b(zalana|zalamy|salany|zalanyy|zalali|zalalem|zalalismy|zalales)\b/g, 'zalany'], [/\b(wyjechala|wyjechali|wyjechalo|wyjazd|odjazd|jedzie juz|poleciał|polecial|lec|lecimy|ruszaj|dawaj jazda|w droge)\b/g, 'wyjechal'],
+  [/\b(cofnac|cofnijmy|cofam|cofaj|cofnie|zle|nie to|wroc to)\b/g, 'cofnij'], [/\b(nastepny|nastepna|nastepne|kolejna|kolejne|jeszcze jeden|jeszcze jedna|i jeszcze)\b(?! gruszk| samoch| taczk(?!a\b)| lyzk(?!a\b))/g, 'kolejny'],
+  [/\b(mamy go|mam go|o jest|jest jest|dobra jest|juz wisi|wisi|stoi|na miejscu|przylecial|przyszedl|wrocil juz)\b/g, 'jest']];
+function normalise(t) { let r = normalise0(t); for (const [re, w] of WORD_FIX) r = r.replace(re, w); return r.replace(/\s+/g, ' ').trim() }
+function normalise0(t) { return t.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d)\s*[,./\\]\s*(\d)/g, '$1.$2').replace(/\b0 (\d{1,2})\b/g, '0.$1').replace(/[^a-z0-9.\s]/g, ' ').replace(/\s+/g, ' ').trim() }
 function spokenNumber(t) {
   const m = t.match(/\b(\d+(?:\.\d{1,2})?)\b/); if (m) return Number(m[1]);
   if (/\b(jeden i pol|poltora)\b/.test(t)) return 1.5; if (/\b(trzy czwarte)\b/.test(t)) return .75; if (/\b(pol|polowa|poloweczka)\b/.test(t)) return .5; if (/\b(cwierc)\b/.test(t)) return .25;
@@ -1262,7 +1286,7 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   if (has('nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|w drodze|nie widac|nie') && !/\bile\b/.test(t)) { if (waiting) { delay(); return true } return 'ignore' }
-  if (has('ile zostalo|ile betonu zostalo|stan betonu|ile jeszcze|ile do konca|ile brakuje|ile pozostalo|ile mamy jeszcze|ile kubikow zostalo|ile metrow zostalo|jaki stan|ile w gruszce')) { report('reportLeft', fmt(left())); return true }
+  if (has('ile zostalo|ile betonu zostalo|stan betonu|ile jeszcze|ile do konca|ile brakuje|ile pozostalo|ile mamy jeszcze|ile kubikow zostalo|ile metrow zostalo|jaki stan|ile w gruszce|co zostalo|ile jeszcze betonu|ile jeszcze mamy|stan')) { report('reportLeft', fmt(left())); return true }
   if (has('ile koszy|ile kursow|ile jeszcze koszy|ile koszy zostalo|ile kibli|ile taczek|ile lyzek|ile razy jeszcze')) { report('reportBuckets', bucketPlanText(bucketPlan(), true)); return true }
   if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik')) { report('reportPoured', fmt(entriesSum())); return true }
   if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
@@ -1279,9 +1303,9 @@ function command(utterance) {
   if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowe kosza|lej pol|pol lyzki')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
   if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|jazda z koszem')) { depart(); return true }
-  if (has('dodac|dodam|dodaje|dodajcie|do daj|dodaj kosza|dodaj kibla|dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny')) {
+  if (has('dodac|dodam|dodaje|dodajcie|do daj|dodaj kosza|dodaj kibla|dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny|wysypane|wysypalem|wysypal|nalane|zaliczone|poszedl|dawaj|leci|nastepny kosz|kosz poszedl|kosz wylany|wylany|plus')) {
     const n = spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany)\b/g, ' ')); add(n > 0 && n <= 5 ? n : (session?.dose > 0 ? session.dose : session?.capacity)); return true }
-  if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe')) { if (waiting) { returned(); return true } return 'ignore' }
+  if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe|mamy|mam|czeka|jestem|juz|okej jest|ok jest')) { if (waiting) { returned(); return true } return 'ignore' }
   return false;
 }
 function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted); const om = $('ohMic'); if (om) { om.textContent = micWanted ? '🟢 Słucham' : '🎙 Mikrofon'; om.classList.toggle('live', micWanted) } if ($('ohMicStatus')) $('ohMicStatus').textContent = t; if (settings.oneHand && /❌|Brak|Nie mogę/.test(t)) announce(t) }
@@ -2089,7 +2113,7 @@ $('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('
 
 // ───────────────────────── ustawienia ─────────────────────────
 applyTheme();
-$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('holdAdd').checked = settings.holdAdd !== false; $('lockStatus').checked = settings.lockStatus !== false; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
+$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('lockCard').checked = settings.lockCard !== false; $('offlineSpeech').checked = !!settings.offlineSpeech; $('ofeoOn').checked = settings.ofeo !== false; $('holdAdd').checked = settings.holdAdd !== false; $('lockStatus').checked = settings.lockStatus !== false; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
 $('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
@@ -2177,7 +2201,7 @@ let elLibT = 0; $('elLibSearch').addEventListener('input', () => { clearTimeout(
 $('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 $('tapLevel').checked = !!settings.tapLevel;
-for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
+for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['lockCard', 'lockCard'], ['offlineSpeech', 'offlineSpeech'], ['ofeoOn', 'ofeo'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 { const sel = $('introSong'), sh = $('songShift'), shv = $('songShiftV');
   sel.replaceChildren(el('option', { value: 'random', text: '🎲 Losowo (co start inna)' }), ...INTRO_SONGS.map(x => el('option', { value: x.id, text: '🎵 ' + x.name })));

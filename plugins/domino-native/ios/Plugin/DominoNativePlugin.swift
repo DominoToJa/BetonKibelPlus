@@ -73,7 +73,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var useClips = true
     private var elOn = false
     private var headsetButtons = false
+    private var lockCard = true          // karta z koszem na ekranie blokady (działa też bez przycisków słuchawki)
+    private var nowPlayingOn: Bool { headsetButtons || lockCard }
     private var askOnly = true
+    private var offlineSpeech = false
     private var micGateDb: Float = -30      // próg głośności: ciche dźwięki z otoczenia są pomijane
     private var utterPeakDb: Float = -120
     private var voiceProcOn = false
@@ -185,7 +188,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
         if listening && !inCall && !isSpeaking && !engine.isRunning { resumeAfterBreak() }   // mikrofon padł
         if !active { stopKeepAlive(); lockTimer?.invalidate(); lockTimer = nil }
-        else if UIApplication.shared.applicationState != .active && !inCall && (!engine.isRunning || headsetButtons) { startKeepAlive() }
+        else if UIApplication.shared.applicationState != .active && !inCall && (!engine.isRunning || nowPlayingOn) { startKeepAlive() }
     }
     private func pauseForCall() {
         sayQueue.removeAll(); isSpeaking = false
@@ -211,7 +214,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func configureSession() throws {
         let s = AVAudioSession.sharedInstance()
         var opts: AVAudioSession.CategoryOptions = [.defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP]
-        if !headsetButtons { opts.insert(.mixWithOthers) }   // przyciski słuchawki działają tylko bez miksowania
+        if !nowPlayingOn { opts.insert(.mixWithOthers) }   // karta na ekranie blokady i przyciski słuchawki działają tylko bez miksowania
         // nie przestawiaj sesji, jeśli już jest dobra — każde przestawienie potrafi zatrzymać mikrofon
         if s.category == .playAndRecord && s.mode == .default && s.categoryOptions == opts && sessionReady { return }
         try s.setCategory(.playAndRecord, mode: .default, options: opts)
@@ -302,10 +305,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         task?.cancel(); task = nil
         let req = SFSpeechAudioBufferRecognitionRequest()
         req.shouldReportPartialResults = true
-        if rec.supportsOnDeviceRecognition { req.requiresOnDeviceRecognition = true }
+        // dokładniej po polsku przez serwer Apple; w telefonie (offline) tylko gdy tak ustawiono albo brak sieci
+        if rec.supportsOnDeviceRecognition && offlineSpeech { req.requiresOnDeviceRecognition = true }
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
-        req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "kosz zalany", "wlano", "tak jest", "kosz jest", "nie ma", "jeszcze nie", "cofnij",
-                                 "kosz wyjechał", "ile zostało", "ile wylano", "pełny kosz", "pół kosza"]
+        req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
+                                 "kosz wyjechał", "jazda", "pojechał", "ile zostało", "ile wylano", "ile koszy", "pełny kosz", "pół kosza", "trzy czwarte", "ćwierć", "przelany", "gruszka pusta", "nowa gruszka",
+                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz"]
         request = req
         lastPartial = ""
         utterPeakDb = -120
@@ -331,13 +336,15 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func quickDelay(_ text: String) -> TimeInterval {
         let q = text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pl_PL"))
             .lowercased().replacingOccurrences(of: "ł", with: "l").trimmingCharacters(in: .whitespacesAndNewlines)
-        let instant: Set<String> = ["tak", "jest", "tak jest", "kosz jest", "kibel jest", "juz jest", "no jest", "jeszcze nie", "nie ma", "jeszcze go nie ma",
-                                    "cofnij", "cofnij ostatni", "wyjechal", "kosz wyjechal", "kibel wyjechal", "pojechal", "kosz pojechal", "ile zostalo", "ile koszy", "ile wylano"]
+        let instant: Set<String> = ["tak", "jest", "tak jest", "kosz jest", "kibel jest", "jest kosz", "jest kibel", "juz jest", "no jest", "mamy", "mam", "jeszcze nie", "nie ma", "jeszcze go nie ma", "jeszcze jedzie",
+                                    "cofnij", "cofnij ostatni", "pomylka", "wyjechal", "kosz wyjechal", "kibel wyjechal", "pojechal", "kosz pojechal", "jazda", "ile zostalo", "ile koszy", "ile wylano",
+                                    "dodaj kosz", "dodaj kibel", "dodaj taczke", "dodaj lyzke", "kosz zalany", "kibel zalany", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "pelny", "pelny kosz", "pol kosza",
+                                    "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "nowa gruszka"]
         if instant.contains(q) { return 0.12 }
         if q.rangeOfCharacter(from: .decimalDigits) != nil { return 0.6 }
         let last = q.split(separator: " ").last.map(String.init) ?? ""
-        if ["dodaj", "kosz", "kibel", "zalany", "zalane", "taczka", "taczke", "lyzka", "lyzke", "kosza", "kibla"].contains(last) { return 0.45 }
-        return 0.8
+        if ["dodaj", "kosz", "kibel", "zalany", "zalane", "taczka", "taczke", "lyzka", "lyzke", "kosza", "kibla", "wlano", "dolej"].contains(last) { return 0.4 }
+        return 0.6
     }
 
     private func armSilence(_ gen: Int, after: TimeInterval = 0.8) {
@@ -380,7 +387,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
     private func bargeIn(_ text: String) -> Bool {
         let t = norm(text)
-        let keys = ["dodaj", "cofnij", "wyjechal", "pojechal", "zalany", "jeszcze nie", "nie ma", "kosz jest", "ile zostalo", "ile koszy", "pelny", "pol kosza"]
+        let keys = ["dodaj", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano"]
         guard let k = keys.first(where: { t.contains($0) }) else { return false }
         return !sayingNow.contains(k)
     }
@@ -419,11 +426,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func setupRemote() {
         let rc = MPRemoteCommandCenter.shared()
         let cmds: [MPRemoteCommand] = [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand, rc.previousTrackCommand, rc.changePlaybackPositionCommand]
-        if !remoteReady && headsetButtons {
+        if !remoteReady && nowPlayingOn {
+            // przyciski: dodaj / cofnij tylko gdy włączone „przyciski słuchawki” — sama karta nic nie dolicza przypadkiem
             for c in [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand] {
-                c.addTarget { [weak self] _ in self?.heard("dodaj kibel"); return .success }
+                c.addTarget { [weak self] _ in if self?.headsetButtons == true { self?.heard("dodaj kibel") }; return .success }
             }
-            rc.previousTrackCommand.addTarget { [weak self] _ in self?.heard("cofnij"); return .success }
+            rc.previousTrackCommand.addTarget { [weak self] _ in if self?.headsetButtons == true { self?.heard("cofnij") }; return .success }
             // pasek przewijania na ekranie blokady = poziom betonu w koszu
             rc.changePlaybackPositionCommand.addTarget { [weak self] e in
                 guard let self = self, let ev = e as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
@@ -435,15 +443,15 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             }
             remoteReady = true
         }
-        for c in cmds { c.isEnabled = headsetButtons }
-        if !headsetButtons { cmds.forEach { $0.removeTarget(nil) }; remoteReady = false; MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
+        for c in cmds { c.isEnabled = nowPlayingOn }
+        if !nowPlayingOn { cmds.forEach { $0.removeTarget(nil) }; remoteReady = false; MPNowPlayingInfoCenter.default().nowPlayingInfo = nil }
         updateNowPlaying()
     }
     private func updateNowPlaying() {
-        guard headsetButtons else { return }
+        guard nowPlayingOn else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: active ? "Zostało \(fmt(leftM3)) m³ · w koszu \(fmt(dose))" : "BetonKibelPlus",
-            MPMediaItemPropertyArtist: active ? "▶ dodaj kosz · ⏮ cofnij · pasek = poziom betonu" : "BetonKibelPlus · przycisk = dodaj kosz",
+            MPMediaItemPropertyArtist: active ? (headsetButtons ? "▶ dodaj kosz · ⏮ cofnij · pasek = poziom betonu" : "pasek = poziom betonu w koszu") : "BetonKibelPlus",
             MPMediaItemPropertyPlaybackDuration: max(1.0, capacity * 100),
             MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, min(capacity, dose)) * 100,
             MPNowPlayingInfoPropertyPlaybackRate: 0.0
@@ -480,7 +488,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
     // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
     @objc private func onBackground() { DispatchQueue.main.async { self.postStatus(); self.startKeepAlive(); self.lockRefresh() } }
-    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); if !self.headsetButtons { self.stopKeepAlive() }; self.updateNowPlaying() } }
+    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); if !self.nowPlayingOn { self.stopKeepAlive() }; self.updateNowPlaying() } }
 
     // MARK: - Praca w tle bez mikrofonu: cichy dźwięk trzyma apkę przy życiu, żeby pytała o kosz i liczyła czas
     private var keepPlayer: AVAudioPlayer?
@@ -498,11 +506,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         guard active, !inCall, keepPlayer?.isPlaying != true else { return }
         // mikrofon trzyma apkę w tle, ale ekran blokady (karta „teraz odtwarzane”) pokazuje się tylko,
         // gdy apka coś GRA — więc przy pilocie cichy dźwięk leci zawsze
-        if engine.isRunning && !headsetButtons { return }
+        if engine.isRunning && !nowPlayingOn { return }
         do {
             try configureSession()
             let p = try AVAudioPlayer(data: silentWav())
-            p.numberOfLoops = -1; p.volume = headsetButtons ? 0.01 : 0   // dane to cisza — nic nie słychać
+            p.numberOfLoops = -1; p.volume = nowPlayingOn ? 0.01 : 0   // dane to cisza — nic nie słychać
             p.prepareToPlay(); p.play()
             keepPlayer = p
         } catch { }
@@ -511,13 +519,13 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// karta na ekranie blokady potrafi zniknąć (inna apka, zmiana sesji) — odświeżamy ją co 15 s w tle
     private var lockTimer: Timer?
     private func lockRefresh() {
-        guard headsetButtons, active else { lockTimer?.invalidate(); lockTimer = nil; return }
+        guard nowPlayingOn, active else { lockTimer?.invalidate(); lockTimer = nil; return }
         UIApplication.shared.beginReceivingRemoteControlEvents()
         setupRemote()
         if lockTimer == nil {
             lockTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
-                if !self.active || !self.headsetButtons { self.lockTimer?.invalidate(); self.lockTimer = nil; return }
+                if !self.active || !self.nowPlayingOn { self.lockTimer?.invalidate(); self.lockTimer = nil; return }
                 if UIApplication.shared.applicationState != .active && self.keepPlayer?.isPlaying != true && !self.inCall { self.startKeepAlive() }
                 self.updateNowPlaying()
             }
@@ -654,8 +662,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let bv = call.getBool("boostVolume") { self.boostVolume = bv }
             if let tv = call.getDouble("targetVolume") { self.targetVolume = Float(max(0.3, min(1.0, tv))) }
             if let g = call.getDouble("micGate") { self.micGateDb = Float(g) }
+            if let o = call.getBool("offlineSpeech") { self.offlineSpeech = o }
             if let ls = call.getBool("lockStatus") { self.lockStatus = ls; if !ls { self.clearStatus() } }
             if let k = call.getBool("keepAwake") { self.keepAwake = k; UIApplication.shared.isIdleTimerDisabled = k && self.active }
+            if let lc = call.getBool("lockCard"), lc != self.lockCard { self.lockCard = lc; let rc = MPRemoteCommandCenter.shared(); [rc.togglePlayPauseCommand, rc.playCommand, rc.pauseCommand, rc.nextTrackCommand, rc.previousTrackCommand, rc.changePlaybackPositionCommand].forEach { $0.removeTarget(nil) }; self.remoteReady = false; self.setupRemote(); if self.listening { try? self.configureSession() } }
             if let hb = call.getBool("headsetButtons"), hb != self.headsetButtons { self.headsetButtons = hb; self.setupRemote(); if self.listening { try? self.configureSession() } }
             if let v = call.getBool("voiceOn") { self.voiceOn = v }
             call.resolve()

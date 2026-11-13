@@ -55,7 +55,9 @@ const voice = {
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
 
-window.BKPnative = { schedule, cancel, isNative, voice };
+/** jednorazowe powiadomienie (np. Entladung w OFEO) — widać je też przy zablokowanym ekranie */
+async function notify(title, body) { if (!isNative) return; try { await LocalNotifications.schedule({ notifications: [{ id: 990001, title, body, schedule: { at: new Date(Date.now() + 1000), allowWhileIdle: true } }] }) } catch (e) { } }
+window.BKPnative = { schedule, cancel, isNative, voice, notify };
 
 if (isNative) {
   LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: 'Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }] }] }).catch(e => console.warn('Actions', e));
