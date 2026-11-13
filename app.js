@@ -879,7 +879,7 @@ function add(value, { at = Date.now(), silent = false, force = false } = {}) {
     if (amount >= before - 0.00001 && !(koszM && before <= 0.0001)) { resetTrip(); NATIVE.cancel?.() }
     else { departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; remindN = 0; alarmVisible = false; nextReminder = 0; NATIVE.schedule?.(deadline, SHORT.ask) }
   }
-  session.entries.push({ amount, at, prevState, prevMilestones }); if (koszM) session.nextPct = null;
+  session.entries.push({ amount, at, prevState, prevMilestones });
   const remaining = left(); session.milestonesFired = session.milestonesFired || {};
   const reached = [{ t: session.load * .75, key: 'left75' }, { t: session.load * .5, key: 'left50' }, { t: 3, key: 'left3' }, { t: 1.5, key: 'left15' }, { t: .5, key: 'left05' }].sort((a, b) => b.t - a.t).filter(m => before > m.t + 1e-5 && remaining > 0 && remaining <= m.t + 1e-5 && !session.milestonesFired[m.key]);
   for (const m of reached) session.milestonesFired[m.key] = true;
@@ -1215,7 +1215,7 @@ $('hudRange').addEventListener('change', () => { if (session) changeDose(Number(
 /** kosz: suwak z boku pokazuje ostatni kurs bieżącej gruszki */
 const koszLast = s => { const cur = trucksOf(s).at(-1); return s.entries.length > cur.start && !cur.closed ? s.entries.at(-1) : null };
 function renderSlider(model) {
-  const s = session, cap = Number(s.capacity || .5), kl = s.method === 'kibel' ? koszLast(s) : null, dose = s.method === 'kibel' ? (kl ? Number(kl.amount) : cap * (s.nextPct ?? 100) / 100) : Number(s.dose || 0);
+  const s = session, cap = Number(s.capacity || .5), dose = s.method === 'kibel' ? cap * (s.nextPct ?? 100) / 100 : Number(s.dose || 0); // kosz: suwak = ile pójdzie w NASTĘPNY kurs (zostaje, aż zmienisz)
   $('vslider').classList.toggle('locked', !!settings.sliderLock); $('vsLock').textContent = settings.sliderLock ? '🔒' : '🔓';
   const pct = v => (slPos(model, v, cap) * 100).toFixed(2) + '%', mx = Math.round(doseMax(cap) * 100) / 100;
   $('vsFill').style.height = pct(dose); $('vslider').classList.toggle('over', dose > cap + 1e-4);
@@ -1233,14 +1233,14 @@ function renderSlider(model) {
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false, dirty = false;
   let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.max(0, Math.round(slVal(model, f, Number(session.capacity)) * 100) / 100);
-    if (session.method === 'kibel') { const cap = Number(session.capacity) || .5, pct = Math.max(0, Math.min(110, Math.round(v / cap * 100))); if (pct === kPct) return; kPct = pct; if (koszLast(session)) setLastPct(pct); else { session.nextPct = pct; render() } dirty = true; return }
+    if (session.method === 'kibel') { const cap = Number(session.capacity) || .5, pct = Math.max(0, Math.min(110, Math.round(v / cap * 100))); if (pct === kPct) return; kPct = pct; session.nextPct = pct; render(); dirty = true; return }
     if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
   let kPct = -1;
   $('vsLock').addEventListener('pointerdown', e => e.stopPropagation());
   $('vsLock').addEventListener('click', e => { e.stopPropagation(); settings.sliderLock = !settings.sliderLock; saveSettings(); renderLevelSoon(); announce(settings.sliderLock ? '🔒 Suwak zablokowany' : '🔓 Suwak odblokowany'); buzz?.('light') });
   vs.addEventListener('pointerdown', e => { if (settings.sliderLock) { announce('🔒 Suwak zablokowany — dotknij kłódki, żeby odblokować'); return } kPct = -1; rect = vs.querySelector('.vs-track').getBoundingClientRect(); dragging = true; vs.classList.add('drag'); vs.setPointerCapture(e.pointerId); fromY(e.clientY); e.preventDefault() });
   vs.addEventListener('pointermove', e => { if (dragging) fromY(e.clientY) });
-  const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; if (session.method === 'kibel') { if (koszLast(session)) setLastPct(kPct, { final: true }); else { remember(); announce('Następny kurs: ' + kPct + '% = ' + fmt(Math.round(Number(session.capacity) * kPct) / 100) + ' m³') } } else changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
+  const end = () => { dragging = false; rect = null; vs.classList.remove('drag'); if (dirty && session) { dirty = false; if (session.method === 'kibel') { { remember(); announce('Następne kursy: ' + kPct + '% = ' + fmt(Math.round(Number(session.capacity) * kPct) / 100) + ' m³') } } else changeDose(session.dose, true) } }; vs.addEventListener('pointerup', end); vs.addEventListener('pointercancel', end);
   vs.addEventListener('keydown', e => { if (!session || settings.sliderLock || session.method === 'kibel') return; const st = bucketStep(session.capacity); if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { changeDose(Math.min(doseMax(session.capacity), session.dose + st), true); e.preventDefault() } if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { changeDose(Math.max(0, session.dose - st), true); e.preventDefault() } });
 })();
 
@@ -1248,7 +1248,7 @@ let renderQ = 0, levelQ = 0, svgKey = '';
 /* lekki render tylko poziomu (suwak, rysunek kosza) — przy przeciąganiu nie przebudowuje całego ekranu */
 function renderLevel(model) {
   const s = session; if (!s) return; model = model || currentModel();
-  const kl = s.method === 'kibel' ? koszLast(s) : null, shown = kl ? Number(kl.amount) : Number(s.dose ?? 0); // kosz: rysunek = to samo co suwak (ostatni kurs)
+  const shown = Number(s.dose ?? 0); // kosz: rysunek = to samo co suwak (następny kurs)
   const key = [s.method, settings.ui, s.capacity, shown, s.bucketProfile?.id || s.bucketProfile?.name || ''].join('|');
   if (key !== svgKey) { svgKey = key; requestAnimationFrame(ohCrop); $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, shown, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, shown, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, shown, model) : makeBucketSvg(s.capacity, shown, model); }
   $('dose').textContent = fmt(shown || 0);
@@ -1287,7 +1287,7 @@ function render() {
     $('kLeft').textContent = bp.total; $('kLeftL').textContent = 'zostało ' + plural(bp.total, a, b, c); $('kLast').textContent = bp.last ? fmt(bp.last) + ' m³' : bp.total ? 'pełny' : '—';
     $('ohK').textContent = bp.sent + ' ' + plural(bp.sent, a, b, c) + ' za nami · zostało ' + bucketPlanText(bp) }
   $('progress').style.width = Math.min(100, 100 * entriesSum() / s.load) + '%';
-  $('dose').textContent = fmt(kosz && koszLast(s) ? Number(koszLast(s).amount) : s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
+  $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
