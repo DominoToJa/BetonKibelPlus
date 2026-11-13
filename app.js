@@ -1344,8 +1344,21 @@ function command(utterance) {
   const t = normalise(utterance); if (!t) return false;
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
-  /* „słyszysz mnie?” — test mikrofonu */
-  if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|jestes|test mikrofonu|test test|horst du mich|hoerst du')) { sayBot('hearYou'); return true }
+  /* „słyszysz mnie?” — test mikrofonu + jak głośno i jak wyraźnie */
+function hearQuality() {
+  const h = window.__lastHeard;
+  if (!h || Date.now() - h.at > 4000 || !(h.db > -120)) { sayBot('hearYou'); return }
+  const over = h.db - h.gate, conf = Number(h.conf);
+  const vol = over >= 18 ? 'głośno' : over >= 9 ? 'dobrze' : over >= 3 ? 'w miarę, ale mów trochę głośniej' : 'bardzo cicho, mów głośniej albo podnieś czułość mikrofonu';
+  const clr = conf < 0 ? '' : conf >= .8 ? ' i wyraźnie' : conf >= .55 ? ', trochę niewyraźnie' : ', ale słabo rozumiem, chyba jest hałas';
+  const crude = settings.crude !== false && Math.random() < .4 ? pick(over >= 9 ? [' Aż mnie ciarki przeszły.', ' Mów tak do mnie częściej.', ' Nie drzyj się, kurwa.'] : [' Szepczesz jak do kochanki.', ' Weź się, kurwa, odezwij głośniej.']) : '';
+  const txt = 'Słyszę cię ' + vol + clr + (h.bt ? ' przez słuchawkę.' : '.') + crude;
+  micDisplay('🎚 Poziom ' + Math.round(h.db) + ' dB (próg ' + Math.round(h.gate) + ') · pewność ' + (conf >= 0 ? Math.round(conf * 100) + '%' : '—') + (h.bt ? ' · słuchawka BT' : ''));
+  $('botText').textContent = txt; lastBotAt = Date.now(); speak('custom', txt);
+}
+const pick = a => a[Math.floor(Math.random() * a.length)];
+/* „słyszysz mnie?” — test mikrofonu */
+  if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|jestes|test mikrofonu|test test|horst du mich|hoerst du|jak mnie slyszysz|jak slyszysz|jakosc')) { hearQuality(); return true }
   /* nowe komendy 4.9.1 */
   if (has('cisza|zamknij sie|nie gadaj|stop gadanie|przestan gadac|wycisz|badz cicho|milcz|ruhe')) { if (settings.mode === 'full') { sayBot('muted'); setTimeout(() => { settings.mode = 'beep'; saveSettings(); configureNative?.() }, 1800) } return true }
   if (has('gadaj|mow dalej|mozesz mowic|odezwij sie|wlacz glos|sprechen')) { settings.mode = 'full'; saveSettings(); configureNative?.(); sayBot('unmuted'); return true }

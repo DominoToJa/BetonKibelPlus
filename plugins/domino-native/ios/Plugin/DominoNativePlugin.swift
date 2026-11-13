@@ -77,7 +77,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var nowPlayingOn: Bool { headsetButtons || lockCard }
     private var askOnly = true
     private var offlineSpeech = false
-    private var micGateDb: Float = -30      // próg głośności: ciche dźwięki z otoczenia są pomijane
+    private var micGateDb: Float = -30
+    private var lastConf = -1.0, lastHeardDb = -120.0, lastHeardGate = -35.0, lastHeardBT = false      // próg głośności: ciche dźwięki z otoczenia są pomijane
     private var utterPeakDb: Float = -120
     private var voiceProcOn = false
     private var loudVoice = true          // głośny lektor: bez tłumienia echa iOS (ono mocno przycisza dźwięk)
@@ -313,13 +314,15 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                                  "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz"]
         request = req
         lastPartial = ""
-        utterPeakDb = -120
+        utterPeakDb = -120; lastConf = -1
         taskStartedAt = Date()
         task = rec.recognitionTask(with: req) { [weak self] result, error in
             DispatchQueue.main.async {
                 guard let self = self, gen == self.generation else { return }
                 if let r = result {
                     let t = r.bestTranscription.formattedString
+                    let cs = r.bestTranscription.segments.map { Double($0.confidence) }.filter { $0 > 0 }
+                    if !cs.isEmpty { self.lastConf = cs.reduce(0, +) / Double(cs.count) }
                     if t != self.lastPartial { self.lastPartial = t; self.armSilence(gen, after: self.quickDelay(t)) }
                     if r.isFinal { self.finish(gen); return }
                 }
@@ -370,6 +373,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         utterPeakDb = -120
         let busy = isSpeaking || Date() <= speakingUntil
         if text.count >= 2 && loudEnough && (!busy || bargeIn(text)) {
+            lastHeardDb = Double(peak); lastHeardGate = Double(micGateDb - (btIn ? 12 : 0)); lastHeardBT = btIn
             heard(text)
         } else if text.count >= 2 && !loudEnough && UIApplication.shared.applicationState == .active {
             notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
@@ -394,7 +398,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     private func heard(_ text: String) {
         if UIApplication.shared.applicationState == .active {
-            notifyListeners("heard", data: ["text": text])
+            notifyListeners("heard", data: ["text": text, "db": lastHeardDb, "gate": lastHeardGate, "conf": lastConf, "bt": lastHeardBT])
         } else {
             handleInBackground(text)
         }

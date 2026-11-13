@@ -51,7 +51,7 @@ const voice = {
   elApi: safe(o => Domino.elApi(o), null),
   playIntro: safe(o => Domino.playIntro(o), null),
   stopIntro: safe(() => Domino.stopIntro(), null),
-  onHeard(cb) { if (isNative) Domino.addListener('heard', e => cb(e.text || '')) },
+  onHeard(cb) { if (isNative) Domino.addListener('heard', e => { window.__lastHeard = { db: e.db, gate: e.gate, conf: e.conf, bt: !!e.bt, at: Date.now() }; cb(e.text || '') }) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
 
