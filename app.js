@@ -8,6 +8,7 @@ const nativeVoice = !!(NATIVE.isNative && NV.available);
 
 // ───────────────────────── teksty lektora ─────────────────────────
 const DEFAULT_TEXTS = {
+"snooze": "Okej, zapytam za X.\nDobra, odezwę się za X.\nJasne, przypomnę za X.\nZapytam ponownie za X.\nPrzyjęłam, za X pytam znowu.\nNie ma sprawy, za X.",
 "hearYou": "Słyszę cię głośno i wyraźnie.\nTak, słyszę.\nSłyszę, mów.\nJestem, słucham.\nSłyszę cię dobrze.\nTak, tak, słyszę każde słowo.\nJasne, że słyszę.\nSłyszę, wszystko gra.\nSłyszę cię, mikrofon działa.\nJestem tu, słyszę.",
   "start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\nRuszamy z betonem. Jestem z wami.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!\nStartujemy. Ja liczę, wy lejecie.\nGruszka podjechała, to lecimy z tematem.\nDobra, panowie, zaczynamy. Trzymam licznik.\nBeton czeka. Zaczynamy!\nZaczynamy. Spokojnie i równo, dacie radę.\nDo roboty! Liczę każdy kosz.\nLicznik wyzerowany, zaczynamy.\nHej, zaczynamy betonowanie. Uważajcie na siebie.\nNo to jazda z betonem!\nZaczynamy. Niech beton leje się równo.\nGotowa do liczenia. Lecimy!\nPierwszy kosz przed nami. Powodzenia!",
   "depart": "Kosz w drodze.\nKosz pojechał.\nPrzyjęłam, kosz w trasie.\nDobra, kosz jedzie.\nKosz poleciał.\nJedzie kosz, czekam.\nKosz w powietrzu.\nOk, kosz w drodze, liczę czas.\nPoszedł kosz.\nKosz wyjechał, daj znać jak wróci.\nKosz do góry, mierzę czas.\nLeci kosz.\nZapisane, kosz w trasie.\nOkej, czekamy na powrót kosza.\nKosz pojechał na górę.",
@@ -57,6 +58,7 @@ const DEFAULT_TEXTS = {
 };
 /* 🔞 teksty chamskie i dwuznaczne (Opcje → „Chamska lektorka”) — dokładane do zwykłych, losowo */
 const CRUDE = {
+"snooze": "Dobra, za X. Ale nie każ mi czekać dłużej, kotku.\nZa X, kurwa, i ani sekundy dłużej.\nPoczekam X. Tęsknić będę.",
   "hearYou": "Słyszę, kurwa, przecież nie jestem głucha.\nSłyszę każde twoje westchnienie, kotku.\nSłyszę, mów do mnie jeszcze.\nNo słyszę, nie drzyj się tak.\nSłyszę, a twój głos mnie kręci.\nSłyszę każde słowo, a twój głos mnie rozpala.\nSłyszę, mów do mnie dalej.",
   "start": "No to wsadzamy beton, chłopaki.\nZaczynamy. Będzie mokro i twardo.\nDo roboty, kurwa, beton nie czeka.\nZaczynamy, a ja lubię długo i porządnie.\nRozbierać się do roboty, panowie. Lecimy.\nZaczynamy. Rozgrzej się, będzie gorąco.\nWłączam się dla ciebie, przystojniaku. Lecimy.\nNo to zaczynamy, kurwa, i nie waż się przestać w połowie.\nStartujemy. Lubię, jak facet wie, co robi z betonem.",
   "depart": "Poszedł, skubaniec.\nLeci kosz, trzymaj go mocno.\nPojechał, a ja już tęsknię.\nSpierdolił do góry, wróci jak będzie chciał.\nKosz w górę, jak u ciebie rano.\nPoszedł, a ja już czekam z otwartymi ramionami.\nLeci kosz. Wracaj szybko, kochanie.\nPojechał. Nie każ mi długo czekać.\nKosz w górę, jak ciśnienie na mój widok.",
@@ -95,7 +97,7 @@ const LEGACY_TEXTS4 = {"start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\n
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
-  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania'], ['reportCap', 'Jaki kosz (X = pojemność)'], ['reportEta', 'Kiedy koniec (X = godzina)'], ['reportTrip', 'Średni kurs (X = czas)'], ['muted', 'Wyciszona (komenda „cisza”)'], ['unmuted', 'Znowu mówi („gadaj”)'], ['ofeo', 'Przypomnienie Entladung OFEO'], ['hearYou', 'Odpowiedź na „słyszysz mnie?”']]],
+  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania'], ['reportCap', 'Jaki kosz (X = pojemność)'], ['reportEta', 'Kiedy koniec (X = godzina)'], ['reportTrip', 'Średni kurs (X = czas)'], ['muted', 'Wyciszona (komenda „cisza”)'], ['unmuted', 'Znowu mówi („gadaj”)'], ['ofeo', 'Przypomnienie Entladung OFEO'], ['hearYou', 'Odpowiedź na „słyszysz mnie?”'], ['snooze', 'Zapytaj za… (X = czas)']]],
   ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
   ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
   ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
@@ -811,13 +813,25 @@ function returned({ at = Date.now(), silent = false } = {}) {
   departed = 0; deadline = 0; phase = 'returned'; alarmVisible = false; nextReminder = 0;
   remember(); render(); tick(); NATIVE.cancel?.(); if (!silent) { if (settings.alarm) beep(); sayBot('arrived') }
 }
-function delay({ at = Date.now(), silent = false } = {}) {
+function delay({ at = Date.now(), silent = false, sec = 0 } = {}) {
   if (!session || session.method === 'taczka') return;
-  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + remindCfg().gap; deadline = nextReminder;
-  remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind); if (!silent) sayBot('late');
+  if (sec > 0) remindN = 0; // „zapytaj za 2 minuty” — od nowa liczymy przypomnienia
+  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + (sec > 0 ? sec * 1000 : remindCfg().gap); deadline = nextReminder;
+  remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind);
+  if (silent) return;
+  if (sec > 0) { const t = sec >= 60 ? (sec % 60 ? fmt(sec / 60) + ' minuty' : (sec / 60 === 1 ? 'minutę' : sec / 60 + (sec / 60 < 5 ? ' minuty' : ' minut'))) : sec + ' sekund'; const msg = pickVariant('snooze').replace(/X/g, t); $('botText').textContent = msg; announce('⏰ ' + msg); lastBotAt = Date.now(); speak('custom', msg) }
+  else sayBot('late');
+}
+/** czas z mowy: „za 2 minuty”, „za minutę”, „za pół minuty”, „za 30 sekund”, „za półtorej minuty” */
+function snoozeFromSpeech(t) {
+  if (/\bpol minuty\b/.test(t)) return 30; if (/\bpoltorej minuty\b/.test(t)) return 90; if (/\bminute\b|\bjedna minute\b/.test(t) && !/\d/.test(t)) return 60;
+  const n = spokenNumber(t.replace(/\b(zapytaj|spytaj|przypomnij|odezwij sie|daj znac|za|mi|o kosz|o kibel|ponownie)\b/g, ' '));
+  if (!(n > 0)) return 0;
+  if (/\bsekund/.test(t)) return Math.min(600, Math.max(10, Math.round(n)));
+  return Math.min(900, Math.max(15, Math.round(n * 60)));
 }
 window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
-$('depart').addEventListener('click', () => depart()); $('returned').addEventListener('click', () => returned()); $('arrived').addEventListener('click', () => returned()); $('late').addEventListener('click', () => delay());
+$('depart').addEventListener('click', () => depart()); $('returned').addEventListener('click', () => returned()); $('arrived').addEventListener('click', () => returned()); $('late').addEventListener('click', () => delay()); document.querySelectorAll('[data-snooze]').forEach(b => b.addEventListener('click', () => delay({ sec: Number(b.dataset.snooze) })));
 
 function add(value, { at = Date.now(), silent = false } = {}) {
   if (!session) return announce('Najpierw rozpocznij betonowanie');
@@ -1366,6 +1380,8 @@ function hearQuality() {
 const pick = a => a[Math.floor(Math.random() * a.length)];
 /* „słyszysz mnie?” — test mikrofonu */
   if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|jestes|test mikrofonu|test test|horst du mich|hoerst du|jak mnie slyszysz|jak slyszysz|jakosc')) { hearQuality(); return true }
+  /* „zapytaj za 2 minuty” */
+  if (has('zapytaj za|spytaj za|przypomnij za|odezwij sie za|zapytaj mnie za|za minute|za dwie minuty|za trzy minuty|za piec minut|za pol minuty|za minutke|frag in|in zwei minuten')) { const sec = snoozeFromSpeech(t) || 120; if (session && session.method !== 'taczka') { delay({ sec }); return true } }
   /* nowe komendy 4.9.1 */
   if (has('cisza|zamknij sie|nie gadaj|stop gadanie|przestan gadac|wycisz|badz cicho|milcz|ruhe')) { if (settings.mode === 'full') { sayBot('muted'); setTimeout(() => { settings.mode = 'beep'; saveSettings(); configureNative?.() }, 1800) } return true }
   if (has('gadaj|mow dalej|mozesz mowic|odezwij sie|wlacz glos|sprechen')) { settings.mode = 'full'; saveSettings(); configureNative?.(); sayBot('unmuted'); return true }
@@ -1447,6 +1463,7 @@ async function drainNative() {
       if (e.type === 'add') add(e.amount, { at: e.at, silent: true });
       else if (e.type === 'returned') returned({ at: e.at, silent: true });
       else if (e.type === 'delay') delay({ at: e.at, silent: true });
+      else if (e.type === 'snooze') delay({ at: e.at, silent: true, sec: Number(e.sec) || 120 });
       else if (e.type === 'depart') depart({ at: e.at, silent: true });
       else if (e.type === 'undo') undo({ silent: true });
       else if (e.type === 'lastFrac') setLastFrac(e.frac === 'over' ? 'over' : Number(e.frac), { silent: true });

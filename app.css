@@ -1120,3 +1120,4 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .hdr-mic.live::after{content:"";position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71}
 .hdr-mic:not(.live)::after{content:"";position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#ff5a5a}
 @keyframes micPulse{50%{box-shadow:0 0 22px #2ecc71aa}}
+.snooze-row{display:flex;align-items:center;gap:6px;margin-top:10px}.snooze-row small{font-weight:800;opacity:.8;white-space:nowrap}.snooze-row button{flex:1;min-height:46px;font-weight:900}

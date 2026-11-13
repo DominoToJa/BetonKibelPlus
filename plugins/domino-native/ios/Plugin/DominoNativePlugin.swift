@@ -1116,6 +1116,20 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let w = t.split(separator: " ")
         if w.count > 7 { return handleInBackground(w.suffix(6).joined(separator: " ")) }  // długa wypowiedź — komenda zwykle na końcu
         let waiting = phase == "away" || phase == "late"
+        // „zapytaj za 2 minuty” przy zablokowanym ekranie
+        if waiting && method != "taczka" && has(t, ["zapytaj za", "spytaj za", "przypomnij za", "odezwij sie za", "za minute", "za dwie minuty", "za trzy minuty", "za piec minut", "za pol minuty"]) {
+            var sec = 120.0
+            if t.contains("pol minuty") { sec = 30 } else if t.contains("minute") && !t.contains("minuty") && !t.contains("minut ") { sec = 60 }
+            let words: [String: Double] = ["jedna": 1, "dwie": 2, "dwa": 2, "trzy": 3, "cztery": 4, "piec": 5, "szesc": 6, "siedem": 7, "osiem": 8, "dziesiec": 10]
+            if let m = t.range(of: "\\d+", options: .regularExpression), let v = Double(t[m]) { sec = t.contains("sekund") ? v : v * 60 }
+            else { for (w, v) in words where t.contains(" " + w + " ") || t.hasSuffix(" " + w) || t.contains("za " + w) { sec = t.contains("sekund") ? v : v * 60; break } }
+            sec = min(900, max(15, sec))
+            phase = "late"; deadline = now + sec * 1000; reminders = 0
+            pending.append(["type": "snooze", "at": now, "sec": sec]); postStatus()
+            say(key: "late", text: "Okej, zapytam za \(Int(sec) >= 60 ? "\(Int(sec / 60)) min" : "\(Int(sec)) sekund").")
+            scheduleAsk()
+            return
+        }
         if waiting && !t.contains(" ile ") && has(t, ["nie", "nie ma", "jeszcze nie", "nie wrocil", "nie przyjechal", "nie dojechal", "nie jest", "jeszcze go nie ma", "jeszcze jedzie", "jedzie", "w drodze", "czekaj", "zaraz", "moment", "chwila", "nie widac"]) {
             guard method != "taczka" else { return }
             phase = "late"; deadline = now + 30000
