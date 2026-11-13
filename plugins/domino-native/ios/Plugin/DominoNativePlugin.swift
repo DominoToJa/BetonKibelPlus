@@ -341,7 +341,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         // dokładniej po polsku przez serwer Apple; w telefonie (offline) tylko gdy tak ustawiono albo brak sieci
         if rec.supportsOnDeviceRecognition && offlineSpeech { req.requiresOnDeviceRecognition = true }
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
-        req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
+        req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "dodaj kosza", "daj kosz", "jeszcze kosz", "kosz", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
                                  "kosz wyjechał", "jazda", "pojechał", "ile zostało", "ile wylano", "ile koszy", "pełny kosz", "pół kosza", "trzy czwarte", "ćwierć", "przelany", "gruszka pusta", "nowa gruszka",
                                  "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz"]
         request = req
@@ -423,7 +423,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
     private func bargeIn(_ text: String) -> Bool {
         let t = norm(text)
-        let keys = ["dodaj", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
+        let keys = ["dodaj", "daj kosz", "dodajkosz", "do dach", "podaj", "jeszcze kosz", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
         guard let k = keys.first(where: { t.contains($0) }) else { return false }
         return !sayingNow.contains(k)
     }
@@ -1240,7 +1240,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             cancelAskChain(); pending.append(["type": "depart", "at": now]); postStatus()
             say(key: "depart", text: nil)
             scheduleAsk()
-        } else if has(t, ["dodac", "dodam", "dodaje", "dodajcie", "do daj", "dodaj kosza", "dodaj kibla", "dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
+        } else if has(t, ["dodac", "dodam", "dodaje", "dodajcie", "do daj", "dodajesz", "dodajkosz", "do dach", "to daj", "podaj", "odaj", "daj kosz", "daj kibel", "dawaj kosz", "wrzuc kosz", "jeszcze kosz", "eimer dazu", "kubel dazu", "noch ein eimer", "do dodania", "dodaj kosza", "dodaj kibla", "dodaj taczke", "dodaj lyzke", "taczka wylana", "lyzka wylana", "kolejna taczka", "kolejna lyzka", "taczka", "wlano", "wlalem", "wlalismy", "nalalem", "nalalismy", "wlali", "dodaj kibel", "dodaj kosz", "dodaj", "nalicz", "dolej", "zalicz", "zalany", "zalane", "kosz zalany", "kibel zalany", "wlane", "poszlo", "plus jeden", "kolejny"]) {
             guard leftM3 > 0.0001 || method == "kibel" else { return }
             let before = leftM3
             var spoken = spokenAmount(raw)

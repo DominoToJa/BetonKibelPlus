@@ -1380,7 +1380,11 @@ function cmdRender(m) {
   $('returned').textContent = '✓ ' + (m === 'taczka' ? 'Taczka już jest' : m === 'inne' ? 'Łyżka już jest' : 'Kosz już jest');
 }
 cmdRender('kibel');
-const WORD_FIX = [[/\b(kos|kosc|kosza?k|kasz|kocz|gosz|koszt|kozz|kosch|kosik|koszyk)\b/g, 'kosz'], [/\b(kubel|kubelek|kibelek|kible|gibel|kiebel|kiebl|kibl|kebel)\b/g, 'kibel'], [/\b(toda|doda|dodac|dodal|dodam|dodajcie|dodajmy|do daj|dodej|dodaj?y)\b/g, 'dodaj'],
+const WORD_FIX = [
+  // „dodaj kosz” jak go iPhone przekręca: sklejone, ucięte, niemieckie
+  [/\b(dodajkosz|dodajkosza|dodajkosze|dodajkibel|dodajkubel)\b/g, 'dodaj kosz'], [/\b(eimer dazu|kubel dazu|noch ein eimer|noch einen eimer|noch ein kubel|eimer plus|plus eimer|eimer rein)\b/g, 'dodaj kosz'],
+  [/\b(dodajesz|dodajze|do dach|do dag|do dai|to daj|toda j|podaj|odaj|odda j|o daj|do dania|do dodania|dodanie)\b(?= (kosz|kosza|kosze|kibel|kibla|kubel|jeden|go)\b|$)/g, 'dodaj'], [/(^|\s)(daj|dawaj|wrzuc|wpisz|zapisz|licz|policz) (kosz|kosza|kibel|kibla|kubel)\b/g, '$1dodaj kosz'],
+  [/\bjeszcze (kosz|kibel|kubel|jeden kosz|jeden kibel)\b/g, 'kolejny'],[/\b(kos|kosc|kosza?k|kasz|kocz|gosz|koszt|kozz|kosch|kosik|koszyk)\b/g, 'kosz'], [/\b(kubel|kubelek|kibelek|kible|gibel|kiebel|kiebl|kibl|kebel)\b/g, 'kibel'], [/\b(toda|doda|dodac|dodal|dodam|dodajcie|dodajmy|do daj|dodej|dodaj?y)\b/g, 'dodaj'],
   [/\b(zalana|zalamy|salany|zalanyy|zalali|zalalem|zalalismy|zalales)\b/g, 'zalany'], [/\b(wyjechala|wyjechali|wyjechalo|wyjazd|odjazd|jedzie juz|poleciał|polecial|lec|lecimy|ruszaj|dawaj jazda|w droge)\b/g, 'wyjechal'],
   [/\b(cofnac|cofnijmy|cofam|cofaj|cofnie|zle|nie to|wroc to)\b/g, 'cofnij'], [/\b(nastepny|nastepna|nastepne|kolejna|kolejne|jeszcze jeden|jeszcze jedna|i jeszcze)\b(?! gruszk| samoch| taczk(?!a\b)| lyzk(?!a\b))/g, 'kolejny'],
   [/\b(mamy go|mam go|o jest|jest jest|dobra jest|juz wisi|wisi|stoi|na miejscu|przylecial|przyszedl|wrocil juz|jest juz|da ist|ist da|ist zuruck|wieder da|jest z powrotem|z powrotem|wrocila|wrocilo|przyjechala|dojechala|jest nasz|jest kochany|jest skurczybyk|jest cholera|kosz na dole|na dole)\b/g, 'jest'],
@@ -1549,12 +1553,15 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
   }
   if (!has('dodaj|zalany|zalane') && has('ustaw kosz|zmien kosz|kosz|kibel|pojemnosc kosza|pojemnosc|kosz ma|nowy kosz|kosz na|ustaw kibel|zmien kibel')) { const n = spokenNumber(t); if (n > 0 && n <= 5) { changeCapacity(n, null); return true } }
   if (has('lej|leje|wlewam|wlej|zmien ilosc|ustaw ilosc|ilosc|lejemy|zalewam|do kosza|wlewamy|ustaw porcje|porcja')) { const n = spokenNumber(t); if (n >= 0 && n <= 5 && !isNaN(n)) { changeDose(n, true); sayBot('doseSet'); return true } }
-  if (has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
+  if (!has('dodaj|plus') && has('pelny kosz|pelny kibel|do pelna|caly kosz|caly kibel|pelen kosz|do pelnego|na full|full|calosc|pelny')) { if (session) { changeDose(session.capacity, true); sayBot('fullBucket') } return true }
   if (has('pol kosza|pol kibla|polowa kosza|pol taczki|pol kibelka|pol kubla|do polowy|polowe kosza|lej pol|pol lyzki')) { if (session) { changeDose(session.capacity / 2, true); sayBot('halfBucket') } return true }
   if (has('cofnij ostatni|skasuj ostatni|usun ostatni|cofnij|anuluj|usun|wycofaj|odejmij|minus jeden|pomylka|blad|skasuj')) { undo(); return true }
   if (has('koparka wyjechala|koparka pojechala|koparka jedzie z betonem|lyzka pojechala|lyzka jedzie|kosz w gore|dzwig jedzie|kran jedzie|podnosi|kosz wyjechal|kibel wyjechal|kosz ruszyl|kosz pojechal|kibel pojechal|wyjechal|ruszyl|pojechal|odjechal|jazda z koszem')) { depart(); return true }
   if (has('dodac|dodam|dodaje|dodajcie|do daj|dodaj kosza|dodaj kibla|dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny|wysypane|wysypalem|wysypal|nalane|zaliczone|poszedl|dawaj|leci|nastepny kosz|kosz poszedl|kosz wylany|wylany|plus|fertig|voll|weiter|zrobiony|gotowy kosz|kosz gotowy|napelniony|pelen')) {
-    const n = amountFromSpeech(spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|dodaj taczke|dodaj lyzke)\b/g, ' '))); add(n > 0 ? n : (session?.dose > 0 ? session.dose : session?.capacity)); return true }
+    // „dodaj jeden (kosz)” = jeden kurs, nie 1 m³; „dodaj pełny/full” = pełna pojemność
+    const n = amountFromSpeech(spokenNumber(t.replace(/\b(jeden|jedna|jedno|1) (kosz|kosza|kibel|kibla|kubel|taczk\w*|lyzk\w*)\b/g, ' $2').replace(/\b(dodaj|plus) (jeden|jedna|jedno|1)$/, '$1').replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|dodaj taczke|dodaj lyzke)\b/g, ' ')));
+    const full = has('pelny|caly|calosc|full|do pelna|pelen|do pelnego');
+    add(n > 0 ? n : full && session ? session.capacity : (session?.dose > 0 ? session.dose : session?.capacity)); return true }
   if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe|mamy|mam|czeka|jestem|juz|okej jest|ok jest')) { if (waiting) { returned(); return true } return 'ignore' }
   return smallTalkLate(t, has);
 }
