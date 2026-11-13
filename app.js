@@ -303,7 +303,7 @@ function speak(key, text) {
   text = femin(text);
   if (!elReady() || !text || (key && clipKeys.has(key))) return ttsSpeak(key, text);
   // na budowie zasięg bywa słaby: jak ElevenLabs nie odda głosu w 2,5 s, mówi zwykły głos (plik i tak się dociągnie na następny raz)
-  let done = false; const fb = () => { if (done) return; done = true; ttsSpeak(key, text) }, to = setTimeout(fb, ASK_KEYS.has(key) || key === 'remind' ? 2500 : 4000);
+  let done = false; const fb = () => { if (done) return; done = true; if (ASK_KEYS.has(key)) jlog('ElevenLabs nie zdążył (zasięg?) — gada zwykły głos', true); ttsSpeak(key, text) }, to = setTimeout(fb, ASK_KEYS.has(key) || key === 'remind' ? 2500 : 4000);
   elGet(text).then(res => {
     clearTimeout(to); if (done) return; done = true;
     if (!res) return ttsSpeak(key, text);
@@ -314,12 +314,14 @@ function speak(key, text) {
 /** po starcie: dociąga z ElevenLabs wszystkie warianty pytania o kosz, żeby potem leciały od ręki nawet bez zasięgu */
 async function elWarmAsk() {
   if (!elReady() || elWarmAsk.busy) return; elWarmAsk.busy = true;
-  try { for (const k of [methodKey('ask'), methodKey('remind')]) for (const line of textOf(k).split('\n').map(x => x.trim()).filter(Boolean)) { if (!session || !navigator.onLine) return; if (elNames.has(elName(line))) continue; try { await elFetchStore(line) } catch (e) { return } await new Promise(r => setTimeout(r, 400)) } }
+  try { for (const k of [methodKey('ask'), methodKey('remind')]) for (const line of textOf(k).split('\n').map(x => femin(x.trim())).filter(Boolean)) { if (!session || !navigator.onLine) return; if (elNames.has(elName(line))) continue; try { await elFetchStore(line) } catch (e) { return } await new Promise(r => setTimeout(r, 400)) } }
   finally { elWarmAsk.busy = false }
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
 const ASK_KEYS = new Set(['hello', 'howAreYou', 'joke', 'thanks', 'love', 'best', 'name', 'tired', 'coffee', 'bored', 'insult', 'slowTrip', 'fastTrip', 'idle', 'ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka', 'hearYou', 'muted', 'unmuted', 'ofeo']);
 let lastBotAt = 0;
+const JLOG = (() => { try { return JSON.parse(localStorage.getItem('bkp_jlog') || '[]') } catch (e) { return [] } })();
+let nightOn = false;
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
   if (settings.askOnly !== false && !ASK_KEYS.has(key) && key !== 'micOn') { const shown = pickVariant(key, text) || SHORT[key] || ''; if (shown) $('botText').textContent = shown; return } // mówi tylko „czy kosz jest?”
@@ -489,7 +491,7 @@ const remindCfg = () => REMIND[settings.remindMode] || REMIND.normal;
 let REMIND_MS = 45000, remindN = 0;
 let alarmSince = 0;
 /** mocne przypomnienie: dźwięk + wibracja + głos */
-function alarmKick(key) { alarmSince = alarmSince || Date.now(); if (key === 'ask') setTimeout(() => { if (alarmVisible) { beep(); sayBot('remind') } }, 6000); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
+function alarmKick(key) { alarmSince = alarmSince || Date.now(); jlog(key === 'ask' ? 'pytam: czy kosz wrócił?' : key === 'remind' ? 'przypominam o koszu (' + remindN + ')' : key); if (settings.mode !== 'full') jlog('tryb lektora: tylko pik — bez mowy', true); if (nightOn) nightRender(); if (key === 'ask') setTimeout(() => { if (alarmVisible) { beep(); sayBot('remind') } }, 6000); if (settings.alarm !== false) { beep(); setTimeout(beep, 350) } buzz('warning'); setTimeout(() => buzz('warning'), 300); setTimeout(() => buzz('warning'), 600); try { navigator.vibrate?.([400, 150, 400, 150, 400]) } catch (e) { } sayBot(key) }
 let micWanted = false, micLive = false, recognition = null, voiceRetry = null, lastAddAt = 0;
 const entriesSum = () => session ? session.entries.reduce((s, x) => s + Number(x.amount || 0), 0) : 0;
 /** liczenie kursów: ile wysłano, ile pełnych zostało i ile w ostatnim */
@@ -516,7 +518,7 @@ function remember() {
 function syncNative() {
   if (!nativeVoice) return;
   const s = session;
-  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
+  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), kursy: s?.entries?.length || 0, left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
 let modelCache = { key: '', model: null }, customOpen = false;
@@ -890,7 +892,7 @@ function snoozeFromSpeech(t) {
   if (/\bsekund/.test(t)) return Math.min(600, Math.max(10, Math.round(n)));
   return Math.min(900, Math.max(15, Math.round(n * 60)));
 }
-window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
+window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay(); else if (a === 'SNOOZE2') delay({ sec: 120 }); jlog('powiadomienie: ' + ({ ARRIVED: 'kosz jest', LATER: 'jeszcze nie', SNOOZE2: 'za 2 min' }[a] || a)) });
 $('depart').addEventListener('click', () => depart()); $('returned').addEventListener('click', () => returned()); $('arrived').addEventListener('click', () => returned()); $('late').addEventListener('click', () => delay()); document.querySelectorAll('[data-snooze]').forEach(b => b.addEventListener('click', () => delay({ sec: Number(b.dataset.snooze) })));
 
 function add(value, { at = Date.now(), silent = false, force = false } = {}) {
@@ -1345,6 +1347,7 @@ function render() {
   $('entries').innerHTML = s.entries.length ? s.entries.slice().reverse().map(e => '<div class="history-entry"><span>' + new Date(e.at).toLocaleTimeString('pl-PL') + '</span><strong>+' + fmt(e.amount) + ' m³</strong></div>').join('') : '<div class="help">Brak dolewek</div>';
 }
 function tick() {
+  if (nightOn) nightRender();
   if (!session) return; const s = session, now = Date.now(), avg = meanTrip();
   if (currentTab === 'work' && !document.hidden) {
   $('elapsed').textContent = dur((now - s.startedAt) / 1000);
@@ -1362,7 +1365,7 @@ function tick() {
   }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
-  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + rc.gap; deadline = nextReminder; remember(); render(); alarmKick('remind') }
+  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { if (remindN === rc.max + 1) jlog('limit przypomnień (' + rc.max + ') — dalej cisza. „Często” = pyta do skutku', true); nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + rc.gap; deadline = nextReminder; remember(); render(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
@@ -1528,6 +1531,8 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
   if (document.querySelector('.end-prompt:not(.ofeo-prompt)') && has('jeszcze leje|leje dalej|jeszcze jest|jeszcze troche')) { document.querySelector('.end-prompt:not(.ofeo-prompt) button:not(.primary)')?.click(); return true }
   if (has('duzy widok|tryb jednej reki|powieksz')) { setOneHand?.(true); return true }
   if (has('maly widok|pelny widok|normalny widok|pomniejsz')) { setOneHand?.(false); return true }
+  if (has('ekran nocny|tryb nocny|nocny ekran|wygaszacz|zgas ekran|przyciemnij')) { setNight(true); return true }
+  if (nightOn && has('zapal ekran|obudz|rozjasnij|wylacz nocny|koniec nocnego|pokaz ekran')) { setNight(false); return true }
   if (has('zablokuj suwak|zablokuj')) { settings.sliderLock = true; saveSettings(); renderLevelSoon?.(); announce('🔒 Suwak zablokowany'); return true }
   if (has('odblokuj suwak|odblokuj')) { settings.sliderLock = false; saveSettings(); renderLevelSoon?.(); announce('🔓 Suwak odblokowany'); return true }
   if (has('nie ma|jeszcze nie|nie wrocil|nie przyjechal|nie dojechal|nie jest|jeszcze go nie ma|jeszcze jedzie|w drodze|nie widac|nein|nie|jeszcze moment|chwila|moment|sekunde|poczekaj') && !/\bile\b/.test(t)) { if (waiting) { delay(); return true } return 'ignore' }
@@ -1612,6 +1617,47 @@ async function drainNative() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (micWanted && !nativeVoice) { stopMic(); micDisplay('Mikrofon zatrzymany — wróć do aplikacji i włącz ponownie.') } return }
   drainNative().then(() => { tick(); homeRender() });
+});
+
+// ───────────────────────── dziennik pytań o kosz (żeby było widać, czemu bot kiedyś nie zapytał) ─────────────────────────
+function jlog(what, bad = false) {
+  JLOG.push({ at: Date.now(), what, st: document.hidden ? 'tło' : 'ekran', bad }); if (JLOG.length > 80) JLOG.splice(0, JLOG.length - 80);
+  try { localStorage.setItem('bkp_jlog', JSON.stringify(JLOG)) } catch (e) { }
+}
+async function diagRender() {
+  let nat = []; try { nat = nativeVoice && NV.getLog ? await NV.getLog() : [] } catch (e) { }
+  const BAD = /pominięte|milczy|wyciszona|limit|nie wstał|nie zdążył|przerwa dźwięku|tylko pik/;
+  const all = [...JLOG.map(e => ({ ...e, src: '📱' })), ...nat.map(e => ({ at: e.at, what: e.what, st: e.st, bad: BAD.test(e.what), src: '🍏' }))].sort((a, b) => b.at - a.at).slice(0, 120);
+  $('diagList').replaceChildren(...(all.length ? all.map(e => el('div', { class: e.bad || BAD.test(e.what) ? 'bad' : '' }, el('small', { text: new Date(e.at).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' · ' + e.st }), el('span', { text: e.src + ' ' + e.what }))) : [el('p', { class: 'hint', text: 'Pusto — dziennik zapełni się przy betonowaniu.' })]));
+}
+$('diagShow')?.addEventListener('click', diagRender);
+$('diagClear')?.addEventListener('click', () => { JLOG.length = 0; try { localStorage.removeItem('bkp_jlog') } catch (e) { } diagRender() });
+
+// ───────────────────────── ekran nocny: czarno, ciemne cyfry, apka dalej słucha i pyta ─────────────────────────
+let nightLock = null, nightAskLit = false, nightTapAt = 0, nightShiftAt = 0;
+function setNight(on) {
+  nightOn = !!on; $('night').hidden = !nightOn; document.body.classList.toggle('night-on', nightOn); nightAskLit = false;
+  if (nativeVoice && NV.setNight) NV.setNight({ on: nightOn, level: 0.03 }).catch(() => { });
+  else if (nightOn) { try { navigator.wakeLock?.request('screen').then(l => { nightLock = l }).catch(() => { }) } catch (e) { } }
+  else { try { nightLock?.release() } catch (e) { } nightLock = null }
+  jlog(nightOn ? 'ekran nocny włączony' : 'ekran nocny wyłączony');
+  if (nightOn) { nightRender(); announce('🌙 Ekran nocny — dotknij 2×, żeby wyjść') }
+}
+function nightRender() {
+  if (!nightOn) return; const s = session, now = Date.now();
+  $('ntClock').textContent = new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+  $('ntSite').textContent = s?.site || 'BetonKibelPlus';
+  $('ntLeft').textContent = s ? fmt(left()) : '—'; $('ntPoured').textContent = s ? fmt(entriesSum()) : '—'; $('ntKursy').textContent = s ? String(s.entries.length) : '—';
+  $('ntTrip').textContent = !s || s.method === 'taczka' ? '—' : phase === 'away' && deadline > now ? shortDur((deadline - now) / 1000) : phase === 'late' ? 'czekam' : 'jest';
+  const asking = !!(s && alarmVisible); $('ntAsk').hidden = !asking; $('night').classList.toggle('asking', asking);
+  if (asking !== nightAskLit) { nightAskLit = asking; if (nativeVoice && NV.setNight) NV.setNight({ on: true, level: asking ? 0.35 : 0.03 }).catch(() => { }) } // pytanie = jaśniej, żeby było widać
+  if (now - nightShiftAt > 60000) { nightShiftAt = now; $('ntIn').style.transform = 'translate(' + Math.round(Math.random() * 16 - 8) + 'px,' + Math.round(Math.random() * 24 - 12) + 'px)' } // OLED: nie wypala się
+}
+$('nightBtn')?.addEventListener('click', () => setNight(true));
+$('night')?.addEventListener('pointerup', e => {
+  const b = e.target.closest('[data-nt]');
+  if (b) { const a = b.dataset.nt; if (a === 'yes') returned(); else if (a === 'no') delay(); else delay({ sec: 120 }); buzz?.('light'); nightRender(); return }
+  const now = Date.now(); if (now - nightTapAt < 450) { nightTapAt = 0; setNight(false) } else nightTapAt = now;
 });
 
 // ───────────────────────── moje kosze ─────────────────────────
@@ -2383,7 +2429,7 @@ function elUI() {
   const all = elAllLines(), have = all.filter(t => elNames.has(elName(t))).length;
   $('elState').textContent = settings.elVoice ? 'Pobrane teksty: ' + have + ' z ' + all.length + (have < all.length ? ' — kliknij „Pobierz głos”, żeby działało bez internetu.' : ' ✓ gotowe, działa bez internetu.') : 'Wklej klucz API i ID głosu z ElevenLabs.';
 }
-const elAllLines = () => [...new Set(Object.keys(TEXTS).flatMap(k => String(textOf(k) || '').split('\n').map(x => x.trim()).filter(x => x && !/\bX\b/.test(x))))];
+const elAllLines = () => [...new Set(Object.keys(TEXTS).flatMap(k => String(textOf(k) || '').split('\n').map(x => femin(x.trim())).filter(x => x && !/\bX\b/.test(x))))];
 const elSave = e => { const hadKey = !!settings.elKey; settings.el = $('elOn').checked; settings.elKey = $('elKey').value.trim(); if (e?.target?.id === 'elKey' && settings.elKey && !hadKey) { settings.el = true; $('elOn').checked = true } settings.elVoice = $('elVoice').value.trim(); settings.elModel = $('elModel').value; saveSettings(); configureNative(); elUI() };
 for (const id of ['elOn', 'elKey', 'elVoice', 'elModel']) $(id).addEventListener('change', elSave);
 $('elTest').addEventListener('click', async () => { elSave(); if (!elReady()) return announce('Włącz lektora i wpisz klucz oraz ID głosu'); $('elState').textContent = 'Sprawdzam…'; try { const t = 'Cześć Domi, tu ' + ((settings.elVoiceName || 'Dasia').split(/[\s\-–—]/)[0]) + '. Zaczynamy betonowanie!'; await elGet(t); speak('', t); elUI() } catch (e) { $('elState').textContent = '❌ ' + e.message + ' — sprawdź klucz API, ID głosu i internet.' } });

@@ -39,7 +39,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "elFetch", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "elApi", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "playIntro", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "stopIntro", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "stopIntro", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getLog", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setNight", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -128,6 +130,36 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var fired: Set<String> = []
     private var askTimer: Timer?
     private var reminders = 0, remindSec = 45.0, remindMax = 5
+    private var kursy = 0
+    // MARK: - Dziennik w tle: co apka robiła, gdy ekran był zgaszony (do szukania „czemu nie zapytała”)
+    private var bgLog: [[String: Any]] = []
+    private func logBg(_ what: String) {
+        let st = UIApplication.shared.applicationState == .active ? "ekran" : "tło"
+        bgLog.append(["at": nowMs(), "what": what, "st": st])
+        if bgLog.count > 80 { bgLog.removeFirst(bgLog.count - 80) }
+    }
+    @objc func getLog(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { call.resolve(["log": self.bgLog]) }
+    }
+    // MARK: - Ekran nocny: ciemno, ale apka nie zasypia (iOS nie przycina jej jak przy blokadzie)
+    private var savedBrightness: CGFloat = -1
+    @objc func setNight(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        let level = CGFloat(max(0.0, min(1.0, call.getDouble("level") ?? 0.03)))
+        DispatchQueue.main.async {
+            if on {
+                if self.savedBrightness < 0 { self.savedBrightness = UIScreen.main.brightness }
+                UIScreen.main.brightness = level
+                UIApplication.shared.isIdleTimerDisabled = true
+                self.logBg("ekran nocny włączony")
+            } else {
+                if self.savedBrightness >= 0 { UIScreen.main.brightness = self.savedBrightness; self.savedBrightness = -1 }
+                UIApplication.shared.isIdleTimerDisabled = self.keepAwake && self.active
+                self.logBg("ekran nocny wyłączony")
+            }
+            call.resolve()
+        }
+    }
     private var pending: [[String: Any]] = []
     private let callObserver = CXCallObserver()
     private var inCall = false
@@ -410,8 +442,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         guard let raw = n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
         DispatchQueue.main.async {
-            if type == .began { self.pauseForCall() }
-            else if type == .ended { DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.resumeAfterBreak() } }
+            if type == .began { self.pauseForCall(); self.logBg("przerwa dźwięku (telefon / Siri / inna apka)") }
+            else if type == .ended { self.logBg("koniec przerwy — wracam"); DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { self.resumeAfterBreak(); if self.active { self.startKeepAlive(); self.scheduleAsk() } } }
         }
     }
     @objc private func onMediaReset(_ n: Notification) {
@@ -455,7 +487,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         guard nowPlayingOn else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: active ? "Zostało \(fmt(leftM3)) m³ · w koszu \(fmt(dose))" : "BetonKibelPlus",
-            MPMediaItemPropertyArtist: active ? (headsetButtons ? "▶ dodaj kosz · ⏮ cofnij · pasek = poziom betonu" : "pasek = poziom betonu w koszu") : "BetonKibelPlus",
+            MPMediaItemPropertyArtist: active ? (tripLine() + (headsetButtons ? " · ▶ dodaj · ⏮ cofnij" : "")) : "BetonKibelPlus",
             MPMediaItemPropertyPlaybackDuration: max(1.0, capacity * 100),
             MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, min(capacity, dose)) * 100,
             MPNowPlayingInfoPropertyPlaybackRate: 0.0
@@ -491,8 +523,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return MPMediaItemArtwork(boundsSize: size) { _ in img }
     }
     // MARK: - Licznik na ekranie blokady (cicha, podmieniana notyfikacja)
-    @objc private func onBackground() { DispatchQueue.main.async { self.postStatus(); self.startKeepAlive(); self.lockRefresh() } }
-    @objc private func onForeground() { DispatchQueue.main.async { self.clearStatus(); if !self.nowPlayingOn { self.stopKeepAlive() }; self.updateNowPlaying() } }
+    @objc private func onBackground() { DispatchQueue.main.async { self.logBg("ekran zgaszony / apka w tle"); self.postStatus(); self.startKeepAlive(); self.lockRefresh(); self.scheduleAsk() } }
+    @objc private func onForeground() { DispatchQueue.main.async { self.logBg("apka na ekranie"); self.clearStatus(); if !self.nowPlayingOn { self.stopKeepAlive() }; self.updateNowPlaying() } }
 
     // MARK: - Praca w tle bez mikrofonu: cichy dźwięk trzyma apkę przy życiu, żeby pytała o kosz i liczyła czas
     private var keepPlayer: AVAudioPlayer?
@@ -536,6 +568,18 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
     }
     private func stopKeepAlive() { keepPlayer?.stop(); keepPlayer = nil }
+    /// krótko dla karty na ekranie blokady: kurs i kiedy pytanie (godzina — nie trzeba odświeżać co sekundę)
+    private func tripLine() -> String {
+        var t = "Kurs \(kursy)"
+        if method != "taczka" {
+            if phase == "away" && deadline > nowMs() {
+                let f = DateFormatter(); f.dateFormat = "HH:mm"
+                t += " · pytam ok. \(f.string(from: Date(timeIntervalSince1970: deadline / 1000)))"
+            } else if phase == "late" { t += " · czekam na kosz" }
+            else { t += " · kosz na miejscu" }
+        }
+        return t
+    }
     private func statusLine() -> String {
         var trip = ""
         if method != "taczka" {
@@ -566,6 +610,17 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let ids = (0..<36).map { String(2101 + $0) }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+    }
+    /// mikrofon / lektorka nie wróciły same — powiadomienie, żeby jednym dotknięciem wrócić do apki
+    private var brokeAt: Date = .distantPast
+    private func brokeNotice() {
+        guard Date().timeIntervalSince(brokeAt) > 120 else { return }
+        brokeAt = Date()
+        let c = UNMutableNotificationContent()
+        c.title = "🎤 Mikrofon stanął"
+        c.body = "Dotknij, żeby wrócić — wtedy znowu słucham i pytam o kosz."
+        c.sound = .default
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "bkp-broke", content: c, trigger: nil))
     }
     private func clearStatus() {
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["bkp-status"])
@@ -636,6 +691,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             startTask()
         } catch {
             notifyListeners("status", data: ["text": "Mikrofon przerwany: \(error.localizedDescription)"])
+            logBg("mikrofon nie wstał: \(error.localizedDescription)")
+            if UIApplication.shared.applicationState != .active && active { brokeNotice() }
         }
     }
 
@@ -722,8 +779,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
 
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
     private func say(key: String?, text: String?, force: Bool = false) {
-        if inCall { return } // podczas rozmowy lektor milczy
-        if !voiceOn && !force { return }
+        if inCall { if key == "ask" || key == "remind" { logBg("lektorka milczy — trwa rozmowa") }; return } // podczas rozmowy lektor milczy
+        if !voiceOn && !force { if key == "ask" || key == "remind" { logBg("lektorka wyciszona — pytanie tylko na ekranie") }; return }
         var key = key
         if askOnly && !force, let k = key, !(k == "ask" || k == "remind" || k == "heardOk" || k.hasPrefix("added") || k.hasPrefix("report")) {
             // tylko pytanie o kosz + odpowiedzi; reakcja na komendę = krótkie potwierdzenie „Przyjęłam”
@@ -1018,7 +1075,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         DispatchQueue.main.async {
             self.active = call.getBool("active") ?? false
             self.site = call.getString("site") ?? ""
-            UIApplication.shared.isIdleTimerDisabled = self.keepAwake && self.active
+            UIApplication.shared.isIdleTimerDisabled = (self.keepAwake && self.active) || self.savedBrightness >= 0
             self.method = call.getString("method") ?? "kibel"
             self.phase = call.getString("phase") ?? "ready"
             self.deadline = call.getDouble("deadline") ?? 0
@@ -1031,6 +1088,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             self.loadM3 = call.getDouble("load") ?? 0
             if let lt = call.getDouble("lastTruck"), lt > 0 { self.loadM3First = lt }
             if let la = call.getDouble("lastAmount") { self.lastAdd = la }
+            if let k = call.getInt("kursy") { self.kursy = k }
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
             self.updateNowPlaying()
@@ -1065,10 +1123,12 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             askTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in self?.askFired() }
             return
         }
+        if inCall { logBg("pytanie o kosz pominięte — rozmowa telefoniczna"); deadline = nowMs() + 20000; scheduleAsk(); return }
         let first = phase == "away"
         phase = "late"
         reminders += 1
-        if !first && reminders > remindMax + 1 { deadline = 0; return }   // limit przypomnień — dalej cisza, pytanie czeka na ekranie
+        if !first && reminders > remindMax + 1 { deadline = 0; logBg("limit przypomnień — dalej cisza (ustaw „Często”, żeby pytała do skutku)"); return }
+        logBg(first ? "pytam: czy kosz wrócił?" : "przypominam o koszu (\(reminders - 1))")   // limit przypomnień — dalej cisza, pytanie czeka na ekranie
         deadline = nowMs() + remindSec * 1000
         pending.append(["type": "alarm", "at": nowMs()])
         say(key: first ? "ask" : "remind", text: nil)

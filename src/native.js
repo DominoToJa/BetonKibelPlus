@@ -51,6 +51,8 @@ const voice = {
   elApi: safe(o => Domino.elApi(o), null),
   playIntro: safe(o => Domino.playIntro(o), null),
   stopIntro: safe(() => Domino.stopIntro(), null),
+  getLog: safe(async () => (await Domino.getLog()).log || [], []),
+  setNight: safe(o => Domino.setNight(o), null),
   onHeard(cb) { if (isNative) Domino.addListener('heard', e => { window.__lastHeard = { db: e.db, gate: e.gate, conf: e.conf, bt: !!e.bt, at: Date.now() }; cb(e.text || '') }) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
@@ -60,7 +62,7 @@ async function notify(title, body) { if (!isNative) return; try { await LocalNot
 window.BKPnative = { schedule, cancel, isNative, voice, notify };
 
 if (isNative) {
-  LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: 'Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }] }] }).catch(e => console.warn('Actions', e));
+  LocalNotifications.registerActionTypes({ types: [{ id: 'KOSZ', actions: [{ id: 'ARRIVED', title: '✔ Kosz jest' }, { id: 'LATER', title: 'Jeszcze nie' }, { id: 'SNOOZE2', title: '⏱ Zapytaj za 2 min' }] }] }).catch(e => console.warn('Actions', e));
   LocalNotifications.addListener('localNotificationActionPerformed', event => {
     if (event.notification?.id >= ID && event.notification?.id < ID + CHAIN_MAX) window.dispatchEvent(new CustomEvent('bkp:notification-action', { detail: { action: event.actionId } }))
   }).catch(e => console.warn('Notification listener', e));
