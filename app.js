@@ -137,11 +137,23 @@ const TEXT_KEY = 'beton_texts_v2', SETTINGS_KEY = 'beton_settings_v2';
 /** losowy wariant (każda linia = wariant), bez powtórzenia poprzedniego */
 const lastPick = {}, bags = {};
 /** losowy wariant bez powtórek: każda linia pada raz, zanim któraś się powtórzy (worek z tasowaniem) */
+/** lektorka to babka: męskie końcówki w tekstach (też starych, zapisanych przez usera) → damskie. Tylko to, co bot MÓWI — komendy Domisia zostają. */
+const FEM_SKIP = new Set(['dołem', 'kołem', 'stołem', 'pomysłem', 'hasłem', 'masłem', 'krzesłem', 'wiosłem', 'osłem', 'węzłem', 'aniołem', 'popiołem', 'kościołem', 'orłem', 'przemysłem', 'zmysłem', 'mułem', 'ciałem', 'działem', 'materiałem', 'kanałem', 'upałem', 'zapałem', 'szałem', 'wałem', 'sygnałem', 'ideałem', 'finałem', 'kapitałem', 'generałem', 'kryształem', 'rozdziałem', 'udziałem', 'podziałem', 'przydziałem', 'idiotą']);
+const FEM_ADJ = 'gotowy|pewny|pewien|zmęczony|głodny|wkurzony|zadowolony|szczęśliwy|ciekawy|napalony|zajęty|wyczerpany|dumny|głuchy|zakochany|wściekły|obrażony|sam|sprawny|przekonany|zachwycony|smutny|spokojny|zły|rad';
+const FEM_IRR = { poszedłem: 'poszłam', wszedłem: 'weszłam', wyszedłem: 'wyszłam', przyszedłem: 'przyszłam', zszedłem: 'zeszłam', doszedłem: 'doszłam', odszedłem: 'odeszłam', szedłem: 'szłam', znalazłem: 'znalazłam', mogłem: 'mogłam', pomogłem: 'pomogłam', zjadłem: 'zjadłam', usiadłem: 'usiadłam', siadłem: 'siadłam', jadłem: 'jadłam', rzekłem: 'rzekłam', biegłem: 'biegłam' };
+const femCase = (src, out) => src[0] === src[0].toUpperCase() ? out[0].toUpperCase() + out.slice(1) : out;
+function femin(t) {
+  if (!t || !/łem|łbym|łeś bym|jestem|byłam|będę/i.test(t)) return t;
+  return String(t)
+    .replace(/[\p{L}]+łem\b/gu, w => { const l = w.toLowerCase(); if (FEM_SKIP.has(l)) return w; if (FEM_IRR[l]) return femCase(w, FEM_IRR[l]); return femCase(w, l.replace(/ąłem$/, 'ęłam').replace(/łem$/, 'łam')) })
+    .replace(/[\p{L}]+łbym\b/gu, w => femCase(w, w.toLowerCase().replace(/ąłbym$/, 'ęłabym').replace(/łbym$/, 'łabym')))
+    .replace(new RegExp('\\b(jestem|byłam|będę|czuję się|nie jestem)( (?:taki|tak|bardzo|już|cały|całkiem|strasznie|trochę|kurwa,?))?\\s+(' + FEM_ADJ + ')(?![\\p{L}])', 'giu'), (m, a, b, adj) => { const l = adj.toLowerCase(); const f = l === 'sam' ? 'sama' : l === 'pewien' ? 'pewna' : l === 'rad' ? 'rada' : l === 'zły' ? 'zła' : l.endsWith('ły') ? l.slice(0, -1) + 'a' : l.replace(/y$/, 'a'); return a + (b ? b.replace(/taki/i, 'taka').replace(/cały/i, 'cała') : '') + ' ' + femCase(adj, f) });
+}
 function pickVariant(key, txt) {
   const lines = String(txt ?? textOf(key)).split('\n').map(x => x.trim()).filter(Boolean); if (!lines.length) return '';
   const sig = key + '|' + lines.length; let bag = bags[sig];
   if (!bag || !bag.length) { bag = bags[sig] = lines.map((_, i) => i).sort(() => Math.random() - .5); if (lines.length > 1 && bag[bag.length - 1] === lastPick[key]) bag.unshift(bag.pop()) }
-  const i = bag.pop(); lastPick[key] = i; return lines[i];
+  const i = bag.pop(); lastPick[key] = i; return femin(lines[i]);
 }
 let TEXTS = { ...DEFAULT_TEXTS };
 try { const sv = JSON.parse(localStorage.getItem(TEXT_KEY) || '{}'); for (const [k, v] of Object.entries(sv)) if (v !== LEGACY_TEXTS[k] && v !== LEGACY_TEXTS2[k] && v !== LEGACY_TEXTS3[k] && v !== LEGACY_TEXTS4[k]) TEXTS[k] = v } catch (e) { } // zmienione przez Ciebie zostają, nietknięte → nowe
@@ -244,7 +256,7 @@ let clipKeys = new Set(), recordingKey = '';
 function configureNative() {
   window.__bkpRemind = { gap: remindCfg().gap, cycles: remindCfg().max + 1, burst: remindCfg().burst };
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, textOf(k)])), elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, femin(textOf(k))])), elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -274,6 +286,7 @@ async function elFetchStore(text) {
 async function elStore(text, blob) { const n = elName(text); if (nativeVoice) await NV.saveVoice(n, await blobB64(blob)); else await idb('readwrite', st => st.put(blob, n)); elNames.add(n) }
 async function elGet(text) { const n = elName(text); if (!elNames.has(n)) { if (!navigator.onLine) return null; const b = await elFetchStore(text); return nativeVoice ? true : b } return nativeVoice ? true : await idb('readonly', st => st.get(n)) }
 function ttsSpeak(key, text) {
+  text = femin(text);
   if (nativeVoice) { NV.speak(key || '', text || '').catch(() => { }); return }
   if (!text || !('speechSynthesis' in window)) return;
   try {
@@ -282,12 +295,22 @@ function ttsSpeak(key, text) {
   } catch (e) { }
 }
 function speak(key, text) {
+  text = femin(text);
   if (!elReady() || !text || (key && clipKeys.has(key))) return ttsSpeak(key, text);
+  // na budowie zasięg bywa słaby: jak ElevenLabs nie odda głosu w 2,5 s, mówi zwykły głos (plik i tak się dociągnie na następny raz)
+  let done = false; const fb = () => { if (done) return; done = true; ttsSpeak(key, text) }, to = setTimeout(fb, ASK_KEYS.has(key) || key === 'remind' ? 2500 : 4000);
   elGet(text).then(res => {
+    clearTimeout(to); if (done) return; done = true;
     if (!res) return ttsSpeak(key, text);
     if (nativeVoice) return ttsSpeak(key, text); // iPhone sam zagra zapisany plik
     try { elAudio?.pause(); elAudio = new Audio(URL.createObjectURL(res)); elAudio.play().catch(() => ttsSpeak(key, text)) } catch (e) { ttsSpeak(key, text) }
-  }).catch(() => ttsSpeak(key, text));
+  }).catch(() => { clearTimeout(to); fb() });
+}
+/** po starcie: dociąga z ElevenLabs wszystkie warianty pytania o kosz, żeby potem leciały od ręki nawet bez zasięgu */
+async function elWarmAsk() {
+  if (!elReady() || elWarmAsk.busy) return; elWarmAsk.busy = true;
+  try { for (const k of [methodKey('ask'), methodKey('remind')]) for (const line of textOf(k).split('\n').map(x => x.trim()).filter(Boolean)) { if (!session || !navigator.onLine) return; if (elNames.has(elName(line))) continue; try { await elFetchStore(line) } catch (e) { return } await new Promise(r => setTimeout(r, 400)) } }
+  finally { elWarmAsk.busy = false }
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
 const ASK_KEYS = new Set(['hello', 'howAreYou', 'joke', 'thanks', 'love', 'best', 'name', 'tired', 'coffee', 'bored', 'insult', 'slowTrip', 'fastTrip', 'idle', 'ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka', 'hearYou', 'muted', 'unmuted', 'ofeo']);
@@ -780,7 +803,7 @@ async function start() {
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
-  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; if (voiceEl) { voiceEl.pause(); voiceEl = null } if (false) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
+  remember(); refreshKnownSites(); tab('work'); introJinglePending = false; setTimeout(() => elWarmAsk(), 8000); if (voiceEl) { voiceEl.pause(); voiceEl = null } if (false) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
   if (settings.ofeo !== false) setTimeout(ofeoPrompt, 2600);
   if (settings.micAuto !== false && !micWanted) setTimeout(() => { if (session && !micWanted) toggleMic() }, 1200); // mikrofon sam się włącza przy starcie
 }

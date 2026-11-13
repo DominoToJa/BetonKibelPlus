@@ -1060,6 +1060,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private func askFired() {
         guard active, phase == "away" || phase == "late" else { return }
         if UIApplication.shared.applicationState == .active {
+            // na pierwszym planie pyta JS; ale jak telefon zaraz zgaśnie, pytanie nie może przepaść — sprawdzam ponownie za 5 s
+            askTimer?.invalidate()
+            askTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: false) { [weak self] _ in self?.askFired() }
             return
         }
         let first = phase == "away"
