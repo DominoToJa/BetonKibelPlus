@@ -797,6 +797,26 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   if (requested > amount + 1e-5) announce('Ostatnia porcja: ' + fmt(amount) + ' m³');
   const note = reached.length ? reached[reached.length - 1].key : (lowNow ? 'low' : null), jobId = session.id;
   if (note) setTimeout(() => { if (session?.id === jobId) sayBot(note) }, nativeVoice ? 0 : 1900);
+  endPromptCheck();
+}
+/* końcówka gruszki: licznik mówi „zostało mniej niż kosz” albo „wyszło ponad” → pytamy, co naprawdę jest */
+function endPromptCheck() {
+  const s = session; if (!s || s.method === 'taczka' || s.endAsked === true || s.endAsked === 'done') return;
+  const cap = Number(s.capacity) || .5, rest = Math.round((Number(s.load) - entriesSum()) * 100) / 100;
+  if (s.endAsked === 'more') { if (!(rest < -cap * .3)) return; s.endAsked = 'done' } // „jeszcze leje” → pytamy drugi raz, jak przeleje o 1/3 kosza
+  else { if (!(rest < cap * .95)) return; s.endAsked = true } // zostało mniej niż pełny kosz = ostatni kurs
+  remember();
+  const W = s.method === 'inne' ? ['łyżka', 'łyżki'] : ['kosz', 'kosza'];
+  const msg = rest > 0.009 ? 'Wg licznika zostało ' + fmt(rest) + ' m³ — mniej niż ' + W[1] + ' (' + fmt(cap) + '). Gruszka pusta?' : rest < -0.009 ? 'Wylano o ' + fmt(-rest) + ' m³ więcej niż było w gruszce. Gruszka pusta?' : 'Wg licznika gruszka pusta. Zgadza się?';
+  setTimeout(() => endPrompt(msg), 900);
+}
+function endPrompt(msg) {
+  if (!session || document.querySelector('.end-prompt')) return;
+  const card = el('div', { class: 'end-prompt', role: 'dialog' }, el('b', { text: '🛢 ' + msg }),
+    el('div', { class: 'ep-row' },
+      el('button', { type: 'button', class: 'primary', text: '✓ Pusta — kończę', onclick: () => { card.remove(); $('finish').click() } }),
+      el('button', { type: 'button', text: '⏳ Jeszcze leje', onclick: () => { card.remove(); announce('OK — liczę dalej, zapytam przy końcu') ; if (session) { session.endAsked = 'more'; remember() } } })));
+  document.body.append(card); buzz?.('warning'); sayBot?.('custom', msg.replace(/m³/g, 'metra'));
 }
 /* dodawanie: zwykłe dotknięcie albo przytrzymanie (ochrona przed przypadkowym naliczeniem w rękawicach) */
 (function bucketPress() {
@@ -1153,7 +1173,7 @@ function render() {
   const kosz = s.method === 'kibel'; document.body.classList.toggle('m-kosz', kosz); if (kosz) { s.dose = Math.round(Number(s.capacity) * (s.nextPct ?? 100) * 10) / 1000; kursRender() }
   const model = currentModel();
   $('siteName').textContent = s.site; $('modeLabel').textContent = { kibel: 'KOSZ', taczka: 'TACZKA', inne: 'INNE' }[s.method]; document.querySelectorAll('[data-wm]').forEach(b => b.classList.toggle('on', b.dataset.wm === s.method));
-  $('loaded').textContent = fmt(s.load); $('poured').textContent = fmt(entriesSum()); $('left').textContent = fmt(left());
+  $('loaded').textContent = fmt(s.load); $('poured').textContent = fmt(entriesSum()); { const over = Math.round((entriesSum() - s.load) * 100) / 100; $('left').textContent = over > 0.009 ? '+' + fmt(over) : fmt(left()); $('leftLbl').textContent = over > 0.009 ? 'ponad gruszkę' : 'Zostało m³'; $('left').classList.toggle('over', over > 0.009) }
   { const bp = bucketPlan(), [a, b, c] = unitWords(s.method); $('kSent').textContent = bp.sent; $('kSentL').textContent = 'wysłano ' + plural(bp.sent, a, b, c);
     $('kLeft').textContent = bp.total; $('kLeftL').textContent = 'zostało ' + plural(bp.total, a, b, c); $('kLast').textContent = bp.last ? fmt(bp.last) + ' m³' : bp.total ? 'pełny' : '—';
     $('ohK').textContent = bp.sent + ' ' + plural(bp.sent, a, b, c) + ' za nami · zostało ' + bucketPlanText(bp) }
@@ -2233,6 +2253,21 @@ async function settingsRender() {
 }
 
 // ───────────────────────── historia + kopia ─────────────────────────
+/* poprawka wpisu w historii: ile naprawdę wylano / ile było w gruszce */
+async function historyEdit(s) {
+  const tot = Number(s.total ?? 0), ld = Number(s.load) || tot;
+  const mk = (id, v) => { const i = el('input', { inputmode: 'decimal', class: 'fin-rest', value: fmt(v) }); i.id = id; return i };
+  const iL = mk('heLoad', ld), iP = mk('hePoured', tot);
+  const row = (inp) => el('div', { class: 'fin-row' }, el('button', { type: 'button', class: 'fin-step', text: '−0,1', onclick: () => { inp.value = fmt(Math.max(0, (number(inp.value) || 0) - .1)) } }), inp, el('button', { type: 'button', class: 'fin-step', text: '+0,1', onclick: () => { inp.value = fmt((number(inp.value) || 0) + .1) } }));
+  const body = el('div', { class: 'fin' }, el('p', { class: 'hint', text: (s.site || 'Budowa') + ' · ' + new Date(s.startedAt).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (s.counted != null ? ' · licznik policzył ' + fmt(s.counted) + ' m³' : '') }),
+    el('label', { class: 'label', text: '🚛 W gruszce było (m³)' }), row(iL), el('label', { class: 'label', text: '✅ Naprawdę wylano (m³)' }), row(iP),
+    el('div', { class: 'chips fin-chips' }, el('button', { type: 'button', class: 'pill', text: '= cała gruszka', onclick: () => { iP.value = iL.value } })));
+  if (!(await formModal('✏️ Popraw betonowanie', body, '✓ Zapisz'))) return;
+  const L = number(iL.value), P = number(iP.value); if (!(P >= 0) || !(L >= 0)) return announce('Wpisz liczby');
+  if (s.counted == null) s.counted = tot;
+  s.load = Math.round(L * 100) / 100; s.total = s.poured = Math.round(P * 100) / 100; s.rest = Math.max(0, Math.round((L - P) * 100) / 100); s.edited = Date.now();
+  storeHistory(); historyRender(); announce('Poprawione: ' + fmt(s.load) + ' / ' + fmt(s.total) + ' m³');
+}
 function historyRender() {
   const r = $('historyRows'); r.replaceChildren();
   if (!archive.length && !Object.keys(siteAssignments).length) { r.append(el('p', { class: 'help', text: 'Jeszcze nie masz zakończonych betonowań.' })); return }
@@ -2245,7 +2280,10 @@ function historyRender() {
     const rows = el('div', { class: 'site-rows' });
     for (const [s] of items) rows.append(el('div', { class: 'history-entry' },
       el('div', {}, el('span', { text: new Date(s.startedAt).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }), el('small', { class: 'help', text: ' · ' + (s.method || 'kibel') + ' · ' + dur(((s.endedAt || Date.now()) - s.startedAt) / 1000) })),
-      el('div', { class: 'he-r' }, el('b', { text: fmt(s.total ?? (s.entries || []).reduce((a, e) => a + Number(e.amount || 0), 0)) + ' m³' }),
+      el('div', { class: 'he-r' }, (() => { const tot = Number(s.total ?? (s.entries || []).reduce((a, e) => a + Number(e.amount || 0), 0)), ld = Number(s.load) || 0, cnt = Number(s.counted ?? tot);
+          return el('button', { type: 'button', class: 'he-amt' + (ld && Math.abs(ld - tot) > .05 ? ' diff' : ''), 'aria-label': 'Popraw ile wylano', onclick: () => historyEdit(s) },
+            el('span', { class: 'he-nums' }, el('b', { text: ld ? fmt(ld) : '—' }), el('i', { text: '/' }), el('b', { class: 'he-real', text: fmt(tot) })),
+            el('small', { text: 'gruszka / wylane m³' + (Math.abs(cnt - tot) > .05 ? ' · licznik ' + fmt(cnt) : '') + ' ✏️' })) })(),
         el('button', { type: 'button', class: 'mini warn', text: '🗑', 'aria-label': 'Usuń wpis', onclick: async () => { if (!(await ask('Usunąć to betonowanie z historii?', 'Usuń', true))) return; archive = archive.filter(x => x !== s); storeHistory(); refreshKnownSites(); historyRender() } }))));
     r.append(el('div', { class: 'site-card' }, head, rows));
   }
