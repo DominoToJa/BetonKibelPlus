@@ -310,7 +310,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
         req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
                                  "kosz wyjechał", "jazda", "pojechał", "ile zostało", "ile wylano", "ile koszy", "pełny kosz", "pół kosza", "trzy czwarte", "ćwierć", "przelany", "gruszka pusta", "nowa gruszka",
-                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz"]
+                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz"]
         request = req
         lastPartial = ""
         utterPeakDb = -120
@@ -339,7 +339,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let instant: Set<String> = ["tak", "jest", "tak jest", "kosz jest", "kibel jest", "jest kosz", "jest kibel", "juz jest", "no jest", "mamy", "mam", "jeszcze nie", "nie ma", "jeszcze go nie ma", "jeszcze jedzie",
                                     "cofnij", "cofnij ostatni", "pomylka", "wyjechal", "kosz wyjechal", "kibel wyjechal", "pojechal", "kosz pojechal", "jazda", "ile zostalo", "ile koszy", "ile wylano",
                                     "dodaj kosz", "dodaj kibel", "dodaj taczke", "dodaj lyzke", "kosz zalany", "kibel zalany", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "pelny", "pelny kosz", "pol kosza",
-                                    "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "nowa gruszka"]
+                                    "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "nowa gruszka", "slyszysz mnie", "slyszysz", "czy mnie slyszysz", "jestes tam", "test mikrofonu"]
         if instant.contains(q) { return 0.12 }
         if q.rangeOfCharacter(from: .decimalDigits) != nil { return 0.6 }
         let last = q.split(separator: " ").last.map(String.init) ?? ""
@@ -387,7 +387,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
     private func bargeIn(_ text: String) -> Bool {
         let t = norm(text)
-        let keys = ["dodaj", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano"]
+        let keys = ["dodaj", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
         guard let k = keys.first(where: { t.contains($0) }) else { return false }
         return !sayingNow.contains(k)
     }

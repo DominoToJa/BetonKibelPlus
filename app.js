@@ -8,6 +8,7 @@ const nativeVoice = !!(NATIVE.isNative && NV.available);
 
 // ───────────────────────── teksty lektora ─────────────────────────
 const DEFAULT_TEXTS = {
+"hearYou": "Słyszę cię głośno i wyraźnie.\nTak, słyszę.\nSłyszę, mów.\nJestem, słucham.\nSłyszę cię dobrze.\nTak, tak, słyszę każde słowo.\nJasne, że słyszę.\nSłyszę, wszystko gra.\nSłyszę cię, mikrofon działa.\nJestem tu, słyszę.",
   "start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\nRuszamy z betonem. Jestem z wami.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!\nStartujemy. Ja liczę, wy lejecie.\nGruszka podjechała, to lecimy z tematem.\nDobra, panowie, zaczynamy. Trzymam licznik.\nBeton czeka. Zaczynamy!\nZaczynamy. Spokojnie i równo, dacie radę.\nDo roboty! Liczę każdy kosz.\nLicznik wyzerowany, zaczynamy.\nHej, zaczynamy betonowanie. Uważajcie na siebie.\nNo to jazda z betonem!\nZaczynamy. Niech beton leje się równo.\nGotowa do liczenia. Lecimy!\nPierwszy kosz przed nami. Powodzenia!",
   "depart": "Kosz w drodze.\nKosz pojechał.\nPrzyjęłam, kosz w trasie.\nDobra, kosz jedzie.\nKosz poleciał.\nJedzie kosz, czekam.\nKosz w powietrzu.\nOk, kosz w drodze, liczę czas.\nPoszedł kosz.\nKosz wyjechał, daj znać jak wróci.\nKosz do góry, mierzę czas.\nLeci kosz.\nZapisane, kosz w trasie.\nOkej, czekamy na powrót kosza.\nKosz pojechał na górę.",
   "ask": "Czy kosz już wrócił?\nKosz jest już na miejscu?\nPrzyjechał już kosz?\nJest kosz?\nKosz już wisi?\nHalo, kosz wrócił?\nMamy już kosz z powrotem?\nI jak, jest kosz?\nKosz z powrotem?\nWrócił kosz, czy jeszcze lata?\nKosz już na dole?\nJest już kosz pod gruszką?\nHej, kosz wrócił?\nMożemy lać, kosz jest?\nKosz już czeka na beton?",
@@ -56,6 +57,7 @@ const DEFAULT_TEXTS = {
 };
 /* 🔞 teksty chamskie i dwuznaczne (Opcje → „Chamska lektorka”) — dokładane do zwykłych, losowo */
 const CRUDE = {
+"hearYou": "Słyszę, kurwa, przecież nie jestem głucha.\nSłyszę każde twoje westchnienie, kotku.\nSłyszę, mów do mnie jeszcze.\nNo słyszę, nie drzyj się tak.\nSłyszę, a twój głos mnie kręci.",
   "start": "No to wsadzamy beton, chłopaki.\nZaczynamy. Będzie mokro i twardo.\nDo roboty, kurwa, beton nie czeka.\nZaczynamy, a ja lubię długo i porządnie.\nRozbierać się do roboty, panowie. Lecimy.",
   "depart": "Poszedł, skubaniec.\nLeci kosz, trzymaj go mocno.\nPojechał, a ja już tęsknię.\nSpierdolił do góry, wróci jak będzie chciał.\nKosz w górę, jak u ciebie rano.",
   "ask": "Kosz wrócił, czy gdzieś się zabawia?\nGdzie ten kosz się szlaja, do cholery?\nNo kurwa, jest ten kosz?\nKosz już wrócił, czy mam się sobą zająć?\nWrócił już, czy trzeba go zachęcić?",
@@ -86,7 +88,7 @@ const LEGACY_TEXTS4 = {"start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\n
 const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
-  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania'], ['reportCap', 'Jaki kosz (X = pojemność)'], ['reportEta', 'Kiedy koniec (X = godzina)'], ['reportTrip', 'Średni kurs (X = czas)'], ['muted', 'Wyciszona (komenda „cisza”)'], ['unmuted', 'Znowu mówi („gadaj”)'], ['ofeo', 'Przypomnienie Entladung OFEO']]],
+  ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania'], ['reportCap', 'Jaki kosz (X = pojemność)'], ['reportEta', 'Kiedy koniec (X = godzina)'], ['reportTrip', 'Średni kurs (X = czas)'], ['muted', 'Wyciszona (komenda „cisza”)'], ['unmuted', 'Znowu mówi („gadaj”)'], ['ofeo', 'Przypomnienie Entladung OFEO'], ['hearYou', 'Odpowiedź na „słyszysz mnie?”']]],
   ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
   ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
   ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
@@ -249,7 +251,7 @@ function speak(key, text) {
   }).catch(() => ttsSpeak(key, text));
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
-const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka']);
+const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka', 'hearYou', 'muted', 'unmuted', 'ofeo']);
 let lastBotAt = 0;
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
@@ -1342,6 +1344,8 @@ function command(utterance) {
   const t = normalise(utterance); if (!t) return false;
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
+  /* „słyszysz mnie?” — test mikrofonu */
+  if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|jestes|test mikrofonu|test test|horst du mich|hoerst du')) { sayBot('hearYou'); return true }
   /* nowe komendy 4.9.1 */
   if (has('cisza|zamknij sie|nie gadaj|stop gadanie|przestan gadac|wycisz|badz cicho|milcz|ruhe')) { if (settings.mode === 'full') { sayBot('muted'); setTimeout(() => { settings.mode = 'beep'; saveSettings(); configureNative?.() }, 1800) } return true }
   if (has('gadaj|mow dalej|mozesz mowic|odezwij sie|wlacz glos|sprechen')) { settings.mode = 'full'; saveSettings(); configureNative?.(); sayBot('unmuted'); return true }
