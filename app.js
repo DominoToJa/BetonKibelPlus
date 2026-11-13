@@ -1140,11 +1140,12 @@ let renderQ = 0, levelQ = 0, svgKey = '';
 /* lekki render tylko poziomu (suwak, rysunek kosza) — przy przeciąganiu nie przebudowuje całego ekranu */
 function renderLevel(model) {
   const s = session; if (!s) return; model = model || currentModel();
-  const key = [s.method, settings.ui, s.capacity, s.dose, s.bucketProfile?.id || s.bucketProfile?.name || ''].join('|');
-  if (key !== svgKey) { svgKey = key; requestAnimationFrame(ohCrop); $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, s.dose ?? 0, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, s.dose ?? 0, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, s.dose ?? 0, model) : makeBucketSvg(s.capacity, s.dose ?? 0, model); }
-  $('dose').textContent = fmt(s.dose || 0);
-  $('ohDose').textContent = fmt(s.dose || 0);
-  $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
+  const kl = s.method === 'kibel' ? koszLast(s) : null, shown = kl ? Number(kl.amount) : Number(s.dose ?? 0); // kosz: rysunek = to samo co suwak (ostatni kurs)
+  const key = [s.method, settings.ui, s.capacity, shown, s.bucketProfile?.id || s.bucketProfile?.name || ''].join('|');
+  if (key !== svgKey) { svgKey = key; requestAnimationFrame(ohCrop); $('bucketSvgWrap').innerHTML = s.method === 'taczka' ? makeTaczkaSvg(s.capacity, shown, model) : s.method === 'inne' ? makeKoparkaSvg(s.capacity, shown, model) : ['hud', 'glass', 'tactical', 'terminal'].includes(settings.ui) ? makeBucketSvgHud(s.capacity, shown, model) : makeBucketSvg(s.capacity, shown, model); }
+  $('dose').textContent = fmt(shown || 0);
+  $('ohDose').textContent = fmt(shown || 0);
+  $('levelHint').textContent = model.measured && shown > 0 ? (Math.round(model.belowRimCm(shown)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(shown)) + ' cm pod krawędzią') : '';
   renderSlider(model); renderHudPanel(s);
 }
 /** tryb jednej ręki: przytnij rysunek do samego kosza (bez etykiet z boku) — kosz robi się większy */
@@ -1178,7 +1179,7 @@ function render() {
     $('kLeft').textContent = bp.total; $('kLeftL').textContent = 'zostało ' + plural(bp.total, a, b, c); $('kLast').textContent = bp.last ? fmt(bp.last) + ' m³' : bp.total ? 'pełny' : '—';
     $('ohK').textContent = bp.sent + ' ' + plural(bp.sent, a, b, c) + ' za nami · zostało ' + bucketPlanText(bp) }
   $('progress').style.width = Math.min(100, 100 * entriesSum() / s.load) + '%';
-  $('dose').textContent = fmt(s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
+  $('dose').textContent = fmt(kosz && koszLast(s) ? Number(koszLast(s).amount) : s.dose || 0); $('bucketCap').textContent = fmt(s.capacity);
   $('levelHint').textContent = model.measured && s.dose > 0 ? (Math.round(model.belowRimCm(s.dose)) < 2 ? '· do krawędzi' : '· ok. ' + Math.round(model.belowRimCm(s.dose)) + ' cm pod krawędzią') : '';
   $('less').textContent = '− ' + fmt(bucketStep(s.capacity)); $('more').textContent = '+ ' + fmt(bucketStep(s.capacity));
   $('vslider').classList.toggle('m-taczka', s.method === 'taczka'); $('vslider').classList.toggle('m-inne', s.method === 'inne');
