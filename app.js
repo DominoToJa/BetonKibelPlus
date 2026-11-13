@@ -1381,10 +1381,13 @@ function cmdRender(m) {
 }
 cmdRender('kibel');
 const WORD_FIX = [
+  // bomba / bombka = kosz (gwara budowlana) + jak iPhone to przekręca
+  [/\b(bomba|bombe|bomby|bombka|bombke|bombki|bombpke|bombpka|bompke|bompka|bonbe|bonbke|bomke|bomka|bombeczke|bombeczka)\b/g, 'kosz'], [/\b(dodaj|daj|dawaj|jeszcze) (babke|babka|bapke|pompke|pompe|pompka|bombo)\b/g, '$1 kosz'],
   // „dodaj kosz” jak go iPhone przekręca: sklejone, ucięte, niemieckie
   [/\b(dodajkosz|dodajkosza|dodajkosze|dodajkibel|dodajkubel)\b/g, 'dodaj kosz'], [/\b(eimer dazu|kubel dazu|noch ein eimer|noch einen eimer|noch ein kubel|eimer plus|plus eimer|eimer rein)\b/g, 'dodaj kosz'],
   [/\b(dodajesz|dodajze|do dach|do dag|do dai|to daj|toda j|podaj|odaj|odda j|o daj|do dania|do dodania|dodanie)\b(?= (kosz|kosza|kosze|kibel|kibla|kubel|jeden|go)\b|$)/g, 'dodaj'], [/(^|\s)(daj|dawaj|wrzuc|wpisz|zapisz|licz|policz) (kosz|kosza|kibel|kibla|kubel)\b/g, '$1dodaj kosz'],
-  [/\bjeszcze (kosz|kibel|kubel|jeden kosz|jeden kibel)\b/g, 'kolejny'],[/\b(kos|kosc|kosza?k|kasz|kocz|gosz|koszt|kozz|kosch|kosik|koszyk)\b/g, 'kosz'], [/\b(kubel|kubelek|kibelek|kible|gibel|kiebel|kiebl|kibl|kebel)\b/g, 'kibel'], [/\b(toda|doda|dodac|dodal|dodam|dodajcie|dodajmy|do daj|dodej|dodaj?y)\b/g, 'dodaj'],
+  [/\bjeszcze (kosz|kibel|kubel|jeden kosz|jeden kibel)\b/g, 'kolejny'],
+  [/\b(kos|kosc|kosza?k|kasz|kocz|gosz|koszt|kozz|kosch|kosik|koszyk)\b/g, 'kosz'], [/\b(kubel|kubelek|kibelek|kible|gibel|kiebel|kiebl|kibl|kebel)\b/g, 'kibel'], [/\b(toda|doda|dodac|dodal|dodam|dodajcie|dodajmy|do daj|dodej|dodaj?y)\b/g, 'dodaj'],
   [/\b(zalana|zalamy|salany|zalanyy|zalali|zalalem|zalalismy|zalales)\b/g, 'zalany'], [/\b(wyjechala|wyjechali|wyjechalo|wyjazd|odjazd|jedzie juz|poleciał|polecial|lec|lecimy|ruszaj|dawaj jazda|w droge)\b/g, 'wyjechal'],
   [/\b(cofnac|cofnijmy|cofam|cofaj|cofnie|zle|nie to|wroc to)\b/g, 'cofnij'], [/\b(nastepny|nastepna|nastepne|kolejna|kolejne|jeszcze jeden|jeszcze jedna|i jeszcze)\b(?! gruszk| samoch| taczk(?!a\b)| lyzk(?!a\b))/g, 'kolejny'],
   [/\b(mamy go|mam go|o jest|jest jest|dobra jest|juz wisi|wisi|stoi|na miejscu|przylecial|przyszedl|wrocil juz|jest juz|da ist|ist da|ist zuruck|wieder da|jest z powrotem|z powrotem|wrocila|wrocilo|przyjechala|dojechala|jest nasz|jest kochany|jest skurczybyk|jest cholera|kosz na dole|na dole)\b/g, 'jest'],
