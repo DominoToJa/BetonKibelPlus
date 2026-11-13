@@ -387,6 +387,7 @@ const INTRO_SONGS = [
   { id: 'country', file: 'intro_voice', name: 'Country — oryginał', delay: 0 },
   { id: 'bk1', file: 'intro_bk1', name: 'Betonkibel 1', delay: 4 },
   { id: 'bk2', file: 'intro_bk2', name: 'Betonkibel 2', delay: 2.8 },
+  { id: 'bk3', file: 'intro_bk3', name: 'KibelBetonPlus', delay: 2 },
 ];
 let introSong = INTRO_SONGS[0];
 const songDelay = sg => Number(settings.songShift?.[sg.id] ?? sg.delay) || 0;
@@ -1068,9 +1069,30 @@ function changeDose(v, quiet = false) {
 }
 function changeCapacity(v, profile = null) {
   if (!session) return; const n = Math.round(Number(v) * 100) / 100; if (!(n > 0 && n <= 5)) return;
-  session.capacity = n; session.dose = n; session.bucketProfile = snapshot(profile);
+  const old = Number(session.capacity) || 0, oldProf = session.bucketProfile;
+  session.capacity = n; session.dose = n; session.nextPct = null; session.bucketProfile = snapshot(profile);
   if (session.method !== 'taczka') rememberSiteBucket(session.site, profile ? profile.id : 'manual');
   remember(); render(); announce((profile ? profile.name + ' · ' : 'Kosz ') + fmt(n) + ' m³'); sayBot('capacityChanged');
+  if (session.entries.length && old > 0 && Math.abs(old - n) > 1e-4) capPrompt(old, n, profile ? null : oldProf);
+}
+/** pojemność wyszła inna (np. nie 1,7 tylko 1,3): przelicz kursy, które już poszły, i ewentualnie popraw kosz na stałe */
+function capPrompt(old, n, prof) {
+  document.querySelector('.cap-prompt')?.remove(); if (!session) return;
+  const k = session.entries.length, before = entriesSum(), after = Math.round(before * n / old * 100) / 100;
+  const saved = prof?.id ? getProfile(prof.id) : null;
+  const keep = saved ? el('input', { type: 'checkbox', checked: true }) : null;
+  const saveProf = () => { if (saved && keep.checked) { saved.capacity = n; saved.updatedAt = Date.now(); try { saveProfiles() } catch (e) { } session.bucketProfile = snapshot(saved); remember(); jlog('kosz „' + saved.name + '” poprawiony na ' + fmt(n) + ' m³') } };
+  const card = el('div', { class: 'end-prompt cap-prompt', role: 'dialog' },
+    el('b', { text: '📏 Kosz ' + fmt(old) + ' → ' + fmt(n) + ' m³. Przeliczyć ' + k + (k === 1 ? ' kurs, który już poszedł?' : ' kursy, które już poszły?') }),
+    el('small', { text: 'Wylano ' + fmt(before) + ' m³ → po przeliczeniu ' + fmt(after) + ' m³' }),
+    ...(keep ? [el('label', { class: 'cap-keep' }, keep, el('span', { text: ' Zapisz ' + fmt(n) + ' m³ w koszu „' + saved.name + '” na stałe' }))] : []),
+    el('div', { class: 'ep-row' },
+      el('button', { type: 'button', class: 'primary', 'data-cap': 'all', text: '🔁 Przelicz wszystko', onclick: () => {
+        card.remove(); if (!session) return; const f = n / old;
+        for (const e of session.entries) e.amount = Math.round(Number(e.amount || 0) * f * 1000) / 1000;
+        saveProf(); remember(); render(); announce('Przeliczone: wylano ' + fmt(entriesSum()) + ' m³'); sayBot('custom', 'Przeliczone. Wylane ' + fmt(entriesSum()) + ' metra, zostało ' + fmt(left()) + '.') } }),
+      el('button', { type: 'button', 'data-cap': 'next', text: '➡ Tylko następne', onclick: () => { card.remove(); saveProf(); announce('OK — nowa pojemność od następnego kursu') } })));
+  document.body.append(card); buzz?.('warning'); sayBot('custom', 'Przeliczyć kursy, które już poszły, na ' + fmt(n) + ' metra?');
 }
 $('less').addEventListener('click', () => { if (session) changeDose(Math.max(0, Number(session.dose || 0) - bucketStep(session.capacity)), true) });
 $('more').addEventListener('click', () => { if (session) changeDose(Math.min(doseMax(session.capacity), Number(session.dose || 0) + bucketStep(session.capacity)), true) });
@@ -1465,6 +1487,8 @@ function fixLast(f, n) {
 }
 function dialogCommand(t, has) {
   const s = session, recent = Date.now() - lastAct.at < 12000;
+  // „kosz ma 1,3” · „jednak kosz 1,3” · „pojemność 1,3” = zmiana pojemności kosza, nie poprawka kursu
+  if (s && s.method !== 'taczka' && has('kosz ma|kibel ma|kubel ma|pojemnosc|ustaw kosz|zmien kosz|ustaw kibel|zmien kibel|nowy kosz|kosz jest na|kosz nie ma|jednak kosz|jednak kibel|kosz ma tylko|kosz bierze|kosz miesci|kibel miesci|kosz to')) { const n = amountFromSpeech(spokenNumber(t.replace(/\bnie ma [\d.,]+( |$)/, ' '))); const m = spokenNumber(t.split(/\btylko\b/).pop()); const v = m > 0 && m <= 5 && /tylko/.test(t) ? m : n; if (v > 0 && v <= 5) { changeCapacity(v, null); return true } }
   // poprawki: „nie, pół” · „miało być pół” · „poprawka trzy czwarte” · „jednak pełny” · „nie cały tylko pół”
   if (s && s.entries.length && (has('poprawka|popraw|mialo byc|jednak|tylko|nie caly|nie pelny|zle policzone|zmien ostatni|ostatni byl|ostatni kurs byl|to byl|to bylo') || (/^nie\b/.test(t) && t.split(' ').length <= 4 && fracOf(t.replace(/^nie\b/, '')) != null))) {
     const f = fracOf(t.replace(/\b(nie caly|nie pelny)\b/g, ' ')), n = amountFromSpeech(spokenNumber(t));
@@ -1507,6 +1531,7 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
+  if (document.querySelector('.cap-prompt')) { if (has('przelicz|tak|wszystko|wszystkie|dawaj|jasne')) { document.querySelector('[data-cap=all]')?.click(); return true } if (has('tylko nastepne|nastepne|nie|zostaw|nie przeliczaj')) { document.querySelector('[data-cap=next]')?.click(); return true } }
   const dl = dialogCommand(t, has); if (dl) return dl;
   /* „słyszysz mnie?” — test mikrofonu + jak głośno i jak wyraźnie */
 function hearQuality() {

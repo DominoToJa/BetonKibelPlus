@@ -1153,3 +1153,6 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .diag-list .bad{background:rgba(255,120,120,.12)}
 .night .nt-btns button{background:#140d02!important;color:#e0b050!important;border:1px solid #5a4010!important;box-shadow:none!important}
 .night .nt-btns button[data-nt=yes]{background:#2a1a00!important;color:#ffc04a!important;border-color:#a06a10!important}
+.cap-prompt small{opacity:.85;font-size:14px}
+.cap-keep{display:flex;align-items:center;gap:8px;font-size:14px}
+.cap-keep input{width:22px;height:22px}
