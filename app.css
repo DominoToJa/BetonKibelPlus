@@ -1097,3 +1097,26 @@ body.one-hand .vs-track{bottom:52px!important}
 .ep-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ep-row button{min-height:52px;font-weight:900}
 @keyframes epIn{from{transform:translateY(30px);opacity:0}}
 #left.over{color:#ffc93a}
+
+/* mikrofon na samej górze licznika (każdy tryb) */
+.panel.slim .row{gap:8px;flex-wrap:nowrap}
+#siteName{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.top-mic{flex:none;min-height:44px;padding:0 14px!important;border-radius:14px;font-weight:900;white-space:nowrap}
+.top-mic.live{background:color-mix(in srgb,#2ecc71 22%,transparent)!important;border-color:#2ecc71!important;color:#7dffb0;box-shadow:0 0 14px #2ecc7166}
+.panel.slim .one-hand-btn{flex:none;white-space:nowrap}
+.panel.slim .row{flex-wrap:wrap!important}
+.panel.slim #siteName{flex:1 0 100%;font-size:17px}
+.panel.slim .top-mic,.panel.slim .one-hand-btn{flex:1 1 0!important;justify-content:center}
+
+/* mikrofon w nagłówku — jeden dla całej apki */
+header.top{display:flex;align-items:center;gap:8px}
+header.top .brand{flex:1 1 auto;min-width:0}
+.hdr-mic{flex:none;min-height:46px;padding:0 14px!important;border-radius:16px;font-weight:900;font-size:15px;white-space:nowrap}
+.hdr-mic.live{background:color-mix(in srgb,#2ecc71 22%,transparent)!important;border-color:#2ecc71!important;color:#7dffb0;box-shadow:0 0 14px #2ecc7166}
+#mic.hide{display:none!important}
+
+.hdr-mic{min-height:0!important;width:var(--hm,58px);height:var(--hm,58px);padding:0!important;font-size:26px;display:grid;place-items:center;position:relative}
+.hdr-mic.live{animation:micPulse 1.6s ease-in-out infinite}
+.hdr-mic.live::after{content:"";position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#2ecc71;box-shadow:0 0 8px #2ecc71}
+.hdr-mic:not(.live)::after{content:"";position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#ff5a5a}
+@keyframes micPulse{50%{box-shadow:0 0 22px #2ecc71aa}}

@@ -24,7 +24,7 @@
 </div>
 
 <main>
-<header class="top"><div class="brand"><span class="hud-logo hud-only" aria-hidden="true"><svg viewBox="0 0 64 64" width="30" height="30"><circle cx="32" cy="32" r="24" fill="none" stroke="var(--c1)" stroke-width="5"/><text x="32" y="38" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="900" font-size="17" fill="var(--c1)">BK+</text></svg></span><div><h1>BETON<b>KIBELPLUS</b></h1><span class="hud-online hud-only" id="hudOnline">● Gotowy</span></div></div><button id="openSettings" type="button" class="icon-btn" aria-label="Ustawienia">⚙️</button></header>
+<header class="top"><div class="brand"><span class="hud-logo hud-only" aria-hidden="true"><svg viewBox="0 0 64 64" width="30" height="30"><circle cx="32" cy="32" r="24" fill="none" stroke="var(--c1)" stroke-width="5"/><text x="32" y="38" text-anchor="middle" font-family="Inter,-apple-system,sans-serif" font-weight="900" font-size="17" fill="var(--c1)">BK+</text></svg></span><div><h1>BETON<b>KIBELPLUS</b></h1><span class="hud-online hud-only" id="hudOnline">● Gotowy</span></div></div><button id="hdrMic" type="button" class="hdr-mic mic-btn icon-btn" aria-label="Włącz mikrofon">🎙</button><button id="openSettings" type="button" class="icon-btn" aria-label="Ustawienia">⚙️</button></header>
 <nav class="tabs" aria-label="Nawigacja"><button data-tab="home">⌂ Start</button><button data-tab="work">🏗 Licznik</button><button data-tab="history">▤ Budowy</button><button data-tab="drum">🛢 Diagram</button><button data-tab="settings" id="tabSettings">⚙️ Opcje</button></nav>
 
 <section id="home">
@@ -94,7 +94,7 @@
 <section id="work" class="hide">
 <div class="panel slim"><div class="row"><strong id="siteName">Budowa</strong><span class="smalltag hide" id="modeLabel">Kosz</span><button type="button" id="oneHandBtn" class="one-hand-btn">🖐 Duży widok</button></div>
 <div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small><em class="oh-dose"><span id="ohDoseW">w koszu</span> <b id="ohDose">0</b> m³</em><em class="oh-k" id="ohK"></em></div>
-<div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kosz</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Inne</button></div>
+<div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kosz</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Koparka</button></div>
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small id="leftLbl">Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
 <div class="kplan"><span>🪣 <b id="kSent">0</b> <small id="kSentL">wysłano</small></span><span><b id="kLeft">0</b> <small id="kLeftL">zostało</small></span><span><small>ostatni</small> <b id="kLast">—</b></span></div>
@@ -131,7 +131,7 @@
 <div id="travelPanel" class="panel slim"><div class="actions"><button id="depart" type="button">▶ Kosz wyjechał</button><button id="returned" type="button" class="good">✓ Kosz już jest</button></div></div>
 
 <div class="panel slim">
-<div class="actions"><button id="mic" type="button" class="mic-btn">🎙️ Włącz mikrofon</button><button id="testAlarm" type="button">🔔 Test pytania</button></div>
+<div class="actions"><button id="mic" type="button" class="mic-btn hide">🎙️ Włącz mikrofon</button><button id="testAlarm" type="button">🔔 Test pytania</button></div>
 <div id="micStatus" class="audio-status" aria-live="polite" style="margin-top:10px">Mikrofon wyłączony.</div>
 <h3 style="margin:16px 0 8px">🎙️ Komendy</h3>
 <div class="cmd-grid" id="cmdList"></div>
@@ -249,6 +249,7 @@
 <label class="label" for="micSens">🎙 Czułość mikrofonu</label><select id="micSens"><option value="vlow">Bardzo niska — tylko gdy mówisz prosto do telefonu / słuchawki</option><option value="low">Niska — tylko głos blisko telefonu / słuchawki (zalecane na budowę)</option><option value="mid">Średnia</option><option value="high">Wysoka — słyszy z daleka, łapie też otoczenie</option></select>
 <p class="hint">Przy niskiej czułości ciche rozmowy, maszyny w tle i radio są pomijane. Na iPhonie dodatkowo działa wbudowane tłumienie szumu i echa. Mów normalnie, blisko telefonu albo do słuchawki.</p>
 <label class="label check"><input type="checkbox" id="lockCard" checked> 🔒 Karta z koszem na ekranie blokady (duży kosz z poziomem i „Zostało”)</label>
+<label class="label check"><input type="checkbox" id="micAuto" checked> 🎙 Mikrofon włącza się sam po kliknięciu Start (kosz, taczka i koparka)</label>
 <label class="label check"><input type="checkbox" id="ofeoOn" checked> 📲 Przy starcie przypomnij: „Kliknąłeś Entladung w OFEO?”</label>
 <label class="label check"><input type="checkbox" id="offlineSpeech"> 📴 Rozpoznawanie mowy bez internetu (szybsze, ale gorzej rozumie — włącz tylko bez zasięgu)</label>
 <label class="label check"><input type="checkbox" id="headsetBtn"> 🔒🎧 Pilot na ekranie blokady i w słuchawce: ▶ = dodaj kosz, ⏮ = cofnij, pasek = poziom betonu (jak odtwarzacz muzyki)</label>
@@ -272,7 +273,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.9.1 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 4.9.3 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
