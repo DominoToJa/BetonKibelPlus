@@ -141,10 +141,15 @@ const lastPick = {}, bags = {};
 const FEM_SKIP = new Set(['dołem', 'kołem', 'stołem', 'pomysłem', 'hasłem', 'masłem', 'krzesłem', 'wiosłem', 'osłem', 'węzłem', 'aniołem', 'popiołem', 'kościołem', 'orłem', 'przemysłem', 'zmysłem', 'mułem', 'ciałem', 'działem', 'materiałem', 'kanałem', 'upałem', 'zapałem', 'szałem', 'wałem', 'sygnałem', 'ideałem', 'finałem', 'kapitałem', 'generałem', 'kryształem', 'rozdziałem', 'udziałem', 'podziałem', 'przydziałem', 'idiotą']);
 const FEM_ADJ = 'gotowy|pewny|pewien|zmęczony|głodny|wkurzony|zadowolony|szczęśliwy|ciekawy|napalony|zajęty|wyczerpany|dumny|głuchy|zakochany|wściekły|obrażony|sam|sprawny|przekonany|zachwycony|smutny|spokojny|zły|rad';
 const FEM_IRR = { poszedłem: 'poszłam', wszedłem: 'weszłam', wyszedłem: 'wyszłam', przyszedłem: 'przyszłam', zszedłem: 'zeszłam', doszedłem: 'doszłam', odszedłem: 'odeszłam', szedłem: 'szłam', znalazłem: 'znalazłam', mogłem: 'mogłam', pomogłem: 'pomogłam', zjadłem: 'zjadłam', usiadłem: 'usiadłam', siadłem: 'siadłam', jadłem: 'jadłam', rzekłem: 'rzekłam', biegłem: 'biegłam' };
+const FEM_NOUN_L = new Set(['szał', 'wał', 'kanał', 'upał', 'zapał', 'materiał', 'dział', 'sygnał', 'ideał', 'finał', 'kapitał', 'generał', 'kryształ', 'pył', 'muł', 'dół', 'stół', 'popiół', 'kocioł', 'anioł', 'orzeł', 'osioł', 'kozioł', 'węzeł', 'sokół', 'kościół', 'paweł', 'michał', 'rafał', 'przemysł', 'pomysł', 'zmysł', 'ił', 'kał', 'bal', 'mał', 'cał']);
+const femPastL = w => { const l = w.toLowerCase(), irr = { mógł: 'mogła', poszedł: 'poszła', wszedł: 'weszła', wyszedł: 'wyszła', przyszedł: 'przyszła', szedł: 'szła', zjadł: 'zjadła', jadł: 'jadła', znalazł: 'znalazła', usiadł: 'usiadła', pomógł: 'pomogła', rzekł: 'rzekła', biegł: 'biegła', zaniósł: 'zaniosła', niósł: 'niosła', wiózł: 'wiozła', ugryzł: 'ugryzła', lazł: 'lazła', wlazł: 'wlazła' }; return femCase(w, irr[l] || l.replace(/ął$/, 'ęła').replace(/ł$/, 'ła')) };
 const femCase = (src, out) => src[0] === src[0].toUpperCase() ? out[0].toUpperCase() + out.slice(1) : out;
 function femin(t) {
-  if (!t || !/łem|łbym|łeś bym|jestem|byłam|będę/i.test(t)) return t;
+  if (!t || !/łem|bym|jestem|byłam|będę/i.test(t)) return t;
   return String(t)
+    // „ale bym cię jebał” · „chętnie bym go przeleciał” · „jebał bym” → damskie
+    .replace(/(\p{L}*bym\b[^.!?\n]{0,30}?)(?<![\p{L}])([\p{L}]+?)(ął|ł)(?![\p{L}])/giu, (m, a, w, e) => FEM_NOUN_L.has((w + e).toLowerCase()) ? m : a + femPastL(w + e))
+    .replace(/(?<![\p{L}])([\p{L}]+?)(ął|ł) bym\b/giu, (m, w, e) => FEM_NOUN_L.has((w + e).toLowerCase()) ? m : femPastL(w + e) + ' bym')
     .replace(/[\p{L}]+łem\b/gu, w => { const l = w.toLowerCase(); if (FEM_SKIP.has(l)) return w; if (FEM_IRR[l]) return femCase(w, FEM_IRR[l]); return femCase(w, l.replace(/ąłem$/, 'ęłam').replace(/łem$/, 'łam')) })
     .replace(/[\p{L}]+łbym\b/gu, w => femCase(w, w.toLowerCase().replace(/ąłbym$/, 'ęłabym').replace(/łbym$/, 'łabym')))
     .replace(new RegExp('\\b(jestem|byłam|będę|czuję się|nie jestem)( (?:taki|tak|bardzo|już|cały|całkiem|strasznie|trochę|kurwa,?))?\\s+(' + FEM_ADJ + ')(?![\\p{L}])', 'giu'), (m, a, b, adj) => { const l = adj.toLowerCase(); const f = l === 'sam' ? 'sama' : l === 'pewien' ? 'pewna' : l === 'rad' ? 'rada' : l === 'zły' ? 'zła' : l.endsWith('ły') ? l.slice(0, -1) + 'a' : l.replace(/y$/, 'a'); return a + (b ? b.replace(/taki/i, 'taka').replace(/cały/i, 'cała') : '') + ' ' + femCase(adj, f) });
@@ -1426,12 +1431,13 @@ function heardText(t) {
 /* ═════ DIALOG ═════ */
 /* dziennik rozmowy: co usłyszała i co odpowiedziała (ostatnie 40) */
 const DLOG = [];
+document.querySelector('.dlog-box')?.addEventListener('toggle', e => { if (e.target.open && $('dlog')?.dataset.stale) dlogRender() });
 function dlog(who, text) {
   text = String(text || '').trim(); if (!text) return; const last = DLOG.at(-1); if (last && last.who === who && last.text === text && Date.now() - last.at < 1500) return;
   DLOG.push({ who, text, at: Date.now() }); if (DLOG.length > 40) DLOG.shift(); dlogRender();
 }
 function dlogRender() {
-  const box = $('dlog'); if (!box) return; $('dlogCount').textContent = DLOG.filter(x => x.who === 'me').length;
+  const box = $('dlog'); if (!box) return; $('dlogCount').textContent = DLOG.filter(x => x.who === 'me').length; if (!box.closest('details')?.open) { box.dataset.stale = '1'; return } box.dataset.stale = '';
   box.replaceChildren(...DLOG.slice().reverse().map(e => el('div', { class: 'dl-row dl-' + e.who }, el('small', { text: new Date(e.at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }), el('span', { text: (e.who === 'me' ? '🗣 ' : '🤖 ') + e.text }))));
 }
 new MutationObserver(() => dlog('bot', $('botText').textContent)).observe($('botText'), { childList: true, characterData: true, subtree: true });
