@@ -623,6 +623,18 @@ function formModal(title, body, okText = 'Zapisz') {
     box.append(card); box.addEventListener('click', e => { if (e.target === box) done(false) }); document.body.append(box);
   });
 }
+/** ✏️ ręczna zmiana pojemności zapisanego kosza / taczki / łyżki (np. wyszło 1,3 a nie 1,7) */
+async function editCapacity(p, after) {
+  const tz = kindOf(p) === 'taczka', inp = el('input', { inputmode: 'decimal', class: 'fin-rest', value: tz ? String(Math.round(p.capacity * 1000)) : fmt(p.capacity) });
+  const body = el('div', { class: 'fin' }, el('label', { class: 'label', text: tz ? 'Pojemność taczki (litry)' : 'Pojemność (m³)' }), inp, el('p', { class: 'hint', text: 'Jak na budowie wyszło inaczej niż na tabliczce — wpisz, ile naprawdę mieści. Zostanie zapisane w „' + p.name + '”.' }));
+  setTimeout(() => { inp.focus(); inp.select() }, 50);
+  if (!(await formModal('✏️ ' + p.name, body, '✓ Zapisz'))) return;
+  let v = number(inp.value); if (tz && v > 5) v = v / 1000;
+  if (!(v > 0.02 && v <= 5)) return announce('To nie wygląda na pojemność — wpisz np. 1,3');
+  applyCalib(p, v, { manual: true }); jlog('pojemność „' + p.name + '” zmieniona ręcznie na ' + fmt(v));
+  if (session?.bucketProfile?.id === p.id && Math.abs(session.capacity - v) > 1e-4) changeCapacity(v, p);
+  after?.();
+}
 /* ───── kalibracja z gruszki: ile m³ wylano / ile pełnych koszy wyszło ───── */
 function applyCalib(p, cap, info) {
   cap = Math.round(cap * 1000) / 1000; if (!(cap > 0.02 && cap <= 5)) return announce('Wyszło ' + fmt(cap) + ' m³ — to nie wygląda na kosz, sprawdź liczby');
@@ -729,8 +741,9 @@ function sheetRender() {
         const st = stat[p.id], on = p.id === chosenProfileId;
         const fav = el('span', { class: 'pm-fav' + (p.fav ? ' on' : ''), role: 'button', 'aria-label': p.fav ? 'Usuń z ulubionych' : 'Dodaj do ulubionych', text: p.fav ? '★' : '☆', onclick: e => { e.stopPropagation(); p.fav = !p.fav; saveProfiles(); buzz?.('light'); sheetRender() } });
         const del = el('span', { class: 'pm-del', role: 'button', 'aria-label': 'Usuń ' + p.name, text: '🗑', onclick: e => { e.stopPropagation(); deleteProfile(p, sheetRender) } });
+        const edit = el('span', { class: 'pm-edit', role: 'button', 'aria-label': 'Zmień pojemność ' + p.name, text: '✏️', onclick: e => { e.stopPropagation(); editCapacity(p, sheetRender) } });
         return el('button', { type: 'button', class: 'pm-card' + (on ? ' on' : '') + (p.fav ? ' fav' : ''), onclick: pick(() => chooseProfile(p.id)) },
-          fav, del, el('div', { class: 'pm-pic' }, picOf(p)), el('b', { class: 'pm-cap', text: capTxt(p) }), el('strong', { text: p.name }),
+          fav, del, edit, el('div', { class: 'pm-pic' }, picOf(p)), el('b', { class: 'pm-cap', text: capTxt(p) }), el('strong', { text: p.name }),
           el('small', { text: st ? '🔁 ' + st.n + '× · ' + ago(st.last) + (st.m3 ? ' · ' + fmt(Math.round(st.m3 * 10) / 10) + ' m³ razem' : '') : (p.catalog ? '🏷 z katalogu' : '✨ jeszcze nie używany') }),
           el('span', { class: 'pm-sel', text: on ? '✓ WYBRANY' : 'Wybierz' }));
       }));
@@ -832,6 +845,8 @@ $('finish').addEventListener('click', async () => {
   let rest = 0, fix = true;
   const restI = el('input', { inputmode: 'decimal', class: 'fin-rest', value: '0', 'aria-label': 'Ile zostało w gruszce (m³)' });
   const out = el('div', { class: 'fin-out' }), calib = el('div', { class: 'fin-calib' });
+  const capI = bp ? el('input', { inputmode: 'decimal', class: 'fin-rest fin-cap', placeholder: fmt(bp.capacity), 'aria-label': 'Prawdziwa pojemność kosza' }) : null;
+  const manual = bp ? el('div', { class: 'fin-manual' }, el('label', { class: 'label', text: '✏️ Albo wpisz sam, ile naprawdę mieści „' + bp.name + '” (m³)' }), capI, el('small', { class: 'hint', text: 'Puste = zostaje ' + fmt(bp.capacity) + ' m³ (albo poprawka powyżej). Zapisze się w koszu na następny raz.' })) : null;
   const setRest = v => { rest = Math.max(0, Math.min(load, Math.round(v * 100) / 100)); restI.value = fmt(rest); draw() };
   const step = d => el('button', { type: 'button', class: 'fin-step', text: (d > 0 ? '+' : '−') + fmt(Math.abs(d)), onclick: () => setRest(rest + d) });
   const draw = () => {
@@ -853,11 +868,13 @@ $('finish').addEventListener('click', async () => {
     el('label', { class: 'label', text: '🛢 Zostało w gruszce (m³)?' }),
     el('div', { class: 'fin-row' }, step(-.1), restI, step(.1)),
     el('div', { class: 'chips fin-chips' }, ...[['Nic', 0], ['0,25', .25], ['0,5', .5], ['1', 1]].map(([t, v]) => el('button', { type: 'button', class: 'pill', text: t, onclick: () => setRest(v) })), el('button', { type: 'button', class: 'pill', text: '🪶 +1 pióro', onclick: () => setRest(rest + PI) })),
-    calib);
+    calib, ...(manual ? [manual] : []));
   draw();
   if (!(await formModal('🏁 Koniec betonowania', body, '✓ Zakończ i zapisz'))) return;
+  const mv = capI ? number(capI.value) : 0;
   s.rest = rest; s.poured = Math.max(0, Math.round((load - rest) * 100) / 100);
-  if (fix && bp && calib.dataset.nc) { applyCalib(bp, Number(calib.dataset.nc), { poured: s.poured, counted: sum, rest, auto: true }); bp.calibN = (bp.calibN || 0) + 1; saveProfiles() }
+  if (bp && mv > 0.02 && mv <= 5) { if (Math.abs(mv - bp.capacity) > 1e-4) { applyCalib(bp, mv, { poured: s.poured, counted: sum, rest, manual: true }); jlog('pojemność „' + bp.name + '” zmieniona na koniec: ' + fmt(mv)) } }
+  else if (fix && bp && calib.dataset.nc) { applyCalib(bp, Number(calib.dataset.nc), { poured: s.poured, counted: sum, rest, auto: true }); bp.calibN = (bp.calibN || 0) + 1; saveProfiles() }
   finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
 

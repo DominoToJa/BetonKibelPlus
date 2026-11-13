@@ -1156,3 +1156,6 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .cap-prompt small{opacity:.85;font-size:14px}
 .cap-keep{display:flex;align-items:center;gap:8px;font-size:14px}
 .cap-keep input{width:22px;height:22px}
+.pm-edit{position:absolute;top:50px;right:8px;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#0b1426cc;font-size:16px}
+.fin-manual{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:10px;border-top:1px dashed #ffffff26}
+.fin > .hint{margin-top:8px}
