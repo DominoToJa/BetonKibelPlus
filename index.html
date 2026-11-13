@@ -98,7 +98,7 @@
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small id="leftLbl">Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
 <div class="kplan"><span>🪣 <b id="kSent">0</b> <small id="kSentL">wysłano</small></span><span><b id="kLeft">0</b> <small id="kLeftL">zostało</small></span><span><small>ostatni</small> <b id="kLast">—</b></span></div>
-<div class="bot-quote" aria-live="polite"><span id="status">Gotowy</span><strong id="botText">Gotowy do betonowania.</strong></div></div>
+<div class="bot-quote" aria-live="polite"><span id="status">Gotowy</span><strong id="botText">Gotowy do betonowania.</strong></div><details class="dlog-box"><summary>💬 Rozmowa z botem <b id="dlogCount">0</b></summary><button type="button" id="dlogUndo" class="secondary">↶ To była pomyłka — cofnij ostatni</button><div id="dlog" class="dlog"></div></details></div>
 
 <div id="alert" class="notice hide"><div class="alert-bell">🔔</div><h3>Czy kosz już jest?</h3><p class="alert-late" id="alertLate"></p><div class="actions"><button id="late" type="button">⏳ Jeszcze nie</button><button id="arrived" type="button" class="good">✅ Tak, jest</button></div><div class="snooze-row"><small>Zapytaj za:</small><button type="button" data-snooze="60">1 min</button><button type="button" data-snooze="120">2 min</button><button type="button" data-snooze="300">5 min</button></div></div>
 
@@ -250,6 +250,8 @@
 <p class="hint">Przy niskiej czułości ciche rozmowy, maszyny w tle i radio są pomijane. Na iPhonie dodatkowo działa wbudowane tłumienie szumu i echa. Mów normalnie, blisko telefonu albo do słuchawki.</p>
 <label class="label check"><input type="checkbox" id="lockCard" checked> 🔒 Karta z koszem na ekranie blokady (duży kosz z poziomem i „Zostało”)</label>
 <label class="label check"><input type="checkbox" id="crudeOn" checked> 🔞 Chamska i sexi lektorka — przeklina, flirtuje i rzuca dwuznaczne teksty (wyłącz przy szefie albo dzieciach)</label>
+<label class="label check"><input type="checkbox" id="confirmNums" checked> 🔢 Po każdym kursie lektorka mówi ile zostało („Dodane. Zostało 3,2.”)</label>
+<label class="label check"><input type="checkbox" id="chatty" checked> 💬 Lektorka sama zagaduje (długi kurs, najszybszy kurs, długa przerwa)</label>
 <label class="label check"><input type="checkbox" id="micAuto" checked> 🎙 Mikrofon włącza się sam po kliknięciu Start (kosz, taczka i koparka)</label>
 <label class="label check"><input type="checkbox" id="ofeoOn" checked> 📲 Przy starcie przypomnij: „Kliknąłeś Entladung w OFEO?”</label>
 <label class="label check"><input type="checkbox" id="offlineSpeech"> 📴 Rozpoznawanie mowy bez internetu (szybsze, ale gorzej rozumie — włącz tylko bez zasięgu)</label>
@@ -274,7 +276,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 4.9.8 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 5.0.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

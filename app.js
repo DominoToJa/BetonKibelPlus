@@ -8,6 +8,24 @@ const nativeVoice = !!(NATIVE.isNative && NV.available);
 
 // ───────────────────────── teksty lektora ─────────────────────────
 const DEFAULT_TEXTS = {
+"hello": "Cześć! Gotowa do roboty.\nSiema! Lejemy dziś?\nDzień dobry, szefie.\nHej, dobrze cię słyszeć.\nWitaj na budowie. Ja liczę, ty lejesz.\nCześć, cześć. Kawa już była?",
+"howAreYou": "Dobrze, dopóki beton leje się równo.\nSuper. A ty jak?\nŚwietnie, liczydło mam rozgrzane.\nWszystko gra. Nie narzekam, nie mam kręgosłupa.\nJak zawsze, gotowa do liczenia.",
+"joke": "Dlaczego betoniarz nigdy się nie spóźnia? Bo zawsze jest na czas wiązania.\nCo mówi kosz do gruszki? Nie kręć mną.\nSzef pyta: ile czasu schnie beton? Robotnik: tyle, ile trwa przerwa na papierosa.\nJak się nazywa beton, który nie chce pracować? Beton leżący.\nPrzychodzi zbrojarz do lekarza. Doktorze, coś mnie gniecie. Lekarz: to strzemiona, panie.\nCo robi betoniarz w niedzielę? Odpoczywa, bo beton też musi związać.\nDlaczego kierownik budowy nosi dwa długopisy? Jeden, żeby podpisywać, drugi, żeby udawać, że coś liczy.\nNajlepszy dźwig na świecie? Ten, który nie pyta, czy kosz już wrócił.\nWiesz, czemu kosz ma uszy? Żeby słyszał, jak go wołacie.\nJaka jest różnica między betonem a szefem? Beton w końcu twardnieje i przestaje gadać.",
+"thanks": "Nie ma za co.\nProszę bardzo.\nZawsze do usług.\nDla ciebie wszystko.\nSpoko, od tego jestem.\nCała przyjemność po mojej stronie.",
+"love": "Ja ciebie też lubię.\nOj, rumienię się.\nMiło mi. Lejmy dalej.\nWiem, wiem, jestem najlepsza.\nTeż cię lubię, ale najpierw beton.",
+"best": "Ty, oczywiście. A zaraz po tobie ja.\nTen, kto pierwszy kosz dziś zalał.\nEkipa, która leje równo i bez gadania.\nJa liczę, więc ja rządzę.",
+"name": "Jestem lektorka BetonKibelPlus. Liczę kosze i pilnuję gruszki.\nMów mi po prostu lektorka. Albo szefowa licznika.\nJestem twoją pomocnicą od betonu.",
+"time": "Jest X.\nWłaśnie wybiła X.\nZegar mówi X.\nMamy X.",
+"tired": "Jeszcze trochę, dasz radę.\nWiem, ciężki dzień. Końcówka blisko.\nZrób łyk wody i lecimy dalej.\nTrzymaj się, beton sam się nie wyleje.",
+"coffee": "Kawa to dobry pomysł. Ja popilnuję licznika.\nIdź, ja tu poczekam.\nSmacznego. Daj znać, jak wracasz.\nKawka i do roboty.",
+"insult": "Ej, bez nerwów. Ja tylko liczę.\nTeż cię lubię.\nSpokojnie, nie ja zamawiałam ten beton.\nDobra, dobra, licz sam w takim razie.",
+"bored": "Nudzi ci się? To policz ze mną kosze.\nOpowiedzieć ci kawał?\nZaraz beton cię rozrusza.",
+"fixed": "Poprawione, ostatni kurs to X.\nOkej, zmieniłam ostatni na X.\nJasne, ostatni kurs X.\nZapisałam poprawkę, X.",
+"added2": "Dodane X kursy.\nPoliczone X naraz.\nOkej, X kursy na liczniku.",
+"slowTrip": "Kosz lata dziś dłużej niż zwykle. Wszystko gra?\nDługo ten kurs trwa. Coś się dzieje na górze?\nKosz się spóźnia bardziej niż zwykle.",
+"fastTrip": "To był najszybszy kurs dzisiaj. Brawo!\nRekord dnia, szybki kurs.\nAle tempo, najszybszy kurs!",
+"idle": "Przerwa? Nic nie dodaliście od dziesięciu minut.\nDługo cisza. Wszystko w porządku?\nDawno nie było kosza. Czekamy na coś?",
+"leftAfter": " Zostało X.\n Jeszcze X.\n Do końca X.\n W gruszce X.",
 "snooze": "Okej, zapytam za X.\nDobra, odezwę się za X.\nJasne, przypomnę za X.\nZapytam ponownie za X.\nPrzyjęłam, za X pytam znowu.\nNie ma sprawy, za X.",
 "hearYou": "Słyszę cię głośno i wyraźnie.\nTak, słyszę.\nSłyszę, mów.\nJestem, słucham.\nSłyszę cię dobrze.\nTak, tak, słyszę każde słowo.\nJasne, że słyszę.\nSłyszę, wszystko gra.\nSłyszę cię, mikrofon działa.\nJestem tu, słyszę.",
   "start": "Zaczynamy betonowanie. Powodzenia, chłopaki!\nRuszamy z betonem. Jestem z wami.\nBetonowanie rozpoczęte. Do dzieła!\nNo to zaczynamy. Udanej roboty!\nStartujemy. Ja liczę, wy lejecie.\nGruszka podjechała, to lecimy z tematem.\nDobra, panowie, zaczynamy. Trzymam licznik.\nBeton czeka. Zaczynamy!\nZaczynamy. Spokojnie i równo, dacie radę.\nDo roboty! Liczę każdy kosz.\nLicznik wyzerowany, zaczynamy.\nHej, zaczynamy betonowanie. Uważajcie na siebie.\nNo to jazda z betonem!\nZaczynamy. Niech beton leje się równo.\nGotowa do liczenia. Lecimy!\nPierwszy kosz przed nami. Powodzenia!",
@@ -58,6 +76,17 @@ const DEFAULT_TEXTS = {
 };
 /* 🔞 teksty chamskie i dwuznaczne (Opcje → „Chamska lektorka”) — dokładane do zwykłych, losowo */
 const CRUDE = {
+"hello": "Siema, przystojniaku. Stęskniłam się.\nCześć, kotku. Gotowa na wszystko.\nHej, ty mój budowlańcu.",
+"howAreYou": "Lepiej, jak słyszę twój głos.\nDobrze, ale mogłoby być lepiej, gdybyś częściej lał.\nNapalona na beton, jak zawsze.",
+"joke": "Co ma wspólnego beton i facet? Obaj długo twardnieją i trzeba ich wibrować.\nMówią, że rozmiar nie ma znaczenia. Tak mówią ci z małym koszem.\nDlaczego betoniarz jest dobry w łóżku? Bo wie, jak długo trzeba ugniatać.\nKierownik pyta: czemu tak wolno? Robotnik: szefie, ja się spieszę tylko w domu.",
+"thanks": "Proszę bardzo, kotku.\nDla ciebie zawsze, przystojniaku.\nPodziękujesz mi wieczorem.",
+"love": "Ja ciebie też, ale najpierw zalej ten kosz.\nMów tak częściej, kurwa, topnieję.\nUważaj, bo się przyzwyczaję.",
+"best": "Ty, kotku. W każdym tego słowa znaczeniu.\nJa, kurwa. Ale ty jesteś blisko.",
+"tired": "Zmęczony? Po robocie zrobię ci masaż. Głosowy.\nNo dawaj, jeszcze trochę, potem odpoczniesz.",
+"insult": "Sam jesteś, kurwa.\nSpierdalaj, ja tu liczę.\nŁadnie to tak do damy?\nUważaj, bo przestanę liczyć i zobaczysz.",
+"idle": "Halo, zasnęliście, kurwa?\nCisza jak po fajrancie. Co jest?",
+"slowTrip": "Kurwa, gdzie ten kosz się podziewa?\nDźwigowy chyba poszedł na papierosa.",
+"fastTrip": "Ale szybko, aż mnie zatkało.\nNajszybszy dzisiaj. Lubię, jak się spieszysz.",
 "snooze": "Dobra, za X. Ale nie każ mi czekać dłużej, kotku.\nZa X, kurwa, i ani sekundy dłużej.\nPoczekam X. Tęsknić będę.",
   "hearYou": "Słyszę, kurwa, przecież nie jestem głucha.\nSłyszę każde twoje westchnienie, kotku.\nSłyszę, mów do mnie jeszcze.\nNo słyszę, nie drzyj się tak.\nSłyszę, a twój głos mnie kręci.\nSłyszę każde słowo, a twój głos mnie rozpala.\nSłyszę, mów do mnie dalej.",
   "start": "No to wsadzamy beton, chłopaki.\nZaczynamy. Będzie mokro i twardo.\nDo roboty, kurwa, beton nie czeka.\nZaczynamy, a ja lubię długo i porządnie.\nRozbierać się do roboty, panowie. Lecimy.\nZaczynamy. Rozgrzej się, będzie gorąco.\nWłączam się dla ciebie, przystojniaku. Lecimy.\nNo to zaczynamy, kurwa, i nie waż się przestać w połowie.\nStartujemy. Lubię, jak facet wie, co robi z betonem.",
@@ -98,6 +127,7 @@ const TEXT_GROUPS = [
   ['Rozmowa o kosz', [['start', 'Start betonowania'], ['depart', 'Kosz wyjechał'], ['ask', 'Pytanie: czy kosz wrócił?'], ['remind', 'Ponowne pytanie (co 30 s)'], ['arrived', 'Odpowiedź „tak, jest”'], ['late', 'Odpowiedź „jeszcze nie”']]],
   ['Komendy', [['heardOk', 'Potwierdzenie, że usłyszał komendę'], ['added', 'Kosz naliczony'], ['undo', 'Cofnięcie'], ['capacityChanged', 'Zmiana kosza'], ['doseSet', 'Ilość do kosza ustawiona'], ['fullBucket', 'Pełny kosz'], ['halfBucket', 'Pół kosza'], ['error', 'Nie zrozumiał']]],
   ['Odpowiedzi z liczbą (X = liczba)', [['reportLeft', 'Ile zostało'], ['reportBuckets', 'Ile koszy zostało'], ['reportPoured', 'Ile wylano'], ['reportTime', 'Czas betonowania'], ['reportCap', 'Jaki kosz (X = pojemność)'], ['reportEta', 'Kiedy koniec (X = godzina)'], ['reportTrip', 'Średni kurs (X = czas)'], ['muted', 'Wyciszona (komenda „cisza”)'], ['unmuted', 'Znowu mówi („gadaj”)'], ['ofeo', 'Przypomnienie Entladung OFEO'], ['hearYou', 'Odpowiedź na „słyszysz mnie?”'], ['snooze', 'Zapytaj za… (X = czas)']]],
+  ['💬 Pogadanki i dialog', [['hello', 'Cześć'], ['howAreYou', 'Jak się masz'], ['joke', 'Kawał'], ['thanks', 'Dziękuję'], ['love', 'Kocham cię / jesteś super'], ['best', 'Kto najlepszy'], ['name', 'Jak masz na imię'], ['time', 'Która godzina (X)'], ['tired', 'Jestem zmęczony'], ['coffee', 'Kawa / przerwa'], ['bored', 'Nudzi mi się'], ['insult', 'Jak ją wyzwiesz'], ['fixed', 'Poprawka ostatniego (X)'], ['added2', 'Kilka kursów naraz (X)'], ['leftAfter', 'Dopisek „zostało X” po kursie'], ['slowTrip', 'Kosz lata dłużej niż zwykle'], ['fastTrip', 'Najszybszy kurs'], ['idle', 'Długa przerwa (10 min)']]],
   ['🛒 Taczka (zamiast tekstów kosza)', [['start_taczka', 'Start'], ['added_taczka', 'Taczka naliczona'], ['capacityChanged_taczka', 'Zmiana taczki'], ['finish_taczka', 'Koniec']]],
   ['🚜 Koparka — rozładunek „Inne”', [['start_koparka', 'Start'], ['depart_koparka', 'Łyżka wyjechała'], ['ask_koparka', 'Pytanie: czy wróciła?'], ['remind_koparka', 'Ponowne pytanie'], ['arrived_koparka', 'Odpowiedź „tak”'], ['late_koparka', 'Odpowiedź „jeszcze nie”'], ['added_koparka', 'Łyżka naliczona'], ['capacityChanged_koparka', 'Zmiana łyżki'], ['finish_koparka', 'Koniec']]],
   ['Bot mówi sam', [['left75', 'Zostało 75% betonu'], ['left50', 'Zostało 50% betonu'], ['left3', 'Zostały 3 m³'], ['left15', 'Zostało 1,5 m³'], ['left05', 'Zostało 0,5 m³'], ['low', 'Mało betonu'], ['finish', 'Koniec betonowania'], ['micOn', 'Mikrofon włączony']]],
@@ -260,7 +290,7 @@ function speak(key, text) {
   }).catch(() => ttsSpeak(key, text));
 }
 const methodKey = key => { const m = session?.method || method, sfx = m === 'taczka' ? '_taczka' : m === 'inne' ? '_koparka' : ''; return sfx && String(TEXTS[key + sfx] || '').trim() ? key + sfx : key };
-const ASK_KEYS = new Set(['ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka', 'hearYou', 'muted', 'unmuted', 'ofeo']);
+const ASK_KEYS = new Set(['hello', 'howAreYou', 'joke', 'thanks', 'love', 'best', 'name', 'tired', 'coffee', 'bored', 'insult', 'slowTrip', 'fastTrip', 'idle', 'ask', 'remind', 'ask_koparka', 'remind_koparka', 'heardOk', 'added', 'added_taczka', 'added_koparka', 'hearYou', 'muted', 'unmuted', 'ofeo']);
 let lastBotAt = 0;
 function sayBot(key, text) {
   if (text == null) key = methodKey(key);
@@ -805,13 +835,15 @@ function depart({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
   if ((phase === 'away' || phase === 'late') && !silent) return announce('Kosz już jest w drodze');
   departed = at; deadline = at + meanTrip() * 1000; phase = 'away'; remindN = 0; alarmVisible = false; nextReminder = 0;
-  remember(); render(); NATIVE.schedule?.(deadline, SHORT.ask); if (!silent) sayBot('depart');
+  remember(); render(); NATIVE.schedule?.(deadline, SHORT.ask); markAct('depart'); if (!silent) sayBot('depart');
 }
 function returned({ at = Date.now(), silent = false } = {}) {
   if (!session || session.method === 'taczka') return;
-  if (departed && (phase === 'away' || phase === 'late')) session.trips.push({ seconds: Math.max(1, Math.round((at - departed) / 1000)), at });
+  let fastest = false;
+  if (departed && (phase === 'away' || phase === 'late')) { const sec = Math.max(1, Math.round((at - departed) / 1000)); fastest = session.trips.length >= 3 && sec < Math.min(...session.trips.map(x => Number(x.seconds) || 1e9)) * .97; session.trips.push({ seconds: sec, at }) }
+  session.slowSaid = false; markAct('returned');
   departed = 0; deadline = 0; phase = 'returned'; alarmVisible = false; nextReminder = 0;
-  remember(); render(); tick(); NATIVE.cancel?.(); if (!silent) { if (settings.alarm) beep(); sayBot('arrived') }
+  remember(); render(); tick(); NATIVE.cancel?.(); if (!silent) { if (settings.alarm) beep(); sayBot('arrived'); if (fastest && settings.chatty !== false) setTimeout(() => sayBot('fastTrip'), 2200) }
 }
 function delay({ at = Date.now(), silent = false, sec = 0 } = {}) {
   if (!session || session.method === 'taczka') return;
@@ -833,14 +865,14 @@ function snoozeFromSpeech(t) {
 window.addEventListener('bkp:notification-action', e => { const a = e.detail?.action; if (a === 'ARRIVED') returned(); else if (a === 'LATER') delay() });
 $('depart').addEventListener('click', () => depart()); $('returned').addEventListener('click', () => returned()); $('arrived').addEventListener('click', () => returned()); $('late').addEventListener('click', () => delay()); document.querySelectorAll('[data-snooze]').forEach(b => b.addEventListener('click', () => delay({ sec: Number(b.dataset.snooze) })));
 
-function add(value, { at = Date.now(), silent = false } = {}) {
+function add(value, { at = Date.now(), silent = false, force = false } = {}) {
   if (!session) return announce('Najpierw rozpocznij betonowanie');
   const requested = Math.round(Number(value) * 100) / 100;
   if (!(requested > 0)) return announce('Ustaw więcej niż 0 m³');
   const before = left(), koszM = session.method === 'kibel';
   if (before <= 0 && !koszM) return announce('Cały beton już naliczony');
   const amount = koszM ? requested : Math.min(requested, Math.round(before * 100) / 100); // kosz: licz dalej ponad gruszkę — „Gruszka pusta” wyrówna
-  if (!silent && at - lastAddAt < 380) return; lastAddAt = at;
+  if (!silent && !force && at - lastAddAt < 380) return; lastAddAt = at;
   const prevState = { tripPhase: phase, departed, deadline, alarmVisible, nextReminder }, prevMilestones = { ...(session.milestonesFired || {}) };
   if (session.method !== 'taczka') {
     if (departed && (phase === 'away' || phase === 'late')) session.trips.push({ seconds: Math.max(1, Math.round((at - departed) / 1000)), at });
@@ -857,7 +889,8 @@ function add(value, { at = Date.now(), silent = false } = {}) {
   if (silent) return;
   buzz(remaining <= 0 || lowNow || reached.length ? 'warning' : 'success');
   if (settings.confirm) beep();
-  sayBot('added');
+  markAct('add');
+  if (!silent && settings.confirmNums !== false && session.method !== 'taczka' && left() > 0.005) { const base = pickVariant(methodKey('added')), tail = pickVariant('leftAfter').replace(/X/g, fmt(Math.round(left() * 100) / 100)); const txt = base + tail; $('botText').textContent = txt; if (settings.mode === 'full' && (settings.askOnly === false || ASK_KEYS.has('added'))) { lastBotAt = Date.now(); speak('added_n', txt) } } else sayBot('added');
   if (requested > amount + 1e-5) announce('Ostatnia porcja: ' + fmt(amount) + ' m³');
   const note = reached.length ? reached[reached.length - 1].key : (lowNow ? 'low' : null), jobId = session.id;
   if (note) setTimeout(() => { if (session?.id === jobId) sayBot(note) }, nativeVoice ? 0 : 1900);
@@ -1294,13 +1327,18 @@ function tick() {
   $('eta').textContent = rem === 0 ? 'Zrobione' : new Date(now + secs * 1000).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
   }
   if (alarmVisible) { const t = Math.floor((Date.now() - (alarmSince || Date.now())) / 1000); $('alertLate').textContent = t > 2 ? 'Pytam od ' + Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0') + ' — zaznacz, żeby licznik się zgadzał' : 'Zaznacz, czy kosz wrócił' }
+  if (settings.chatty !== false && !document.hidden) {
+    if (phase === 'away' && departed && s.trips?.length >= 3 && !s.slowSaid && now - departed > avg * 1600 && now < deadline) { s.slowSaid = true; sayBot('slowTrip') }
+    const lastE = s.entries.at(-1)?.at || s.startedAt;
+    if (s.entries.length && phase !== 'away' && phase !== 'late' && now - lastE > 600000 && s.idleSaidFor !== lastE) { s.idleSaidFor = lastE; sayBot('idle') }
+  }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
   else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + rc.gap; deadline = nextReminder; remember(); render(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
-const COMMANDS = [['„Dodaj kosz” · „Zalane” · „Kolejny”', 'nalicza kosz'], ['„Wlano 0,7” · „Dodaj 0,3”', 'nalicza podaną ilość'], ['„Cofnij” · „Pomyłka”', 'cofa ostatni'], ['„Kosz wyjechał” · „Jazda”', 'start kursu'], ['„Tak” · „Jest” · „Mamy”', 'kosz wrócił'], ['„Nie ma” · „Jeszcze jedzie”', 'pytanie za 30 s'], ['„Ile zostało?” · „Ile jeszcze?”', 'pozostałe m³'], ['„Ile wylano?” · „Licznik”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Lej 0,35”', 'ile wlać do kosza'], ['„Pełny kosz” / „Pół kosza”', 'szybka ilość']];
+const COMMANDS = [['„Dodaj kosz” · „Zalane” · „Kolejny”', 'nalicza kosz'], ['„Wlano 0,7” · „Dodaj 0,3”', 'nalicza podaną ilość'], ['„Cofnij” · „Pomyłka”', 'cofa ostatni'], ['„Kosz wyjechał” · „Jazda”', 'start kursu'], ['„Tak” · „Jest” · „Mamy”', 'kosz wrócił'], ['„Nie ma” · „Jeszcze jedzie”', 'pytanie za 30 s'], ['„Ile zostało?” · „Ile jeszcze?”', 'pozostałe m³'], ['„Ile wylano?” · „Licznik”', 'naliczone m³'], ['„Ile czasu?”', 'czas betonowania'], ['„Kosz 0,75”', 'zmienia pojemność'], ['„Lej 0,35”', 'ile wlać do kosza'], ['„Pełny kosz” / „Pół kosza”', 'szybka ilość'], ['„Nie, pół” · „Miało być trzy czwarte” · „Jednak pełny”', 'poprawia ostatni kurs (zaraz po kursie wystarczy „pół”)'], ['„Dodaj dwa kosze” · „Trzy taczki”', 'kilka kursów naraz'], ['„Dodałem dwa razy” · „Zapomniałem dodać”', 'cofa / dodaje jeden'], ['„Zapytaj za 2 minuty”', 'przesuwa pytanie o kosz'], ['„Słyszysz mnie?”', 'mówi jak głośno i wyraźnie słyszy'], ['„Cisza” · „Gadaj” · „Powtórz”', 'wycisza / włącza / powtarza lektorkę'], ['„Jaki kosz?” · „Kiedy koniec?” · „Średni kurs”', 'pojemność, godzina końca, czas kursu'], ['„Fajrant” · „Entladung”', 'kończy betonowanie / odhacza OFEO'], ['„Cześć” · „Jak się masz?” · „Opowiedz kawał” · „Dzięki”', 'pogadanki']];
 let cmdMode = '';
 function cmdRender(m) {
   if (m === cmdMode) return; cmdMode = m;
@@ -1356,15 +1394,81 @@ function report(key, value) { reportAt = Date.now(); const text = (pickVariant(k
 let lastErrAt = 0;
 function heardText(t) {
   const n = normalise(t); if (n.length < 2) return;
+  dlog('me', t);
   if (n.split(' ').length > 7) { const tail = t.trim().split(/\s+/).slice(-6).join(' '); if (command(tail) !== true) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } micDisplay('✓ „' + tail + '”'); buzz('success'); if (settings.askOnly !== false) sayBot('heardOk'); return } // długa wypowiedź: komenda zwykle na końcu
   const r = command(t);
   if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300 && Date.now() - lastBotAt > 400) sayBot('heardOk'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
 }
+/* ═════ DIALOG ═════ */
+/* dziennik rozmowy: co usłyszała i co odpowiedziała (ostatnie 40) */
+const DLOG = [];
+function dlog(who, text) {
+  text = String(text || '').trim(); if (!text) return; const last = DLOG.at(-1); if (last && last.who === who && last.text === text && Date.now() - last.at < 1500) return;
+  DLOG.push({ who, text, at: Date.now() }); if (DLOG.length > 40) DLOG.shift(); dlogRender();
+}
+function dlogRender() {
+  const box = $('dlog'); if (!box) return; $('dlogCount').textContent = DLOG.filter(x => x.who === 'me').length;
+  box.replaceChildren(...DLOG.slice().reverse().map(e => el('div', { class: 'dl-row dl-' + e.who }, el('small', { text: new Date(e.at).toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }), el('span', { text: (e.who === 'me' ? '🗣 ' : '🤖 ') + e.text }))));
+}
+new MutationObserver(() => dlog('bot', $('botText').textContent)).observe($('botText'), { childList: true, characterData: true, subtree: true });
+$('dlogUndo').addEventListener('click', () => { if (!session?.entries.length) return announce('Nie ma czego cofać'); undo(); dlog('me', '↶ (przycisk) to była pomyłka') });
+let lastAct = { type: '', at: 0 };
+const markAct = type => { lastAct = { type, at: Date.now() } };
+const FRAC_WORDS = [['trzy czwarte|3 4|trzy czwarta', .75], ['cwierc|cwiartka|cwiartke|jedna czwarta', .25], ['pol|polowa|polowe|polowka|polowke', .5], ['pelny|pelen|caly|calutki|do pelna|full', 1], ['przelany|z gorka|z czubem', 'over']];
+function fracOf(t) { for (const [w, f] of FRAC_WORDS) if (new RegExp('\\b(' + w + ')\\b').test(t)) return f; return null }
+/** zmień ostatni kurs (kosz: ułamek kosza, taczka/łyżka: ilość) */
+function fixLast(f, n) {
+  const s = session; if (!s || !s.entries.length) return false;
+  if (s.method === 'kibel' && f != null) { setLastFrac(f, { silent: true }) }
+  else { const cap = Number(s.capacity) || .5, v = f != null ? Math.round(cap * (f === 'over' ? OVER_F : f) * 1000) / 1000 : n; if (!(v > 0)) return false; s.entries.at(-1).amount = v; remember(); render(); syncNative?.() }
+  const v = Number(s.entries.at(-1).amount); report('fixed', fmt(Math.round(v * 100) / 100) + ' metra'); markAct('fix'); return true;
+}
+function dialogCommand(t, has) {
+  const s = session, recent = Date.now() - lastAct.at < 12000;
+  // poprawki: „nie, pół” · „miało być pół” · „poprawka trzy czwarte” · „jednak pełny” · „nie cały tylko pół”
+  if (s && s.entries.length && (has('poprawka|popraw|mialo byc|jednak|tylko|nie caly|nie pelny|zle policzone|zmien ostatni|ostatni byl|ostatni kurs byl|to byl|to bylo') || (/^nie\b/.test(t) && t.split(' ').length <= 4 && fracOf(t.replace(/^nie\b/, '')) != null))) {
+    const f = fracOf(t.replace(/\b(nie caly|nie pelny)\b/g, ' ')), n = amountFromSpeech(spokenNumber(t));
+    if (f != null || n > 0) return fixLast(f, n > 0 && f == null ? n : null);
+  }
+  // krótka dopowiedź zaraz po kursie: „pół” / „trzy czwarte” / „0,4”
+  if (s && recent && lastAct.type === 'add' && t.split(' ').length <= 3 && !has('dodaj|kolejny|zalany|zalane|nastepny|plus')) {
+    const f = fracOf(t), n = amountFromSpeech(spokenNumber(t)); if (f != null || (n > 0 && /\d|zero|przecinek|dziesiat|setn/.test(t))) return fixLast(f, f == null ? n : null);
+  }
+  // za dużo / za mało
+  if (s && has('dodalem dwa razy|dodane dwa razy|podwojnie|o jeden za duzo|jeden za duzo|policzylas dwa razy|za duzo policzone|niepotrzebnie dodane')) { undo(); markAct('undo'); return true }
+  if (s && has('o jeden za malo|jeden za malo|zapomnialem dodac|zapomnialas|nie dodalem|nie policzylas|brakuje jednego')) { add(s.dose > 0 ? s.dose : s.capacity); markAct('add'); return true }
+  // kilka kursów naraz: „dodaj dwa kosze” · „trzy taczki” · „dwa razy”
+  const many = t.match(/\b(dwa|dwie|trzy|cztery|piec|2|3|4|5)\s+(kosze|koszy|kursy|kursow|razy|taczki|taczek|lyzki|lyzek|kible|kibli)\b/);
+  if (s && many && !has('ile|zostalo')) { const k = { dwa: 2, dwie: 2, trzy: 3, cztery: 4, piec: 5 }[many[1]] || Number(many[1]); for (let i = 0; i < k; i++) add(s.dose > 0 ? s.dose : s.capacity, { silent: i < k - 1, force: true, at: Date.now() + i }); report('added2', String(k)); markAct('add'); return true }
+  // pogadanki
+  if (has('opowiedz kawal|opowiedz dowcip|kawal|dowcip|rozsmiesz mnie|cos smiesznego|zart|witz')) { sayBot('joke'); return true }
+  if (has('jak sie masz|co tam|jak leci|jak samopoczucie|wie gehts|jak tam u ciebie')) { sayBot('howAreYou'); return true }
+  if (has('kocham cie|lubie cie|jestes super|jestes najlepsza|jestes kochana|jestes piekna|ich liebe dich')) { sayBot('love'); return true }
+  if (has('dziekuje|dzieki|dziekowac|dzieks|danke|dzieki wielkie')) { sayBot('thanks'); return true }
+  if (has('kto jest najlepszy|kto tu rzadzi|kto jest szefem|kto jest najlepszym')) { sayBot('best'); return true }
+  if (has('jak masz na imie|kim jestes|jak sie nazywasz|jak cie zwac')) { sayBot('name'); return true }
+  if (has('ktora godzina|ktora jest|wie spat|jaka godzina')) { report('time', new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })); return true }
+  if (has('jestem zmeczony|jestem zmeczona|mam dosc|padam|nie mam sily|bola mnie plecy')) { sayBot('tired'); return true }
+  if (has('przerwa na kawe|ide na kawe|ide na papierosa|ide na fajke|na papierosa|kawa dla mnie|czas na kawe')) { sayBot('coffee'); return true }
+  if (has('nudzi mi sie|nudno mi')) { sayBot('bored'); return true }
+  if (has('ty glupia|glupia jestes|idiotka|debilka|zamknij ryj|odpierdol sie|jebie cie|glupi bot|beznadziejna jestes')) { sayBot('insult'); return true }
+  return false;
+}
+/** pogadanki z pojedynczym słowem — sprawdzane na końcu, gdy nic innego nie pasuje */
+function smallTalkLate(t, has) {
+  if (has('czesc|dzien dobry|siema|siemka|hej|elo|witaj|witam|servus|guten morgen|hallo|dobry wieczor|czolem')) { sayBot('hello'); return true }
+  if (has('kawa|kawe|kawka|pause|fajka|papieros')) { sayBot('coffee'); return true }
+  if (has('nuda|nudno')) { sayBot('bored'); return true }
+  if (has('glupia|spierdalaj|kurwa mac|beznadziejna|debil')) { sayBot('insult'); return true }
+  return false;
+}
 function command(utterance) {
   const t = normalise(utterance); if (!t) return false;
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
+  /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
+  const dl = dialogCommand(t, has); if (dl) return dl;
   /* „słyszysz mnie?” — test mikrofonu + jak głośno i jak wyraźnie */
 function hearQuality() {
   const h = window.__lastHeard;
@@ -1379,7 +1483,7 @@ function hearQuality() {
 }
 const pick = a => a[Math.floor(Math.random() * a.length)];
 /* „słyszysz mnie?” — test mikrofonu */
-  if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|jestes|test mikrofonu|test test|horst du mich|hoerst du|jak mnie slyszysz|jak slyszysz|jakosc')) { hearQuality(); return true }
+  if (has('slyszysz mnie|slyszysz|czy mnie slyszysz|halo halo|jestes tam|test mikrofonu|test test|horst du mich|hoerst du|jak mnie slyszysz|jak slyszysz|jakosc')) { hearQuality(); return true }
   /* „zapytaj za 2 minuty” */
   if (has('zapytaj za|spytaj za|przypomnij za|odezwij sie za|zapytaj mnie za|za minute|za dwie minuty|za trzy minuty|za piec minut|za pol minuty|za minutke|frag in|in zwei minuten')) { const sec = snoozeFromSpeech(t) || 120; if (session && session.method !== 'taczka') { delay({ sec }); return true } }
   /* nowe komendy 4.9.1 */
@@ -1418,7 +1522,7 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
   if (has('dodac|dodam|dodaje|dodajcie|do daj|dodaj kosza|dodaj kibla|dodaj taczke|dodaj lyzke|taczka wylana|lyzka wylana|kolejna taczka|kolejna lyzka|taczka|wlano|wlalem|wlalismy|nalalem|nalalismy|wlane|wlali|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|plus jeden|dodaj|nalicz|dolej|zalicz|zalany|zalane|poszlo|kolejny|wysypane|wysypalem|wysypal|nalane|zaliczone|poszedl|dawaj|leci|nastepny kosz|kosz poszedl|kosz wylany|wylany|plus|fertig|voll|weiter|zrobiony|gotowy kosz|kosz gotowy|napelniony|pelen')) {
     const n = amountFromSpeech(spokenNumber(t.replace(/\b(plus jeden|dodaj kibel|dodaj kosz|kosz zalany|kibel zalany|dodaj taczke|dodaj lyzke)\b/g, ' '))); add(n > 0 ? n : (session?.dose > 0 ? session.dose : session?.capacity)); return true }
   if (has('koparka jest|koparka wrocila|lyzka jest|lyzka wrocila|tak|juz jest|kosz jest|kibel jest|juz wrocil|wrocil|przyjechal|przybyl|dojechal|no jest|jest|gotowe|mamy|mam|czeka|jestem|juz|okej jest|ok jest')) { if (waiting) { returned(); return true } return 'ignore' }
-  return false;
+  return smallTalkLate(t, has);
 }
 function micDisplay(t) { setTimeout(bgmUpdate, 0); $('micStatus').textContent = t; $('mic').textContent = micWanted ? '⏹ Wyłącz mikrofon' : '🎙️ Włącz mikrofon'; $('mic').classList.toggle('live', micWanted); const tm = $('hdrMic'); if (tm) { tm.textContent = '🎙'; tm.setAttribute('aria-label', micWanted ? 'Wyłącz mikrofon' : 'Włącz mikrofon'); tm.classList.toggle('live', micWanted) } const om = $('ohMic'); if (om) { om.textContent = micWanted ? '🟢 Słucham' : '🎙 Mikrofon'; om.classList.toggle('live', micWanted) } if ($('ohMicStatus')) $('ohMicStatus').textContent = t; if (settings.oneHand && /❌|Brak|Nie mogę/.test(t)) announce(t) }
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1450,7 +1554,7 @@ async function toggleMic() {
   micWanted = true; micDisplay('Prośba o dostęp do mikrofonu…'); bootWebRecognition();
 }
 $('mic').addEventListener('click', toggleMic); $('hdrMic').addEventListener('click', toggleMic);
-NV.onHeard?.(t => heardText(t));
+NV.onHeard?.(t => heardText(t)); window.BKP_heard = heardText; // test/debug: wpisz tekst jak z mikrofonu
 NV.onStatus?.(t => micDisplay(t));
 
 async function drainNative() {
@@ -2226,7 +2330,7 @@ $('openTheme').addEventListener('click', () => { themeReturn = 'settings'; tab('
 
 // ───────────────────────── ustawienia ─────────────────────────
 applyTheme();
-$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('lockCard').checked = settings.lockCard !== false; $('offlineSpeech').checked = !!settings.offlineSpeech; $('ofeoOn').checked = settings.ofeo !== false; $('micAuto').checked = settings.micAuto !== false; $('crudeOn').checked = settings.crude !== false; $('holdAdd').checked = settings.holdAdd !== false; $('lockStatus').checked = settings.lockStatus !== false; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
+$('notifyMode').value = settings.mode; $('ttsRate').value = String(settings.rate); $('alarmOn').checked = settings.alarm; $('musicOn').checked = !!settings.music; $('headsetBtn').checked = !!settings.headsetBtn; $('lockCard').checked = settings.lockCard !== false; $('offlineSpeech').checked = !!settings.offlineSpeech; $('ofeoOn').checked = settings.ofeo !== false; $('micAuto').checked = settings.micAuto !== false; $('confirmNums').checked = settings.confirmNums !== false; $('chatty').checked = settings.chatty !== false; $('crudeOn').checked = settings.crude !== false; $('holdAdd').checked = settings.holdAdd !== false; $('lockStatus').checked = settings.lockStatus !== false; $('keepAwake').checked = settings.keepAwake !== false; $('hapticsOn').checked = settings.haptics !== false; $('musicVol').value = String(settings.musicVol ?? .6); $('confirmOn').checked = settings.confirm;
 $('notifyMode').addEventListener('change', () => { settings.mode = $('notifyMode').value; saveSettings() });
 $('ttsVoice').addEventListener('change', () => { settings.voice = $('ttsVoice').value; saveSettings(); lektorRender() });
 $('ttsRate').addEventListener('change', () => { settings.rate = Number($('ttsRate').value); saveSettings() });
@@ -2314,7 +2418,7 @@ let elLibT = 0; $('elLibSearch').addEventListener('input', () => { clearTimeout(
 $('elLibMore').addEventListener('click', () => elLibLoad(false));
 $('startForm').checked = settings.startForm !== false; $('startForm').addEventListener('change', () => { settings.startForm = $('startForm').checked; saveSettings() });
 $('tapLevel').checked = !!settings.tapLevel;
-for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['lockCard', 'lockCard'], ['offlineSpeech', 'offlineSpeech'], ['ofeoOn', 'ofeo'], ['micAuto', 'micAuto'], ['crudeOn', 'crude'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
+for (const [id, k] of [['tapLevel', 'tapLevel'], ['holdAdd', 'holdAdd'], ['lockStatus', 'lockStatus'], ['headsetBtn', 'headsetBtn'], ['lockCard', 'lockCard'], ['offlineSpeech', 'offlineSpeech'], ['ofeoOn', 'ofeo'], ['micAuto', 'micAuto'], ['confirmNums', 'confirmNums'], ['chatty', 'chatty'], ['crudeOn', 'crude'], ['keepAwake', 'keepAwake'], ['hapticsOn', 'haptics']]) $(id).addEventListener('change', () => { settings[k] = $(id).checked; saveSettings(); configureNative(); if (session) render() });
 const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) NV.haptic?.(kind).catch?.(() => { }); else try { navigator.vibrate?.(kind === 'warning' ? [60, 40, 60] : 40) } catch (e) { } };
 { const sel = $('introSong'), sh = $('songShift'), shv = $('songShiftV');
   sel.replaceChildren(el('option', { value: 'random', text: '🎲 Losowo (co start inna)' }), ...INTRO_SONGS.map(x => el('option', { value: x.id, text: '🎵 ' + x.name })));

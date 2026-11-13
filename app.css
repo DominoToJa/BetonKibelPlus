@@ -1121,3 +1121,12 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .hdr-mic:not(.live)::after{content:"";position:absolute;top:6px;right:6px;width:11px;height:11px;border-radius:50%;background:#ff5a5a}
 @keyframes micPulse{50%{box-shadow:0 0 22px #2ecc71aa}}
 .snooze-row{display:flex;align-items:center;gap:6px;margin-top:10px}.snooze-row small{font-weight:800;opacity:.8;white-space:nowrap}.snooze-row button{flex:1;min-height:46px;font-weight:900}
+
+/* dziennik rozmowy */
+.dlog-box{margin-top:10px;border-radius:14px;background:color-mix(in srgb,var(--c1) 6%,transparent);border:1px solid color-mix(in srgb,var(--c1) 22%,transparent);padding:8px 10px}
+.dlog-box summary{font-weight:900;cursor:pointer}.dlog-box summary b{display:inline-block;min-width:22px;padding:0 6px;border-radius:10px;background:var(--c1);color:#071018;text-align:center;font-size:12px;margin-left:4px}
+#dlogUndo{width:100%;margin:8px 0;min-height:44px}
+.dlog{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.dl-row{display:flex;gap:8px;align-items:baseline;padding:5px 8px;border-radius:10px;font-size:14px;line-height:1.3}
+.dl-row small{opacity:.55;font-size:10px;flex:none;font-variant-numeric:tabular-nums}
+.dl-me{background:color-mix(in srgb,#2ecc71 12%,transparent)}.dl-bot{background:color-mix(in srgb,var(--c1) 10%,transparent)}
