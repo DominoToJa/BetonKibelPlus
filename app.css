@@ -1186,3 +1186,7 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .pio-cap-out{display:block;margin-top:4px;font-size:13px;opacity:.85;width:100%}
 #activeBucket .pio-pill{margin-top:8px;width:100%}#activeBucket .custom-row{margin-top:8px}
 #activeBucket{flex-wrap:wrap}#activeBucket>.ab-info,#activeBucket>.pio-pill,#activeBucket>.custom-row,#activeBucket>.pio-cap-out{flex:1 1 100%}
+.pio-tile{border-color:#22d3ee66!important}.pio-tile.on{outline:3px solid var(--accent,#22d3ee)}
+.pio-ico{font-size:44px;display:grid;place-items:center;width:100%;height:100%}
+.pio-prompt .ep-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.pio-prompt small{opacity:.85}
