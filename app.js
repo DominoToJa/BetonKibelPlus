@@ -841,7 +841,7 @@ function finishCurrent(showNotice = true) {
 $('finish').addEventListener('click', async () => {
   if (!session) return;
   const s = session, sum = Math.round(entriesSum() * 1000) / 1000, load = Number(s.load) || 0, n = s.entries.length;
-  const bp = s.bucketProfile?.id ? getProfile(s.bucketProfile.id) : null, PI = .06;
+  const bp = s.bucketProfile?.id ? getProfile(s.bucketProfile.id) : null, PI = pioroM3();
   let rest = 0, fix = true;
   const restI = el('input', { inputmode: 'decimal', class: 'fin-rest', value: '0', 'aria-label': 'Ile zostało w gruszce (m³)' });
   const out = el('div', { class: 'fin-out' }), calib = el('div', { class: 'fin-calib' });
@@ -1678,7 +1678,11 @@ document.addEventListener('visibilitychange', () => {
 
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro = 0,06 m³. Pióra/obrót do zmierzenia.
-const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 0 }, PIORO_M3 = 0.06;
+const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 0, m3rot: 0 };
+/** ile betonu jest na jednym piórze — domyślnie 0,06 m³, Domi kalibruje na budowie */
+function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : 0.06 }
+/** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
+function pourM3(rot, c = drumCfg()) { return c.m3rot > 0 ? rot * c.m3rot : c.pio > 0 ? rot * c.pio * pioroM3() : 0 }
 const drumCfg = () => ({ ...DRUM_DEF, ...(settings.drum || {}) });
 let pour = null, pourTimer = 0;
 const pourRot = (p, now = Date.now()) => p.rot + (p.mode ? (now - p.t0) / 1000 / (drumCfg()[p.mode] || 6) : 0);
@@ -1693,27 +1697,56 @@ function pourStart(mode) {
 function pourStop() {
   if (!pour?.mode) return false; const now = Date.now(); pour.rot = pourRot(pour, now); pour.secs = pourSecs(pour, now); pour.mode = null;
   clearInterval(pourTimer); pourRender();
-  const c = drumCfg(), pio = c.pio > 0 ? pour.rot * c.pio : 0, m3 = Math.round(pio * PIORO_M3 * 100) / 100, done = pour;
-  const res = $('pourRes'); res.replaceChildren(el('p', { class: 'hint', text: '⏱ ' + shortDur(done.secs) + ' · ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotów' + (m3 > 0 ? ' · ' + fmt(Math.round(pio * 10) / 10) + ' piór ≈ ' + fmt(m3) + ' m³' : ' · wpisz „pióra na obrót”, to policzę m³') }));
+  const c = drumCfg(), m3 = Math.round(pourM3(pour.rot, c) * 100) / 100, pio = m3 > 0 ? m3 / pioroM3() : 0, done = pour; calFromPour = done.rot;
+  const res = $('pourRes'); res.replaceChildren(el('p', { class: 'hint', text: '⏱ ' + shortDur(done.secs) + ' · ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotów' + (m3 > 0 ? ' · ' + fmt(Math.round(pio * 10) / 10) + ' piór ≈ ' + fmt(m3) + ' m³' : ' · wpisz „pióra na obrót” albo skalibruj niżej, to policzę m³') }));
+  calRender();
   if (m3 > 0 && session) res.append(el('div', { class: 'ep-row' },
     el('button', { type: 'button', class: 'primary', 'data-pour-add': '1', text: '➕ Dodaj ' + fmt(m3) + ' m³', onclick: () => { add(m3, { force: true }); res.replaceChildren(); pour = null; pourRender() } }),
     el('button', { type: 'button', text: '✖ Nie dodawaj', onclick: () => { res.replaceChildren(); pour = null; pourRender() } })));
   sayBot('custom', m3 > 0 ? 'Stop. ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotu, około ' + fmt(m3) + ' metra. Dodać?' : 'Stop. ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotu.');
   return true;
 }
+/* 📏 ile jest na piórze: wlej znaną ilość (np. pełny kosz) i policz pióra — albo zmierz czasem (obroty) */
+let calFromPour = 0;
+function calCalc() {
+  const m3 = number($('calM3').value), n = number($('calN').value), c = drumCfg();
+  if (!(m3 > 0)) return null;
+  if (n > 0) return { pioro: m3 / n, m3rot: c.pio > 0 && calFromPour > 0 ? m3 / calFromPour : 0, how: fmt(n) + ' piór' };
+  if (calFromPour > 0.3) { const m3rot = m3 / calFromPour; return { m3rot, pioro: c.pio > 0 ? m3rot / c.pio : 0, how: fmt(Math.round(calFromPour * 10) / 10) + ' obrotów z licznika' } }
+  return null;
+}
+function calRender() {
+  if ($('pioroCardB')) { $('pioroCardB').textContent = 'Pióro = ' + fmt(pioroM3()) + ' m³' + (settings.pioro ? ' ✓' : ''); $('pioroCardS').textContent = 'czyli ok. ' + Math.round(pioroM3() * 1000) + ' litrów betonu' + (settings.pioro ? ' · zmierzone' : '') }
+  const out = $('calOut'); if (!out) return; const r = calCalc();
+  $('calHint').textContent = calFromPour > 0 ? 'Ostatnie lanie: ' + fmt(Math.round(calFromPour * 10) / 10) + ' obrotu — możesz go użyć zamiast liczenia piór.' : '';
+  if (!r) { out.textContent = 'Teraz: 1 pióro = ' + fmt(pioroM3()) + ' m³ (' + Math.round(pioroM3() * 1000) + ' l)' + (settings.pioro ? ' · zmierzone' : ' · domyślne'); $('calSave').disabled = true; return }
+  $('calSave').disabled = false;
+  out.replaceChildren(el('b', { text: r.pioro > 0 ? '1 pióro = ' + fmt(Math.round(r.pioro * 1000) / 1000) + ' m³ (' + Math.round(r.pioro * 1000) + ' l)' : '1 obrót = ' + fmt(Math.round(r.m3rot * 1000) / 1000) + ' m³' }),
+    el('small', { text: ' z ' + r.how + (r.pioro > 0 && r.m3rot > 0 ? ' · 1 obrót = ' + fmt(Math.round(r.m3rot * 1000) / 1000) + ' m³' : r.m3rot > 0 && !(r.pioro > 0) ? ' · wpisz pióra/obrót, to policzę też pióro' : '') }));
+}
+function calSave() {
+  const r = calCalc(); if (!r) return;
+  if (r.pioro > 0) { if (!(r.pioro > 0.005 && r.pioro < 1)) return announce('Wyszło ' + fmt(r.pioro) + ' m³ na pióro — to nie wygląda dobrze, sprawdź liczby'); settings.pioro = Math.round(r.pioro * 10000) / 10000 }
+  if (r.m3rot > 0) settings.drum = { ...drumCfg(), m3rot: Math.round(r.m3rot * 10000) / 10000 };
+  saveSettings(); jlog('kalibracja pióra: ' + fmt(pioroM3()) + ' m³' + (r.m3rot > 0 ? ', obrót ' + fmt(r.m3rot) + ' m³' : ''));
+  announce('📏 Zapisane: 1 pióro = ' + fmt(pioroM3()) + ' m³'); sayBot('custom', 'Zapisałam. Jedno pióro to ' + fmt(pioroM3()) + ' metra, czyli ' + Math.round(pioroM3() * 1000) + ' litrów.');
+  $('calN').value = ''; calRender(); pourRender(); $('pioroN')?.dispatchEvent(new Event('input'));
+}
 function pourRender() {
   const box = $('pourBox'); if (!box) return; const p = pour, c = drumCfg(), now = Date.now();
-  const rot = p ? pourRot(p, now) : 0, secs = p ? pourSecs(p, now) : 0, pio = c.pio > 0 ? rot * c.pio : 0;
+  const rot = p ? pourRot(p, now) : 0, secs = p ? pourSecs(p, now) : 0, m3 = pourM3(rot, c), known = c.m3rot > 0 || c.pio > 0, pio = m3 / pioroM3();
   box.classList.toggle('running', !!p?.mode);
   box.querySelectorAll('[data-pour]').forEach(b => b.classList.toggle('on', !!p?.mode && b.dataset.pour === p.mode));
   $('pourT').textContent = shortDur(secs); $('pourR').textContent = fmt(Math.round(rot * 10) / 10);
-  $('pourP').textContent = c.pio > 0 ? fmt(Math.round(pio * 10) / 10) : '—'; $('pourM').textContent = c.pio > 0 ? fmt(Math.round(pio * PIORO_M3 * 100) / 100) : '—';
-  $('pourMini').textContent = p?.mode ? (c.pio > 0 ? fmt(Math.round(pio * PIORO_M3 * 100) / 100) + ' m³' : fmt(Math.round(rot * 10) / 10) + ' obr.') : '';
+  $('pourP').textContent = known ? fmt(Math.round(pio * 10) / 10) : '—'; $('pourM').textContent = known ? fmt(Math.round(m3 * 100) / 100) : '—';
+  $('pourMini').textContent = p?.mode ? (known ? fmt(Math.round(m3 * 100) / 100) + ' m³' : fmt(Math.round(rot * 10) / 10) + ' obr.') : '';
 }
 (() => {
   const box = $('pourBox'); if (!box) return; const c = drumCfg();
   const bind = (id, key) => { const i = $(id); i.value = c[key] > 0 ? fmt(c[key]) : ''; i.addEventListener('change', () => { const v = number(i.value); settings.drum = { ...drumCfg(), [key]: v > 0 && v < 100 ? v : (key === 'pio' ? 0 : DRUM_DEF[key]) }; saveSettings(); i.value = settings.drum[key] > 0 ? fmt(settings.drum[key]) : ''; pourRender() }) };
   bind('drumG1', 'g1'); bind('drumFull', 'full'); bind('drumPio', 'pio');
+  $('calM3').value = session?.capacity ? fmt(session.capacity) : ''; ['calM3', 'calN'].forEach(id => $(id).addEventListener('input', calRender));
+  $('calSave').addEventListener('click', calSave); calRender();
   box.querySelectorAll('[data-pour]').forEach(b => b.addEventListener('click', () => b.dataset.pour === 'stop' ? pourStop() : pourStart(b.dataset.pour)));
   pourRender();
 })();
@@ -2813,10 +2846,10 @@ function runIntro(box) {
 
 /* diagram: licznik piór (małe pióro = 0,06 m³) */
 (() => {
-  const PIORO = .06, inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
+  const inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
   const word = n => { const k = Math.abs(n) % 100, j = k % 10; return n % 1 ? 'pióra' : n === 1 ? 'pióro' : (j >= 2 && j <= 4 && (k < 12 || k > 14)) ? 'pióra' : 'piór' };
   const calc = () => { const n = number(inp.value); if (!(n > 0)) { out.textContent = 'Wpisz liczbę piór — policzę m³.'; return }
-    const m3 = Math.round(n * PIORO * 100) / 100; out.innerHTML = '';
+    const PIORO = pioroM3(), m3 = Math.round(n * PIORO * 100) / 100; out.innerHTML = '';
     out.append(el('b', { text: fmt(n) + ' ' + word(n) + ' = ' + fmt(m3) + ' m³' }), el('small', { text: '≈ ' + Math.round(n * PIORO * 1000) + ' litrów betonu' })) };
   const step = d => { const n = Math.max(0, (number(inp.value) || 0) + d); inp.value = n ? fmt(n) : ''; calc() };
   inp.addEventListener('input', calc); $('pioroMinus').addEventListener('click', () => step(-1)); $('pioroPlus').addEventListener('click', () => step(1));

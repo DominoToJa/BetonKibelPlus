@@ -1176,3 +1176,7 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .pour-cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
 .pour-cfg label{display:flex;flex-direction:column;gap:4px;font-size:12px;opacity:.85}
 .pour-cfg input{min-height:40px;text-align:center;font-weight:800}
+.pour-cal{margin-top:12px;padding-top:10px;border-top:1px dashed #ffffff26;display:flex;flex-direction:column;gap:6px}
+.pour-cfg.two{grid-template-columns:1fr 1fr}
+.cal-out{margin:0;font-size:15px}.cal-out b{font-size:18px}
+#calSave{min-height:48px;font-weight:800}#calSave:disabled{opacity:.45}

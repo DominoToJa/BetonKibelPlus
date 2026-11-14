@@ -109,7 +109,12 @@
 <div class="pour-out"><div><small>CZAS</small><b id="pourT">0:00</b></div><div><small>OBROTY</small><b id="pourR">0</b></div><div><small>PIÓRA</small><b id="pourP">—</b></div><div><small>BETON</small><b id="pourM">—</b></div></div>
 <div id="pourRes" class="pour-res"></div>
 <div class="pour-cfg"><label>1 bieg (s/obrót)<input id="drumG1" inputmode="decimal"></label><label>Full (s/obrót)<input id="drumFull" inputmode="decimal"></label><label>Pióra / obrót<input id="drumPio" inputmode="decimal" placeholder="zmierz"></label></div>
-<p class="hint">Mów: „leję na jedynce”, „leję na full”, „stop”. Jedno pióro = 0,06 m³. Ile piór spada na obrót, nie zależy od gazu — wystarczy policzyć na 1 biegu (3 obroty ÷ 3).</p>
+<p class="hint">Mów: „leję na jedynce”, „leję na full”, „stop”. Ile piór spada na obrót, nie zależy od gazu — wystarczy policzyć na 1 biegu (3 obroty ÷ 3).</p>
+<div class="pour-cal"><b>📏 Ile jest na piórze? — kalibracja</b>
+<p class="hint">Wlej znaną ilość (np. pełny kosz albo całą gruszkę) i policz, ile piór spadło. Albo zmierz to laniem na czas powyżej — wtedy liczba piór niepotrzebna.</p>
+<div class="pour-cfg two"><label>Ile m³ wlałeś<input id="calM3" inputmode="decimal" placeholder="np. 1,3"></label><label>Ile piór spadło<input id="calN" inputmode="decimal" placeholder="policz"></label></div>
+<small id="calHint" class="hint"></small><p id="calOut" class="cal-out"></p><button type="button" id="calSave" class="primary">💾 Zapisz pióro</button></div>
+
 </details>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
 <div class="kplan"><span>🪣 <b id="kSent">0</b> <small id="kSentL">wysłano</small></span><span><b id="kLeft">0</b> <small id="kLeftL">zostało</small></span><span><small>ostatni</small> <b id="kLast">—</b></span></div>
@@ -176,7 +181,7 @@
   <div class="panel drum-panel">
     <h2>🛢 Diagram gruszki</h2>
     <div class="drum-wrap"><div class="drum-inner"><img src="/diagram_gruszki_app.png" class="drum-diagram-img" alt="Diagram bębna betoniarki z podziałką od 0 do 3 m³" /><div class="drum-labels" aria-hidden="true"><span style="left:17.6%"><b>3</b></span><span style="left:29.0%"><b>2,5</b></span><span style="left:40.9%"><b>2</b></span><span style="left:52.0%"><b>1,5</b></span><span style="left:62.6%"><b>1</b></span><span style="left:73.4%"><b>0,5</b></span><span style="left:85.5%"><b>0</b></span></div></div><div class="drum-unit">m³ w gruszce · 0 = pusta</div></div>
-    <div class="pioro-card"><div class="pioro-ico">🌀</div><div><b>Małe pióro = 0,06 m³</b><small>czyli ok. 60 litrów betonu</small></div></div>
+    <div class="pioro-card"><div class="pioro-ico">🌀</div><div><b id="pioroCardB">Małe pióro = 0,06 m³</b><small id="pioroCardS">czyli ok. 60 litrów betonu</small></div></div>
     <div class="pioro-calc"><label for="pioroN">🧮 Ile piór?</label><div class="pioro-row"><button type="button" id="pioroMinus" aria-label="Mniej piór">−</button><input id="pioroN" inputmode="decimal" placeholder="np. 20"><button type="button" id="pioroPlus" aria-label="Więcej piór">+</button></div><output id="pioroOut">Wpisz liczbę piór — policzę m³.</output></div>
     <div class="pioro-tab"><span><b>0,25 m³</b>≈ 4 pióra</span><span><b>0,5 m³</b>≈ 8 piór</span><span><b>1 m³</b>≈ 17 piór</span><span><b>2 pióra</b>= 0,12 m³</span><span><b>5 piór</b>= 0,3 m³</span><span><b>10 piór</b>= 0,6 m³</span></div>
     <details style="margin-top:10px"><summary>🖼 Oryginalne zdjęcie</summary><img src="/diagram_gruszki_oryginal.png" alt="Oryginalny diagram bębna betoniarki" style="width:100%;height:auto;display:block;border-radius:14px;background:#fff;margin-top:8px" /></details>
@@ -296,7 +301,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 5.3.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 5.3.1 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
