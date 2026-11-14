@@ -182,6 +182,13 @@
     <h2>🛢 Diagram gruszki</h2>
     <div class="drum-wrap"><div class="drum-inner"><img src="/diagram_gruszki_app.png" class="drum-diagram-img" alt="Diagram bębna betoniarki z podziałką od 0 do 3 m³" /><div class="drum-labels" aria-hidden="true"><span style="left:17.6%"><b>3</b></span><span style="left:29.0%"><b>2,5</b></span><span style="left:40.9%"><b>2</b></span><span style="left:52.0%"><b>1,5</b></span><span style="left:62.6%"><b>1</b></span><span style="left:73.4%"><b>0,5</b></span><span style="left:85.5%"><b>0</b></span></div></div><div class="drum-unit">m³ w gruszce · 0 = pusta</div></div>
     <div class="pioro-card"><div class="pioro-ico">🌀</div><div><b id="pioroCardB">Pióro = 0,032 m³</b><small id="pioroCardS">czyli ok. 32 litrów betonu</small></div></div>
+    <details class="pioro-why"><summary>Skąd 0,032 m³? (pomiar 14.11)</summary><ol>
+<li><b>Pomiar:</b> 9 m³ w ok. 7 min na 1 stopniu (niecałe obroty) = 420 s</li>
+<li><b>Obrót bębna</b> ≈ 6,5 s (6,2 s na 1 biegu + lekka poprawka)</li>
+<li>420 s ÷ 6,5 s ≈ <b>65 obrotów</b></li>
+<li>9 m³ ÷ 65 ≈ <b>0,14 m³ na obrót</b> (ok. 140 l)</li>
+<li>0,14 ÷ 4,5 pióra ≈ <b>0,032 m³ na pióro</b> (ok. 32 l)</li>
+</ol><p class="hint">Tempo lania: 1 bieg (6,2 s/obrót) ≈ 1,4 m³/min · pełny gaz (4,21 s/obrót) ≈ 2,1 m³/min. Dokładniejszy pomiar wpisz w „📏 Ile jest na piórze?” przy liczniku lania.</p></details>
     <div class="pioro-calc"><label for="pioroN">🧮 Ile piór?</label><div class="pioro-row"><button type="button" id="pioroMinus" aria-label="Mniej piór">−</button><input id="pioroN" inputmode="decimal" placeholder="np. 20"><button type="button" id="pioroPlus" aria-label="Więcej piór">+</button></div><output id="pioroOut">Wpisz liczbę piór — policzę m³.</output></div>
     <div class="pioro-tab"><span><b>0,25 m³</b>≈ 4 pióra</span><span><b>0,5 m³</b>≈ 8 piór</span><span><b>1 m³</b>≈ 17 piór</span><span><b>2 pióra</b>= 0,12 m³</span><span><b>5 piór</b>= 0,3 m³</span><span><b>10 piór</b>= 0,6 m³</span></div>
     <details style="margin-top:10px"><summary>🖼 Oryginalne zdjęcie</summary><img src="/diagram_gruszki_oryginal.png" alt="Oryginalny diagram bębna betoniarki" style="width:100%;height:auto;display:block;border-radius:14px;background:#fff;margin-top:8px" /></details>
@@ -301,7 +308,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 5.3.3 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 5.3.4 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

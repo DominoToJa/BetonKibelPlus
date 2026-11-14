@@ -1180,3 +1180,6 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .pour-cfg.two{grid-template-columns:1fr 1fr}
 .cal-out{margin:0;font-size:15px}.cal-out b{font-size:18px}
 #calSave{min-height:48px;font-weight:800}#calSave:disabled{opacity:.45}
+.pioro-why{margin:8px 0;font-size:14px}
+.pioro-why summary{cursor:pointer;font-weight:700;opacity:.9}
+.pioro-why ol{margin:8px 0 6px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
