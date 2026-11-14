@@ -1678,12 +1678,12 @@ document.addEventListener('visibilitychange', () => {
 
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro = 0,06 m³. Pióra/obrót do zmierzenia.
-const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 0, m3rot: 0 };
+const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0 }; // Domi: 4–5 piór na obrót
 /** ile betonu jest na jednym piórze — domyślnie 0,06 m³, Domi kalibruje na budowie */
 function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : 0.06 }
 /** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
 function pourM3(rot, c = drumCfg()) { return c.m3rot > 0 ? rot * c.m3rot : c.pio > 0 ? rot * c.pio * pioroM3() : 0 }
-const drumCfg = () => ({ ...DRUM_DEF, ...(settings.drum || {}) });
+const drumCfg = () => { const c = { ...DRUM_DEF, ...(settings.drum || {}) }; if (!(c.pio > 0)) c.pio = DRUM_DEF.pio; return c };
 let pour = null, pourTimer = 0;
 const pourRot = (p, now = Date.now()) => p.rot + (p.mode ? (now - p.t0) / 1000 / (drumCfg()[p.mode] || 6) : 0);
 const pourSecs = (p, now = Date.now()) => p.secs + (p.mode ? (now - p.t0) / 1000 : 0);
@@ -1743,7 +1743,7 @@ function pourRender() {
 }
 (() => {
   const box = $('pourBox'); if (!box) return; const c = drumCfg();
-  const bind = (id, key) => { const i = $(id); i.value = c[key] > 0 ? fmt(c[key]) : ''; i.addEventListener('change', () => { const v = number(i.value); settings.drum = { ...drumCfg(), [key]: v > 0 && v < 100 ? v : (key === 'pio' ? 0 : DRUM_DEF[key]) }; saveSettings(); i.value = settings.drum[key] > 0 ? fmt(settings.drum[key]) : ''; pourRender() }) };
+  const bind = (id, key) => { const i = $(id); i.value = c[key] > 0 ? fmt(c[key]) : ''; i.addEventListener('change', () => { const v = number(i.value); settings.drum = { ...drumCfg(), [key]: v > 0 && v < 100 ? v : DRUM_DEF[key] }; saveSettings(); i.value = settings.drum[key] > 0 ? fmt(settings.drum[key]) : ''; pourRender() }) };
   bind('drumG1', 'g1'); bind('drumFull', 'full'); bind('drumPio', 'pio');
   $('calM3').value = session?.capacity ? fmt(session.capacity) : ''; ['calM3', 'calN'].forEach(id => $(id).addEventListener('input', calRender));
   $('calSave').addEventListener('click', calSave); calRender();
