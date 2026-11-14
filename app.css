@@ -1183,3 +1183,6 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .pioro-why{margin:8px 0;font-size:14px}
 .pioro-why summary{cursor:pointer;font-weight:700;opacity:.9}
 .pioro-why ol{margin:8px 0 6px;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.pio-cap-out{display:block;margin-top:4px;font-size:13px;opacity:.85;width:100%}
+#activeBucket .pio-pill{margin-top:8px;width:100%}#activeBucket .custom-row{margin-top:8px}
+#activeBucket{flex-wrap:wrap}#activeBucket>.ab-info,#activeBucket>.pio-pill,#activeBucket>.custom-row,#activeBucket>.pio-cap-out{flex:1 1 100%}

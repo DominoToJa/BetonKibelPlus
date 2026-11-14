@@ -522,7 +522,7 @@ function syncNative() {
   NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), kursy: s?.entries?.length || 0, left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
-let modelCache = { key: '', model: null }, customOpen = false;
+let modelCache = { key: '', model: null }, customOpen = false, pioOpen = false;
 function currentModel() {
   const p = session?.bucketProfile, cap = Number(session?.capacity || session?.dose || .5);
   const k = JSON.stringify([p?.id, p?.shape, p?.dims, cap]);
@@ -626,7 +626,9 @@ function formModal(title, body, okText = 'Zapisz') {
 /** ✏️ ręczna zmiana pojemności zapisanego kosza / taczki / łyżki (np. wyszło 1,3 a nie 1,7) */
 async function editCapacity(p, after) {
   const tz = kindOf(p) === 'taczka', inp = el('input', { inputmode: 'decimal', class: 'fin-rest', value: tz ? String(Math.round(p.capacity * 1000)) : fmt(p.capacity) });
-  const body = el('div', { class: 'fin' }, el('label', { class: 'label', text: tz ? 'Pojemność taczki (litry)' : 'Pojemność (m³)' }), inp, el('p', { class: 'hint', text: 'Jak na budowie wyszło inaczej niż na tabliczce — wpisz, ile naprawdę mieści. Zostanie zapisane w „' + p.name + '”.' }));
+  const pin = tz ? null : el('input', { inputmode: 'decimal', class: 'fin-rest', placeholder: 'np. 3,5' });
+  if (pin) pin.addEventListener('input', () => { const n = number(pin.value); if (n > 0) inp.value = fmt3(n * pioroM3()) });
+  const body = el('div', { class: 'fin' }, el('label', { class: 'label', text: tz ? 'Pojemność taczki (litry)' : 'Pojemność (m³)' }), inp, ...(pin ? [el('label', { class: 'label', text: '🌀 albo: ile piór wchodzi (1 pióro = ' + fmt3(pioroM3()) + ' m³)' }), pin] : []), el('p', { class: 'hint', text: 'Jak na budowie wyszło inaczej niż na tabliczce — wpisz, ile naprawdę mieści. Zostanie zapisane w „' + p.name + '”.' }));
   setTimeout(() => { inp.focus(); inp.select() }, 50);
   if (!(await formModal('✏️ ' + p.name, body, '✓ Zapisz'))) return;
   let v = number(inp.value); if (tz && v > 5) v = v / 1000;
@@ -1372,7 +1374,19 @@ function render() {
   const q = $('quick'); q.replaceChildren(); q.classList.remove('hide');
   for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!cur && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { customOpen = false; changeCapacity(v, null) } }));
   const isCustom = !cur && !(opts[s.method] || []).some(v => Math.abs(v - s.capacity) < 1e-4);
-  q.append(el('button', { type: 'button', class: 'pill' + (isCustom || customOpen ? ' on' : ''), text: isCustom ? '✏️ ' + fmt(s.capacity) + ' m³' : '✏️ Inna', onclick: () => { customOpen = !customOpen; render(); if (customOpen) setTimeout(() => $('customCap')?.focus(), 30) } }));
+  q.append(el('button', { type: 'button', class: 'pill' + (isCustom || customOpen ? ' on' : ''), text: isCustom ? '✏️ ' + fmt(s.capacity) + ' m³' : '✏️ Inna', onclick: () => { customOpen = !customOpen; pioOpen = false; render(); if (customOpen) setTimeout(() => $('customCap')?.focus(), 30) } }));
+  // 🌀 pojemność z piór — w trybie kosza siedzi pod nazwą kosza (szybkie pigułki są tam schowane)
+  const pioT = s.method === 'kibel' ? ab : q;
+  if (s.method === 'kibel' && !cur) { ab.classList.remove('hide'); ab.append(el('div', { class: 'ab-info' }, el('strong', { text: '📐 Kosz · ' + fmt(s.capacity) + ' m³' }))) }
+  if (s.method !== 'taczka') pioT.append(el('button', { type: 'button', class: 'pill pio-pill' + (pioOpen ? ' on' : ''), text: s.method === 'kibel' ? '🌀 Policz kosz z piór' : '🌀 Z piór', onclick: () => { pioOpen = !pioOpen; customOpen = false; render(); if (pioOpen) setTimeout(() => $('pioCap')?.focus(), 30) } }));
+  if (pioOpen && s.method !== 'taczka') {
+    const inp = el('input', { id: 'pioCap', inputmode: 'decimal', placeholder: 'ile piór, np. 3,5', style: 'margin:0' }), out = el('small', { class: 'pio-cap-out', text: '1 pióro = ' + fmt3(pioroM3()) + ' m³ · policz pióra przy pierwszym koszu' });
+    const calc = () => { const n = number(inp.value); return n > 0 ? Math.round(n * pioroM3() * 1000) / 1000 : 0 };
+    inp.addEventListener('input', () => { const v = calc(); out.textContent = v > 0 ? fmt(number(inp.value)) + ' pióra × ' + fmt3(pioroM3()) + ' = ' + fmt3(v) + ' m³' : '1 pióro = ' + fmt3(pioroM3()) + ' m³ · policz pióra przy pierwszym koszu' });
+    const ok = () => { const v = calc(); if (!(v > 0.01 && v <= 5)) return announce('Wpisz ile piór weszło do kosza'); pioOpen = false; jlog('kosz z piór: ' + inp.value + ' pióra = ' + fmt3(v) + ' m³'); changeCapacity(v, null) };
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok() });
+    pioT.append(el('div', { class: 'row custom-row' }, inp, el('button', { type: 'button', class: 'primary', text: 'Ustaw', onclick: ok })), out);
+  }
   if (customOpen) {
     const inp = el('input', { id: 'customCap', inputmode: 'decimal', placeholder: 'np. 0,8', style: 'margin:0' });
     const ok = () => { const v = number(inp.value); if (!(v > 0 && v <= 5)) return announce('Wpisz od 0,01 do 5 m³'); customOpen = false; changeCapacity(v, null) };
@@ -1505,6 +1519,8 @@ function fixLast(f, n) {
 function dialogCommand(t, has) {
   const s = session, recent = Date.now() - lastAct.at < 12000;
   // „kosz ma 1,3” · „jednak kosz 1,3” · „pojemność 1,3” = zmiana pojemności kosza, nie poprawka kursu
+  // „kosz ma 3,5 pióra” · „pierwszy kosz 3,5 pióra” · „ustaw kosz na 40 piór” → pojemność = pióra × pióro
+  if (s && s.method !== 'taczka' && /\bpior(a|o|ow)?\b/.test(t) && has('kosz|kibel|kubel|pierwszy|ustaw|weszlo|wchodzi|miesci|bierze')) { const hp = t.match(/(\S+) i pol\b/), n = hp && spokenNumber(hp[1]) > 0 ? spokenNumber(hp[1]) + 0.5 : spokenNumber(t); const v = Math.round(n * pioroM3() * 1000) / 1000; if (n > 0 && v > 0.01 && v <= 5) { jlog('kosz z piór (głos): ' + fmt(n) + ' = ' + fmt3(v) + ' m³'); changeCapacity(v, null); return true } }
   if (s && s.method !== 'taczka' && has('kosz ma|kibel ma|kubel ma|pojemnosc|ustaw kosz|zmien kosz|ustaw kibel|zmien kibel|nowy kosz|kosz jest na|kosz nie ma|jednak kosz|jednak kibel|kosz ma tylko|kosz bierze|kosz miesci|kibel miesci|kosz to')) { const n = amountFromSpeech(spokenNumber(t.replace(/\bnie ma [\d.,]+( |$)/, ' '))); const m = spokenNumber(t.split(/\btylko\b/).pop()); const v = m > 0 && m <= 5 && /tylko/.test(t) ? m : n; if (v > 0 && v <= 5) { changeCapacity(v, null); return true } }
   // poprawki: „nie, pół” · „miało być pół” · „poprawka trzy czwarte” · „jednak pełny” · „nie cały tylko pół”
   if (s && s.entries.length && (has('poprawka|popraw|mialo byc|jednak|tylko|nie caly|nie pelny|zle policzone|zmien ostatni|ostatni byl|ostatni kurs byl|to byl|to bylo') || (/^nie\b/.test(t) && t.split(' ').length <= 4 && fracOf(t.replace(/^nie\b/, '')) != null))) {
