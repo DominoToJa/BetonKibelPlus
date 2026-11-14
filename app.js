@@ -312,6 +312,13 @@ function speak(key, text) {
     try { elAudio?.pause(); elAudio = new Audio(URL.createObjectURL(res)); elAudio.play().catch(() => ttsSpeak(key, text)) } catch (e) { ttsSpeak(key, text) }
   }).catch(() => { clearTimeout(to); fb() });
 }
+/** dwa zdania z wyraźną przerwą (np. „Też chciałabym być tak zalana.” … „Zostało 4,5.”) — żeby się nie zlewały */
+function speakPair(k1, t1, k2, t2, gap = 1.1) {
+  t1 = femin(String(t1 || '').trim()); t2 = femin(String(t2 || '').trim());
+  if (nativeVoice) { NV.speak(k1, t1, true).catch(() => { }); NV.speak('pause', String(gap), false).catch(() => { }); NV.speak(k2, t2, false).catch(() => { }); return }
+  speak(k1, t1); clearTimeout(speakPair.t);
+  speakPair.t = setTimeout(() => speak(k2, t2), Math.round((Math.max(1.2, t1.length * 0.075 / tempoK()) + gap) * 1000)); // przeglądarka: szacunek długości zdania + przerwa
+}
 /** po starcie: dociąga z ElevenLabs wszystkie warianty pytania o kosz, żeby potem leciały od ręki nawet bez zasięgu */
 async function elWarmAsk() {
   if (!elReady() || elWarmAsk.busy) return; elWarmAsk.busy = true;
@@ -943,7 +950,7 @@ function add(value, { at = Date.now(), silent = false, force = false } = {}) {
   buzz(remaining <= 0 || lowNow || reached.length ? 'warning' : 'success');
   if (settings.confirm) beep();
   markAct('add');
-  if (!silent && settings.confirmNums !== false && session.method !== 'taczka' && left() > 0.005) { const base = pickVariant(methodKey('added')), tail = pickVariant('leftAfter').replace(/X/g, fmt(Math.round(left() * 100) / 100)); const txt = base + tail; $('botText').textContent = txt; if (settings.mode === 'full' && (settings.askOnly === false || ASK_KEYS.has('added'))) { lastBotAt = Date.now(); speak('added_n', txt) } } else sayBot('added');
+  if (!silent && settings.confirmNums !== false && session.method !== 'taczka' && left() > 0.005) { const base = pickVariant(methodKey('added')), tail = pickVariant('leftAfter').replace(/X/g, fmt(Math.round(left() * 100) / 100)); const txt = base.trim() + ' ' + tail.trim(); $('botText').textContent = txt; if (settings.mode === 'full' && (settings.askOnly === false || ASK_KEYS.has('added'))) { lastBotAt = Date.now(); speakPair(methodKey('added'), base, 'leftAfter', tail) } } else sayBot('added');
   if (requested > amount + 1e-5) announce('Ostatnia porcja: ' + fmt(amount) + ' m³');
   const note = reached.length ? reached[reached.length - 1].key : (lowNow ? 'low' : null), jobId = session.id;
   if (note) setTimeout(() => { if (session?.id === jobId) sayBot(note) }, nativeVoice ? 0 : 1900);

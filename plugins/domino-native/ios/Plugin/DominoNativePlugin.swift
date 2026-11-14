@@ -749,6 +749,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
 
     private func stopSpeech() {
+        pauseToken += 1
         sayQueue.removeAll()
         if synth.isSpeaking { synth.stopSpeaking(at: .immediate) }
         player?.stop(); player = nil
@@ -778,7 +779,10 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     }
 
     /// Kolejka: najpierw własne nagranie (jeśli jest), inaczej głos iPhone'a.
+    private var pauseToken = 0
     private func say(key: String?, text: String?, force: Bool = false) {
+        // „pause” = cisza między dwoma zdaniami (np. zbereźny tekst … i dopiero „Zostało X”)
+        if key == "pause" { if inCall { return }; sayQueue.append(("pause", text ?? "1")); if !isSpeaking { nextSay() }; return }
         if inCall { if key == "ask" || key == "remind" { logBg("lektorka milczy — trwa rozmowa") }; return } // podczas rozmowy lektor milczy
         if !voiceOn && !force { if key == "ask" || key == "remind" { logBg("lektorka wyciszona — pytanie tylko na ekranie") }; return }
         var key = key
@@ -821,6 +825,14 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
         let item = sayQueue.removeFirst()
         isSpeaking = true
+        if item.key == "pause" {
+            let tok = pauseToken, d = min(3.0, max(0.2, Double(item.text) ?? 1.0))
+            DispatchQueue.main.asyncAfter(deadline: .now() + d) { [weak self] in
+                guard let self = self, self.isSpeaking, self.pauseToken == tok else { return }
+                self.nextSay()
+            }
+            return
+        }
         speakStartedAt = Date()
         sayingNow = norm(item.text)
         volumeUp()
