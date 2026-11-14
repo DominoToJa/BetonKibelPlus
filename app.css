@@ -1159,3 +1159,20 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .pm-edit{position:absolute;top:50px;right:8px;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#0b1426cc;font-size:16px}
 .fin-manual{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding-top:10px;border-top:1px dashed #ffffff26}
 .fin > .hint{margin-top:8px}
+/* ── lanie z gruszki na czas ── */
+.pour-box{margin-top:10px;border:1px solid #ffffff1f;border-radius:14px;padding:10px 12px;background:#ffffff08}
+.pour-box summary{cursor:pointer;font-weight:800;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pour-box summary b{color:var(--accent,#22d3ee);font-variant-numeric:tabular-nums}
+.pour-btns{display:grid;grid-template-columns:1fr 1fr .8fr;gap:8px;margin-top:10px}
+.pour-btns button{min-height:58px;font-weight:800;font-size:16px;line-height:1.1}
+.pour-btns button small{font-weight:600;opacity:.75;font-size:12px}
+.pour-btns button.on{outline:3px solid var(--accent,#22d3ee);background:#22d3ee22}
+.pour-out{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px;text-align:center}
+.pour-out small{display:block;font-size:11px;letter-spacing:1px;opacity:.7}
+.pour-out b{font-size:22px;font-variant-numeric:tabular-nums}
+.pour-box.running .pour-out b{color:var(--accent,#22d3ee)}
+.pour-res{margin-top:8px}.pour-res:empty{display:none}
+.pour-res .ep-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.pour-cfg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.pour-cfg label{display:flex;flex-direction:column;gap:4px;font-size:12px;opacity:.85}
+.pour-cfg input{min-height:40px;text-align:center;font-weight:800}

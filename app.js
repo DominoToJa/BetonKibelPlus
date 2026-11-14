@@ -1548,6 +1548,11 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
+  // lanie z gruszki na czas
+  if (has('leje na jedynce|lej na jedynce|leje na jedynke|na pierwszym biegu|leje na pierwszym|leje wolno|lanie jedynka|start lania')) { pourStart('g1'); return true }
+  if (has('leje na full|lej na full|leje na pelnym|pelny gaz|full gaz|na pelnym gazie|leje szybko|lanie full|daj gazu')) { pourStart('full'); return true }
+  if (pour?.mode && has('stop|stoj|koniec lania|starczy|wystarczy|zatrzymaj|stopuj|halt')) { pourStop(); return true }
+  if (!pour?.mode && document.querySelector('[data-pour-add]') && has('dodaj|tak|dawaj')) { document.querySelector('[data-pour-add]').click(); return true }
   if (document.querySelector('.cap-prompt')) { if (has('przelicz|tak|wszystko|wszystkie|dawaj|jasne')) { document.querySelector('[data-cap=all]')?.click(); return true } if (has('tylko nastepne|nastepne|nie|zostaw|nie przeliczaj')) { document.querySelector('[data-cap=next]')?.click(); return true } }
   const dl = dialogCommand(t, has); if (dl) return dl;
   /* „słyszysz mnie?” — test mikrofonu + jak głośno i jak wyraźnie */
@@ -1670,6 +1675,48 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { if (micWanted && !nativeVoice) { stopMic(); micDisplay('Mikrofon zatrzymany — wróć do aplikacji i włącz ponownie.') } return }
   drainNative().then(() => { tick(); homeRender() });
 });
+
+// ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
+// Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro = 0,06 m³. Pióra/obrót do zmierzenia.
+const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 0 }, PIORO_M3 = 0.06;
+const drumCfg = () => ({ ...DRUM_DEF, ...(settings.drum || {}) });
+let pour = null, pourTimer = 0;
+const pourRot = (p, now = Date.now()) => p.rot + (p.mode ? (now - p.t0) / 1000 / (drumCfg()[p.mode] || 6) : 0);
+const pourSecs = (p, now = Date.now()) => p.secs + (p.mode ? (now - p.t0) / 1000 : 0);
+function pourStart(mode) {
+  const now = Date.now();
+  if (pour?.mode) { pour.rot = pourRot(pour, now); pour.secs = pourSecs(pour, now) } // zmiana biegu w trakcie
+  pour = pour && pour.mode ? { ...pour, mode, t0: now } : { mode, t0: now, rot: 0, secs: 0 };
+  $('pourBox').open = true; $('pourRes').replaceChildren(); clearInterval(pourTimer); pourTimer = setInterval(pourRender, 250); pourRender();
+  announce(mode === 'full' ? '🔥 Leję na pełnym gazie' : '🐢 Leję na 1 biegu'); buzz?.('light'); jlog('lanie z gruszki: ' + (mode === 'full' ? 'pełny gaz' : '1 bieg'));
+}
+function pourStop() {
+  if (!pour?.mode) return false; const now = Date.now(); pour.rot = pourRot(pour, now); pour.secs = pourSecs(pour, now); pour.mode = null;
+  clearInterval(pourTimer); pourRender();
+  const c = drumCfg(), pio = c.pio > 0 ? pour.rot * c.pio : 0, m3 = Math.round(pio * PIORO_M3 * 100) / 100, done = pour;
+  const res = $('pourRes'); res.replaceChildren(el('p', { class: 'hint', text: '⏱ ' + shortDur(done.secs) + ' · ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotów' + (m3 > 0 ? ' · ' + fmt(Math.round(pio * 10) / 10) + ' piór ≈ ' + fmt(m3) + ' m³' : ' · wpisz „pióra na obrót”, to policzę m³') }));
+  if (m3 > 0 && session) res.append(el('div', { class: 'ep-row' },
+    el('button', { type: 'button', class: 'primary', 'data-pour-add': '1', text: '➕ Dodaj ' + fmt(m3) + ' m³', onclick: () => { add(m3, { force: true }); res.replaceChildren(); pour = null; pourRender() } }),
+    el('button', { type: 'button', text: '✖ Nie dodawaj', onclick: () => { res.replaceChildren(); pour = null; pourRender() } })));
+  sayBot('custom', m3 > 0 ? 'Stop. ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotu, około ' + fmt(m3) + ' metra. Dodać?' : 'Stop. ' + fmt(Math.round(done.rot * 10) / 10) + ' obrotu.');
+  return true;
+}
+function pourRender() {
+  const box = $('pourBox'); if (!box) return; const p = pour, c = drumCfg(), now = Date.now();
+  const rot = p ? pourRot(p, now) : 0, secs = p ? pourSecs(p, now) : 0, pio = c.pio > 0 ? rot * c.pio : 0;
+  box.classList.toggle('running', !!p?.mode);
+  box.querySelectorAll('[data-pour]').forEach(b => b.classList.toggle('on', !!p?.mode && b.dataset.pour === p.mode));
+  $('pourT').textContent = shortDur(secs); $('pourR').textContent = fmt(Math.round(rot * 10) / 10);
+  $('pourP').textContent = c.pio > 0 ? fmt(Math.round(pio * 10) / 10) : '—'; $('pourM').textContent = c.pio > 0 ? fmt(Math.round(pio * PIORO_M3 * 100) / 100) : '—';
+  $('pourMini').textContent = p?.mode ? (c.pio > 0 ? fmt(Math.round(pio * PIORO_M3 * 100) / 100) + ' m³' : fmt(Math.round(rot * 10) / 10) + ' obr.') : '';
+}
+(() => {
+  const box = $('pourBox'); if (!box) return; const c = drumCfg();
+  const bind = (id, key) => { const i = $(id); i.value = c[key] > 0 ? fmt(c[key]) : ''; i.addEventListener('change', () => { const v = number(i.value); settings.drum = { ...drumCfg(), [key]: v > 0 && v < 100 ? v : (key === 'pio' ? 0 : DRUM_DEF[key]) }; saveSettings(); i.value = settings.drum[key] > 0 ? fmt(settings.drum[key]) : ''; pourRender() }) };
+  bind('drumG1', 'g1'); bind('drumFull', 'full'); bind('drumPio', 'pio');
+  box.querySelectorAll('[data-pour]').forEach(b => b.addEventListener('click', () => b.dataset.pour === 'stop' ? pourStop() : pourStart(b.dataset.pour)));
+  pourRender();
+})();
 
 // ───────────────────────── dziennik pytań o kosz (żeby było widać, czemu bot kiedyś nie zapytał) ─────────────────────────
 function jlog(what, bad = false) {
