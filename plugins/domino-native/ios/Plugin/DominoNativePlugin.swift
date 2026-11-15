@@ -1101,6 +1101,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let lt = call.getDouble("lastTruck"), lt > 0 { self.loadM3First = lt }
             if let la = call.getDouble("lastAmount") { self.lastAdd = la }
             if let k = call.getInt("kursy") { self.kursy = k }
+            if let rs = call.getDouble("remindSec") { self.remindSec = max(10, rs) } // przerwa przypomnień ze średniego kursu
             if let f = call.getArray("fired", String.self) { self.fired = Set(f) }
             self.scheduleAsk()
             self.updateNowPlaying()

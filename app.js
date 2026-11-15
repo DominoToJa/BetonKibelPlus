@@ -260,9 +260,9 @@ const saveTexts = () => { try { localStorage.setItem(TEXT_KEY, JSON.stringify(TE
 let clipKeys = new Set(), recordingKey = '';
 
 function configureNative() {
-  window.__bkpRemind = { gap: remindCfg().gap, cycles: remindCfg().max + 1, burst: remindCfg().burst };
+  window.__bkpRemind = { gap: remindGap(), cycles: remindCfg().max + 1, burst: remindCfg().burst };
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, femin(textOf(k))])), elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindCfg().gap / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, femin(textOf(k))])), elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindGap() / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -503,8 +503,16 @@ const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1],
 let session = null, archive = [], method = 'kibel', chosenProfileId = '', pioMode = false; // pioMode: „policz z piór przy pierwszym koszu”
 let phase = 'ready', departed = 0, deadline = 0, alarmVisible = false, nextReminder = 0;
 /* przypomnienia „Czy kosz już jest?” — ile i jak często (Opcje → Przypomnienia) */
-const REMIND = { czesto: { gap: 20000, max: 40, burst: 3, label: 'Często — co 20 s, bez końca' }, normal: { gap: 45000, max: 5, burst: 1, label: 'Normalnie — co 45 s, max 5 razy' }, rzadko: { gap: 90000, max: 2, burst: 1, label: 'Rzadko — co 1,5 min, max 2 razy' } };
+const REMIND = { czesto: { gap: 20000, max: 40, burst: 3, label: 'Często — ok. ¼ kursu (na start co 20 s), bez końca' }, normal: { gap: 45000, max: 5, burst: 1, label: 'Normalnie — ok. 40% kursu (na start co 45 s), max 5 razy' }, rzadko: { gap: 90000, max: 2, burst: 1, label: 'Rzadko — ok. ¾ kursu (na start co 1,5 min), max 2 razy' } };
 const remindCfg = () => REMIND[settings.remindMode] || REMIND.normal;
+/** co ile przypominać „czy kosz jest?” — ze średniego kursu, nie na sztywno: krótkie kursy = częściej, długie = rzadziej.
+ *  Często ≈ ¼ kursu, Normalnie ≈ 40%, Rzadko ≈ ¾ kursu (min 15 s, max 3 min). Bez historii kursów = stałe z ustawienia. */
+function remindGap() {
+  const rc = remindCfg(), arr = (session?.trips || []).filter(x => Number(x.seconds) > 0);
+  if (arr.length < 2) return rc.gap;
+  const k = { czesto: .25, normal: .4, rzadko: .75 }[settings.remindMode] ?? .4;
+  return Math.round(Math.min(180000, Math.max(15000, meanTrip() * 1000 * k)) / 1000) * 1000;
+}
 let REMIND_MS = 45000, remindN = 0;
 let alarmSince = 0;
 /** mocne przypomnienie: dźwięk + wibracja + głos */
@@ -535,7 +543,7 @@ function remember() {
 function syncNative() {
   if (!nativeVoice) return;
   const s = session;
-  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), kursy: s?.entries?.length || 0, left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
+  NV.setState({ active: !!s, site: s?.site || '', method: s?.method || 'kibel', phase, deadline, departed, meanTripSec: meanTrip(), dose: Number(s?.dose || 0), capacity: Number(s?.capacity || s?.dose || 0.5), lastTruck: s ? Number(trucksOf(s).at(-1).m3) : 0, lastAmount: Number(s?.entries?.at(-1)?.amount || 0), kursy: s?.entries?.length || 0, remindSec: remindGap() / 1000, left: left(), poured: entriesSum(), load: Number(s?.load || 0), fired: Object.keys(s?.milestonesFired || {}) }).catch(() => { });
 }
 const storeHistory = () => { try { localStorage.setItem(HKEY, JSON.stringify(archive)) } catch (err) { announce('Nie udało się zapisać historii') } };
 let modelCache = { key: '', model: null }, customOpen = false, pioOpen = false;
@@ -916,7 +924,7 @@ function returned({ at = Date.now(), silent = false } = {}) {
 function delay({ at = Date.now(), silent = false, sec = 0 } = {}) {
   if (!session || session.method === 'taczka') return;
   if (sec > 0) remindN = 0; // „zapytaj za 2 minuty” — od nowa liczymy przypomnienia
-  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + (sec > 0 ? sec * 1000 : remindCfg().gap); deadline = nextReminder;
+  phase = 'late'; alarmVisible = false; alarmSince = 0; nextReminder = at + (sec > 0 ? sec * 1000 : remindGap()); deadline = nextReminder;
   remember(); render(); NATIVE.schedule?.(nextReminder, SHORT.remind);
   if (silent) return;
   if (sec > 0) { const t = sec >= 60 ? (sec % 60 ? fmt(sec / 60) + ' minuty' : (sec / 60 === 1 ? 'minutę' : sec / 60 + (sec / 60 < 5 ? ' minuty' : ' minut'))) : sec + ' sekund'; const msg = pickVariant('snooze').replace(/X/g, t); $('botText').textContent = msg; announce('⏰ ' + msg); lastBotAt = Date.now(); speak('custom', msg) }
@@ -1199,7 +1207,7 @@ $('more').addEventListener('click', () => { if (session) changeDose(Math.min(dos
 
 function triggerAlarm(force = false) {
   if (!session || session.method === 'taczka') return; if (alarmVisible && !force) return;
-  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + remindCfg().gap; deadline = nextReminder;
+  phase = 'late'; alarmVisible = true; nextReminder = Date.now() + remindGap(); deadline = nextReminder;
   remember(); render(); alarmKick('ask'); NATIVE.schedule?.(nextReminder, SHORT.remind);
 }
 $('testAlarm').addEventListener('click', () => { if (!session) return announce('Najpierw rozpocznij betonowanie'); triggerAlarm(true) });
@@ -1501,7 +1509,7 @@ function tick() {
   }
   if (document.hidden && nativeVoice) return; // w tle pytaniami zajmuje się moduł natywny
   if (s.method !== 'taczka' && phase === 'away' && deadline && now >= deadline) triggerAlarm();
-  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { if (remindN === rc.max + 1) jlog('limit przypomnień (' + rc.max + ') — dalej cisza. „Często” = pyta do skutku', true); nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + rc.gap; deadline = nextReminder; remember(); render(); alarmKick('remind') }
+  else if (s.method !== 'taczka' && phase === 'late' && now >= nextReminder) { remindN++; const rc = remindCfg(); if (remindN > rc.max) { if (remindN === rc.max + 1) jlog('limit przypomnień (' + rc.max + ') — dalej cisza. „Często” = pyta do skutku', true); nextReminder = now + 36e5; deadline = nextReminder; remember(); render(); return } alarmVisible = true; nextReminder = now + remindGap(); deadline = nextReminder; remember(); render(); alarmKick('remind') }
 }
 
 // ───────────────────────── komendy głosowe ─────────────────────────
@@ -1773,7 +1781,7 @@ async function drainNative() {
       else if (e.type === 'truckEmpty') truckEmpty({ silent: true });
       else if (e.type === 'newTruck' && Number(e.m3) > 0) newTruck(Number(e.m3));
       else if (e.type === 'dose') { session.dose = Math.min(doseMax(session.capacity), Number(e.amount) || session.dose) }
-      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + remindCfg().gap; deadline = nextReminder }
+      else if (e.type === 'alarm') { phase = 'late'; alarmVisible = true; nextReminder = e.at + remindGap(); deadline = nextReminder }
     }
     remember(); render(); tick();
     announce('Z zablokowanego ekranu: ' + evs.length + ' zdarzeń');
