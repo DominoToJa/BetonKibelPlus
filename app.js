@@ -840,7 +840,7 @@ async function start() {
   if (settings.ofeo !== false) setTimeout(ofeoPrompt, 2600);
   if (settings.micAuto !== false && !micWanted) setTimeout(() => { if (session && !micWanted) toggleMic() }, 1200); // mikrofon sam się włącza przy starcie
 }
-$('start').addEventListener('click', start);
+$('start').addEventListener('click', start); $('emptyTruck')?.addEventListener('click', emptyTruck);
 $('slBuckets').addEventListener('click', () => { bucketReturn = 'setup'; tab('buckets') }); $('slHistory').addEventListener('click', () => tab('history')); $('slSettings').addEventListener('click', () => $('openSettings').click());
 function finishCurrent(showNotice = true) { document.querySelector('.pio-prompt')?.remove();
   if (!session) return;
@@ -1103,6 +1103,49 @@ function changeCapacity(v, profile = null) {
   if (session.method !== 'taczka') rememberSiteBucket(session.site, profile ? profile.id : 'manual');
   remember(); render(); announce((profile ? profile.name + ' · ' : 'Kosz ') + fmt(n) + ' m³'); sayBot('capacityChanged');
   if (session.entries.length && old > 0 && Math.abs(old - n) > 1e-4) capPrompt(old, n, profile ? null : oldProf);
+}
+/** 🪣 „beton się skończył”: gruszka pusta, a licznik mówi, że coś zostało (albo odwrotnie). Przeliczamy kursy i kosz — domyślnie środek różnicy, bo na oko można się walnąć o 100–200 l */
+async function emptyTruck() {
+  const s = session; if (!s) return; if (!s.entries.length) return announce('Najpierw jakiś kurs — nie ma czego poprawiać');
+  const sum = entriesSum(), load = Number(s.load) || 0, cap = Number(s.capacity) || .5, appLeft = Math.max(0, load - sum);
+  const bp = s.bucketProfile?.id ? getProfile(s.bucketProfile.id) : null;
+  let rest = 0, half = true;
+  const restI = el('input', { inputmode: 'decimal', class: 'fin-rest', value: '0', 'aria-label': 'Ile naprawdę zostało w gruszce (m³)' });
+  const out = el('div', { class: 'fin-out' }), res = el('div', { class: 'fin-calib' });
+  const setRest = v => { rest = Math.max(0, Math.min(load, Math.round(v * 100) / 100)); restI.value = fmt(rest); draw() };
+  restI.addEventListener('input', () => { rest = Math.max(0, number(restI.value) || 0); draw() });
+  const st = (d, t) => el('button', { type: 'button', class: 'fin-step', text: t, onclick: () => setRest(rest + d) });
+  const hB = el('button', { type: 'button', class: 'pill on', text: '⚖️ Środek (pół różnicy)', onclick: () => { half = true; draw() } }), fB = el('button', { type: 'button', class: 'pill', text: '🎯 Cała różnica', onclick: () => { half = false; draw() } });
+  const keep = bp ? el('input', { type: 'checkbox', checked: true }) : null;
+  let calc = null;
+  const draw = () => {
+    hB.classList.toggle('on', half); fB.classList.toggle('on', !half);
+    const real = Math.max(0, load - rest), diff = real - sum, applied = sum + diff * (half ? .5 : 1), f = sum > 0 ? applied / sum : 1;
+    calc = { f, real, applied, newCap: Math.round(cap * f * 1000) / 1000 };
+    out.replaceChildren(
+      el('div', {}, el('small', { text: 'Licznik mówi' }), el('b', { text: 'zostało ' + fmt(Math.round(appLeft * 100) / 100) + ' m³' }), el('small', { text: '≈ ' + fmt(Math.round(appLeft / cap * 10) / 10) + ' kosza · wylano ' + fmt(Math.round(sum * 100) / 100) })),
+      el('div', {}, el('small', { text: 'Naprawdę' }), el('b', { class: 'fin-real', text: 'zostało ' + fmt(rest) + ' m³' }), el('small', { text: 'wylano ' + fmt(Math.round(real * 100) / 100) + ' m³' })));
+    res.replaceChildren();
+    if (Math.abs(f - 1) < .005) { res.append(el('p', { class: 'fin-ok', text: '✓ Zgadza się — nic nie poprawiam' })); return }
+    if (Math.abs(f - 1) > .4) { calc.bad = true; res.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(Math.round((f - 1) * 1000) / 10) + '% — za duża, to raczej pomyłka w kursach. Lepiej popraw kursy ręcznie.' })); return }
+    res.append(el('p', {}, el('b', { text: 'Kosz ' + fmt3(cap) + ' → ' + fmt3(calc.newCap) + ' m³' }), el('br'), el('small', { text: 'każdy z ' + s.entries.length + ' kursów ×' + fmt3(f) + ' · wylano ' + fmt(Math.round(sum * 100) / 100) + ' → ' + fmt(Math.round(applied * 100) / 100) + ' m³' + (half ? ' (środek — bezpieczniej o te 100–200 l)' : '') })));
+    if (keep) res.append(el('label', { class: 'cap-keep' }, keep, el('span', { text: ' Zapisz ' + fmt3(calc.newCap) + ' m³ w koszu „' + bp.name + '”' })));
+  };
+  const body = el('div', { class: 'fin' },
+    el('p', { class: 'hint', text: 'Gruszka pusta, a licznik pokazuje, że coś zostało? Wpisz, ile NAPRAWDĘ zostało w gruszce (0 = pusta). Apka poprawi kursy i kosz.' }),
+    out, el('label', { class: 'label', text: 'W gruszce zostało naprawdę (m³)' }),
+    el('div', { class: 'fin-row' }, st(-.1, '−0,1'), restI, st(.1, '+0,1')),
+    el('div', { class: 'fin-row' }, st(-cap, '−1 kosz'), st(cap, '+1 kosz')),
+    el('label', { class: 'label', text: 'Jak mocno poprawić' }), el('div', { class: 'ep-row' }, hB, fB), res);
+  draw();
+  if (!(await formModal('🪣 Beton się skończył', body, '✓ Popraw'))) return;
+  if (!calc || calc.bad || Math.abs(calc.f - 1) < .005) return;
+  const f = calc.f; for (const e of s.entries) e.amount = Math.round(Number(e.amount || 0) * f * 1000) / 1000;
+  s.capacity = calc.newCap; s.dose = calc.newCap;
+  if (bp && keep?.checked) { applyCalib(bp, calc.newCap, { manual: true }); s.bucketProfile = snapshot(bp) }
+  jlog('beton się skończył: kursy ×' + fmt3(f) + ', kosz ' + fmt3(cap) + ' → ' + fmt3(calc.newCap));
+  remember(); render(); announce('🪣 Poprawione: kosz ' + fmt3(calc.newCap) + ' m³, wylano ' + fmt(Math.round(entriesSum() * 100) / 100) + ' m³');
+  sayBot('custom', 'Poprawione. Kosz ma teraz ' + fmt3(calc.newCap) + ' metra, wylane ' + fmt(Math.round(entriesSum() * 100) / 100) + '.');
 }
 /** 🌀 „policz z piór”: przy pierwszym koszu Domi liczy pióra, apka ustawia pojemność = pióra × pióro */
 function pioPrompt() {
@@ -1592,6 +1635,7 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
+  if (session && has('beton sie skonczyl|skonczyl sie beton|gruszka pusta|pusta gruszka|nie ma betonu|zabraklo betonu|koniec betonu w gruszce|gruszka sie skonczyla')) { emptyTruck(); return true }
   // lanie z gruszki na czas
   if (has('leje na jedynce|lej na jedynce|leje na jedynke|na pierwszym biegu|leje na pierwszym|leje wolno|lanie jedynka|start lania')) { pourStart('g1'); return true }
   if (has('leje na full|lej na full|leje na pelnym|pelny gaz|full gaz|na pelnym gazie|leje szybko|lanie full|daj gazu')) { pourStart('full'); return true }
