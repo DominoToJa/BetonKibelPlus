@@ -883,6 +883,16 @@ $('finish').addEventListener('click', async () => {
       el('div', {}, el('small', { text: 'Licznik policzył' }), el('b', { text: fmt(Math.round(sum * 100) / 100) + ' m³' }), el('small', { text: n + ' ' + (n === 1 ? 'kurs' : n < 5 ? 'kursy' : 'kursów') })),
       el('div', {}, el('small', { text: 'Naprawdę wylane' }), el('b', { class: 'fin-real', text: fmt(poured) + ' m³' }), el('small', { text: fmt(load) + (rest ? ' − ' + fmt(rest) + ' w gruszce' : ' · cała gruszka') })));
     calib.replaceChildren();
+    if (!bp && s.pioN > 0 && sum > 0 && n >= 2 && poured > 0) { // 🌀 kosz liczony z piór → prawdziwa pojemność z gruszki + poprawka pióra
+      const r = poured / sum, cap0 = Number(s.capacity) || 0, real = Math.round(cap0 * r * 1000) / 1000, pio = Math.round(real / s.pioN * 10000) / 10000, pct = Math.round((r - 1) * 1000) / 10;
+      calib.dataset.pioReal = Math.abs(r - 1) < .4 ? String(real) : ''; calib.dataset.pioNew = Math.abs(r - 1) < .4 && pio > .005 && pio < 1 ? String(pio) : '';
+      if (Math.abs(r - 1) >= .4) { calib.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(pct) + '% — za duża, to raczej pomyłka w kursach. Nie zapisuję.' })); return }
+      const cbK = el('input', { type: 'checkbox', checked: true, 'data-pio': 'kosz' }), cbP = el('input', { type: 'checkbox', checked: true, 'data-pio': 'pioro' });
+      calib.append(el('p', { class: 'fin-ok', text: '🌀 Kosz z piór: ' + fmt(s.pioN) + ' × ' + fmt3(s.pioM3 || pioroM3()) + ' = ' + fmt3(cap0) + ' m³ → naprawdę ' + fmt3(real) + ' m³ (' + (pct > 0 ? '+' : '') + fmt(pct) + '%)' }),
+        el('label', { class: 'fin-fix' }, cbK, el('span', {}, el('b', { text: '💾 Zapisz kosz ' + fmt3(real) + ' m³' }), el('small', { text: 'pojawi się w „Moje kosze” jako „Kosz z piór · ' + fmt(real) + ' m³”' }))),
+        el('label', { class: 'fin-fix' }, cbP, el('span', {}, el('b', { text: '🌀 Popraw pióro ' + fmt3(s.pioM3 || pioroM3()) + ' → ' + fmt3(pio) + ' m³' }), el('small', { text: fmt3(real) + ' m³ ÷ ' + fmt(s.pioN) + ' piór — z prawdziwej gruszki' }))));
+      return;
+    }
     if (!bp || !(sum > 0) || n < 2 || !(poured > 0)) { calib.append(el('p', { class: 'hint', text: !bp ? 'Bez zapisanego kosza — nic nie poprawiam.' : 'Za mało kursów, żeby poprawić kosz.' })); return }
     const r = poured / sum, est = bp.capacity * r, cn = bp.calibN || 0, w = cn ? Math.max(.4, 1 / (cn + 1)) : 1, nc = Math.round((bp.capacity * (1 - w) + est * w) * 1000) / 1000, pct = Math.round((r - 1) * 1000) / 10;
     if (Math.abs(r - 1) <= .03) { fix = false; calib.append(el('p', { class: 'fin-ok', text: '✓ Zgadza się co do ' + fmt(Math.abs(pct)) + '% — kosz „' + bp.name + '” zostaje ' + fmt(bp.capacity) + ' m³' })); return }
@@ -902,6 +912,11 @@ $('finish').addEventListener('click', async () => {
   const mv = capI ? number(capI.value) : 0;
   s.rest = rest; s.poured = Math.max(0, Math.round((load - rest) * 100) / 100);
   if (bp && mv > 0.02 && mv <= 5) { if (Math.abs(mv - bp.capacity) > 1e-4) { applyCalib(bp, mv, { poured: s.poured, counted: sum, rest, manual: true }); jlog('pojemność „' + bp.name + '” zmieniona na koniec: ' + fmt(mv)) } }
+  else if (!bp && calib.dataset.pioReal) {
+    const real = Number(calib.dataset.pioReal);
+    if (calib.querySelector('[data-pio=kosz]')?.checked) { const p = { id: 'bucket-' + Date.now(), kind: 'kosz', name: 'Kosz z piór · ' + fmt(real) + ' m³', shape: 'plate', plate: real, capacity: real, pioN: s.pioN, created: Date.now(), usedAt: Date.now(), photos: [] }; profiles.push(p); saveProfiles(); s.bucketProfile = snapshot(p); jlog('zapisany kosz z piór: ' + fmt3(real) + ' m³') }
+    if (calib.querySelector('[data-pio=pioro]')?.checked && calib.dataset.pioNew) { settings.pioro = Number(calib.dataset.pioNew); saveSettings(); jlog('pióro z gruszki: ' + fmt3(settings.pioro) + ' m³') }
+  }
   else if (fix && bp && calib.dataset.nc) { applyCalib(bp, Number(calib.dataset.nc), { poured: s.poured, counted: sum, rest, auto: true }); bp.calibN = (bp.calibN || 0) + 1; saveProfiles() }
   finishCurrent(); tab('history') });
 $('new').addEventListener('click', async () => { if (session && !(await ask('Zakończyć aktualne betonowanie i zacząć nowe?', 'Tak, nowe'))) return; finishCurrent(false); tab('setup') });
@@ -1179,7 +1194,7 @@ function pioPrompt() {
 function setPioCap(n) {
   if (!session) return false; const v = Math.round(n * pioroM3() * 1000) / 1000;
   if (!(n > 0 && v > 0.01 && v <= 5)) { announce('Wpisz, ile piór weszło, np. 3,5'); return false }
-  session.pioPending = false; document.querySelector('.pio-prompt')?.remove();
+  session.pioPending = false; session.pioN = n; session.pioM3 = pioroM3(); document.querySelector('.pio-prompt')?.remove();
   jlog('kosz z piór: ' + fmt(n) + ' × ' + fmt3(pioroM3()) + ' = ' + fmt3(v) + ' m³'); changeCapacity(v, null);
   sayBot('custom', 'Ustawione. ' + fmt(n) + ' pióra, to jest ' + fmt3(v) + ' metra.'); return true;
 }
