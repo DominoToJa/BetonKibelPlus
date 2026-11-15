@@ -497,7 +497,7 @@ const KINDS = { kosz: ['🏗', 'Kosz', 'kibel'], taczka: ['🛒', 'Taczka', 'tac
 const kindOf = p => p?.kind && KINDS[p.kind] ? p.kind : 'kosz';
 const methodKind = m => m === 'taczka' ? 'taczka' : m === 'inne' ? 'lyzka' : 'kosz';
 const profilesFor = m => profiles.filter(p => kindOf(p) === methodKind(m));
-const opts = { kibel: [0.5, 1, 1.5, 2, 2.5, 3], taczka: [0.05, 0.06, 0.08, 0.1], inne: [0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 1] }; // łyżki: typowe pojemności z katalogu
+const opts = { kibel: [0.5, 0.75, 1, 1.5, 2, 2.5], taczka: [0.05, 0.06, 0.08, 0.1], inne: [0.05, 0.1, 0.2, 0.3, 0.5, 0.8, 1] }; // łyżki: typowe pojemności z katalogu
 
 // ───────────────────────── stan ─────────────────────────
 let session = null, archive = [], method = 'kibel', chosenProfileId = '', pioMode = false; // pioMode: „policz z piór przy pierwszym koszu”
