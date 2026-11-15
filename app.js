@@ -1123,8 +1123,9 @@ const bucketMarks = cap => {
 /** przelany kosz: suwak pozwala wlać trochę więcej niż policzona pojemność (np. 0,48 → do 0,5) */
 const doseMax = cap => { cap = Number(cap) || .5; return Math.max(cap + .02, Math.ceil(cap * 1.04 / .05 - 1e-6) * .05) };
 const OVER_K = .9; // dolne 90% suwaka = do pełnego kosza wg kształtu, górne 10% = przelane
-function slPos(model, v, cap) { const mx = doseMax(cap); return v <= cap ? model.fraction(Math.max(0, v)) * OVER_K : OVER_K + Math.min(1, (v - cap) / (mx - cap)) * (1 - OVER_K) }
-function slVal(model, F, cap) { const mx = doseMax(cap); F = Math.max(0, Math.min(1, F)); return F <= OVER_K ? model.volumeAtFraction(F / OVER_K) : cap + (F - OVER_K) / (1 - OVER_K) * (mx - cap) }
+// suwak = dokładnie wysokość kosza (bez strefy „przelane”), żeby kreski 0,1 / 0,2 stały na tej samej wysokości co na rysunku
+function slPos(model, v, cap) { return model.fraction(Math.max(0, Math.min(Number(v) || 0, cap))) }
+function slVal(model, F, cap) { F = Math.max(0, Math.min(1, F)); return Math.min(cap, model.volumeAtFraction(F)) }
 function changeDose(v, quiet = false) {
   if (!session) return; const n = Math.round(Number(v) * 100) / 100; const cap = Number(session.capacity || .5);
   if (!Number.isFinite(n) || n < 0 || n > 5) return announce('Podaj ilość od 0 do 5 m³');
@@ -1395,23 +1396,22 @@ const koszLast = s => { const cur = trucksOf(s).at(-1); return s.entries.length 
 function renderSlider(model) {
   const s = session, cap = Number(s.capacity || .5), dose = s.method === 'kibel' ? cap * (s.nextPct ?? 100) / 100 : Number(s.dose || 0); // kosz: suwak = ile pójdzie w NASTĘPNY kurs (zostaje, aż zmienisz)
   $('vslider').classList.toggle('locked', !!settings.sliderLock); $('vsLock').textContent = settings.sliderLock ? '🔒' : '🔓';
-  const pct = v => (slPos(model, v, cap) * 100).toFixed(2) + '%', mx = Math.round(doseMax(cap) * 100) / 100;
+  const pct = v => (slPos(model, v, cap) * 100).toFixed(2) + '%', mx = Math.round(cap * 1000) / 1000;
   $('vsFill').style.height = pct(dose); $('vslider').classList.toggle('over', dose > cap + 1e-4);
   $('vsThumb').style.bottom = pct(dose);
-  $('vsValue').textContent = fmt(dose);
+  $('vsValue').textContent = cap < 1 ? fmt3(dose) : fmt(dose);
   const ticks = $('vsTicks'), tk = cap + '|' + model.fraction(cap / 2).toFixed(4) + '|o';
   if (ticks.dataset.k === tk) { for (const t of ticks.querySelectorAll('.vs-tick.major')) t.classList.toggle('near', Math.abs(model.fraction(Number(t.dataset.v)) - model.fraction(dose)) < .15) }
   else { ticks.dataset.k = tk; ticks.replaceChildren();
   const marks = bucketMarks(cap), minor = cap <= 1 ? .05 : .1;
   for (let v = minor; v < cap - 1e-6; v += minor) { if (marks.some(m => Math.abs(m - v) < 1e-4)) continue; const t = el('span', { class: 'vs-tick minor' }); t.style.bottom = pct(v); ticks.append(t) }
-  { const t = el('span', { class: 'vs-tick major over-tick', text: fmt(mx), 'data-v': String(mx) }); t.style.bottom = pct(mx); ticks.append(t) }
   for (const v of marks) { const near = Math.abs(model.fraction(v) - model.fraction(dose)) < .15; const t = el('span', { class: 'vs-tick major' + (near ? ' near' : '') + (v >= cap - 1e-6 ? ' max' : ''), text: fmt(v), 'data-v': String(v) }); t.style.bottom = pct(v); ticks.append(t) } }
   const vs = $('vslider'); vs.setAttribute('aria-valuemax', String(mx)); vs.setAttribute('aria-valuenow', String(dose)); vs.setAttribute('aria-valuetext', fmt(dose) + ' m³');
 }
 (function sliderInput() {
   const vs = $('vslider'); let dragging = false, dirty = false;
   let rect = null; const fromY = y => { if (!session) return; const r = rect || vs.querySelector('.vs-track').getBoundingClientRect(); const f = (r.bottom - y) / r.height; const model = currentModel(); const v = Math.max(0, Math.round(slVal(model, f, Number(session.capacity)) * 100) / 100);
-    if (session.method === 'kibel') { const cap = Number(session.capacity) || .5, pct = Math.max(0, Math.min(110, Math.round(v / cap * 100))); if (pct === kPct) return; kPct = pct; session.nextPct = pct; render(); dirty = true; return }
+    if (session.method === 'kibel') { const cap = Number(session.capacity) || .5, pct = Math.max(0, Math.min(100, Math.round(v / cap * 100))); if (pct === kPct) return; kPct = pct; session.nextPct = pct; render(); dirty = true; return }
     if (v === session.dose) return; session.dose = v; renderLevelSoon(); dirty = true };
   let kPct = -1;
   $('vsLock').addEventListener('pointerdown', e => e.stopPropagation());
