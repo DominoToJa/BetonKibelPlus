@@ -1142,7 +1142,7 @@ async function emptyTruck() {
     calc = { f, real, applied, newCap: Math.round(cap * f * 1000) / 1000 };
     out.replaceChildren(
       el('div', {}, el('small', { text: 'Licznik mówi' }), el('b', { text: 'zostało ' + fmt(Math.round(appLeft * 100) / 100) + ' m³' }), el('small', { text: '≈ ' + fmt(Math.round(appLeft / cap * 10) / 10) + ' kosza · wylano ' + fmt(Math.round(sum * 100) / 100) })),
-      el('div', {}, el('small', { text: 'Naprawdę' }), el('b', { class: 'fin-real', text: 'zostało ' + fmt(rest) + ' m³' }), el('small', { text: 'wylano ' + fmt(Math.round(real * 100) / 100) + ' m³' })));
+      el('div', {}, el('small', { text: 'Załadowano na starcie' }), el('b', { class: 'fin-real', text: fmt(load) + ' m³' }), el('small', { text: (rest ? 'zostało ' + fmt(rest) + ' → ' : '') + 'wylano naprawdę ' + fmt(Math.round(real * 100) / 100) + ' m³' })));
     res.replaceChildren();
     if (Math.abs(f - 1) < .005) { res.append(el('p', { class: 'fin-ok', text: '✓ Zgadza się — nic nie poprawiam' })); return }
     if (Math.abs(f - 1) > .4) { calc.bad = true; res.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(Math.round((f - 1) * 1000) / 10) + '% — za duża, to raczej pomyłka w kursach. Lepiej popraw kursy ręcznie.' })); return }
