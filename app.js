@@ -1722,14 +1722,14 @@ document.addEventListener('visibilitychange', () => {
 
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro ≈ 0,032 m³ (pomiar 9 m³ / 7 min na 1 stopniu), 4–5 piór na obrót.
-const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0 }; // Domi: 4–5 piór na obrót
-/** ile betonu jest na jednym piórze. Pomiar Domiego 14.11: 9 m³ ≈ 7 min na 1 stopniu, niecałe obroty (~6,5 s/obrót → ~65 obrotów), 4,5 pióra/obrót → ok. 0,032 m³ (32 l). Kalibracja nadpisuje. */
-const PIORO_DEF = 0.032;
+const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0.14 }; // m3rot: 9 m³ ≈ 7 min na 1 stopniu ≈ 65 obrotów → 0,14 m³/obrót // Domi: 4–5 piór na obrót
+/** ile betonu jest na jednym piórze. Domi 15.11: do kosza 0,5 m³ wchodzi 5–6 piór → 0,5 ÷ 5,5 ≈ 0,09 m³ (90 l). Kalibracja nadpisuje. */
+const PIORO_DEF = 0.09;
 const fmt3 = n => (Math.round(Number(n) * 1000) / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 3 });
 function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : PIORO_DEF }
 /** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
 function pourM3(rot, c = drumCfg()) { return c.m3rot > 0 ? rot * c.m3rot : c.pio > 0 ? rot * c.pio * pioroM3() : 0 }
-const drumCfg = () => { const c = { ...DRUM_DEF, ...(settings.drum || {}) }; if (!(c.pio > 0)) c.pio = DRUM_DEF.pio; return c };
+const drumCfg = () => { const c = { ...DRUM_DEF, ...(settings.drum || {}) }; if (!(c.pio > 0)) c.pio = DRUM_DEF.pio; if (!(c.m3rot > 0)) c.m3rot = DRUM_DEF.m3rot; return c };
 let pour = null, pourTimer = 0;
 const pourRot = (p, now = Date.now()) => p.rot + (p.mode ? (now - p.t0) / 1000 / (drumCfg()[p.mode] || 6) : 0);
 const pourSecs = (p, now = Date.now()) => p.secs + (p.mode ? (now - p.t0) / 1000 : 0);
@@ -2890,7 +2890,7 @@ function runIntro(box) {
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 }
 
-/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,032 m³) */
+/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,09 m³) */
 (() => {
   const inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
   const word = n => { const k = Math.abs(n) % 100, j = k % 10; return n % 1 ? 'pióra' : n === 1 ? 'pióro' : (j >= 2 && j <= 4 && (k < 12 || k > 14)) ? 'pióra' : 'piór' };
