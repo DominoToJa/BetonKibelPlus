@@ -1899,14 +1899,17 @@ function nightRender() {
   $('ntSite').textContent = s?.site || 'BetonKibelPlus';
   $('ntLeft').textContent = s ? fmt(left()) : '—'; $('ntPoured').textContent = s ? fmt(entriesSum()) : '—'; $('ntKursy').textContent = s ? String(s.entries.length) : '—';
   $('ntTrip').textContent = !s || s.method === 'taczka' ? '—' : phase === 'away' && deadline > now ? shortDur((deadline - now) / 1000) : phase === 'late' ? 'czekam' : 'jest';
-  const asking = !!(s && alarmVisible); $('ntAsk').hidden = !asking; $('night').classList.toggle('asking', asking);
+  const asking = !!(s && alarmVisible); $('ntAsk').hidden = !asking; $('ntActs').hidden = asking || !s; $('night').classList.toggle('asking', asking);
+  if (s) $('ntTripBtn').textContent = phase === 'away' || phase === 'late' ? '✓ Kosz jest' : '▶ Wyjechał';
+  $('ntMic').textContent = micWanted ? '🎙 słucham' : '🔇 mikrofon wył.';
   if (asking !== nightAskLit) { nightAskLit = asking; if (nativeVoice && NV.setNight) NV.setNight({ on: true, level: asking ? 0.35 : 0.03 }).catch(() => { }) } // pytanie = jaśniej, żeby było widać
   if (now - nightShiftAt > 60000) { nightShiftAt = now; $('ntIn').style.transform = 'translate(' + Math.round(Math.random() * 16 - 8) + 'px,' + Math.round(Math.random() * 24 - 12) + 'px)' } // OLED: nie wypala się
 }
 $('nightBtn')?.addEventListener('click', () => setNight(true));
 $('night')?.addEventListener('pointerup', e => {
   const b = e.target.closest('[data-nt]');
-  if (b) { const a = b.dataset.nt; if (a === 'yes') returned(); else if (a === 'no') delay(); else delay({ sec: 120 }); buzz?.('light'); nightRender(); return }
+  if (b) { const a = b.dataset.nt; if (a === 'yes') returned(); else if (a === 'no') delay(); else if (a === 'snz') delay({ sec: 120 }); else if (a === 'add') { if (session) add(session.dose > 0 ? session.dose : session.capacity) } else if (a === 'trip') { if (phase === 'away' || phase === 'late') returned(); else depart() } else if (a === 'undo') undo(); buzz?.('light'); nightRender(); return }
+  if (e.target.closest('#ntExit')) { setNight(false); return }
   const now = Date.now(); if (now - nightTapAt < 450) { nightTapAt = 0; setNight(false) } else nightTapAt = now;
 });
 

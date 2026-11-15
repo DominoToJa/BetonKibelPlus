@@ -1194,3 +1194,24 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .fin-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .fin-row:has(> :nth-child(2):last-child){grid-template-columns:1fr 1fr}
 #activeBucket .swap-pill{margin-top:8px;flex:1 1 100%}
+/* ── koniec betonowania: duży przycisk ── */
+.end-zone{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.end-zone .finish-big{width:100%;min-height:72px;font-size:22px;font-weight:900;border-radius:18px;letter-spacing:.5px}
+.end-zone .end-row{gap:10px}.end-zone .end-row button{min-height:56px;font-size:16px;font-weight:800;margin:0}
+.end-zone .empty-btn{margin:0;width:auto}
+/* ── poradnik i rozmowa na samym dole ── */
+.help-zone{margin-top:22px;padding-top:14px;border-top:1px dashed #ffffff26;display:flex;flex-direction:column;gap:10px}
+.help-head{margin:0 0 2px;font-size:16px;opacity:.85}
+/* ── większe przyciski pod koszem ── */
+#activeBucket .swap-pill,#activeBucket .pio-pill,.quick-caps .pio-pill{min-height:58px;font-size:18px;font-weight:800;border-radius:14px;padding:10px 14px}
+/* ── ekran nocny v2 ── */
+.nt-x{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px;width:64px;height:64px;border-radius:50%;border:2px solid #5a4a2a!important;background:#120c02!important;color:#e0b050!important;font-size:26px;font-weight:900;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;z-index:2;box-shadow:none!important}
+.nt-x small{font-size:10px;font-weight:700;margin-top:2px;letter-spacing:.5px}
+.nt-top{padding-right:72px;align-items:center}
+#ntMic{font-size:14px;color:#6b6352}
+.nt-acts{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;width:100%}
+.nt-acts[hidden]{display:none}
+.night .nt-acts button{min-height:72px;font-size:20px;font-weight:900;border-radius:14px;background:#100b02!important;color:#c9a050!important;border:1px solid #4a3a1a!important;box-shadow:none!important}
+.night .nt-acts .nt-add{font-size:24px;color:#ffc04a!important;border-color:#8a6010!important;background:#1e1400!important}
+.nt-x{border-radius:50%!important}
+.end-zone .finish-big{border:2px solid #f59e0b!important;color:#fbbf24!important;background:#2a1a05!important}

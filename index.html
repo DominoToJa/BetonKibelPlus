@@ -11,10 +11,15 @@
 
 <div id="testBar" class="test-bar hide">🧪 TRYB TESTOWY — nic się nie zapisuje <button type="button" id="testExit">Wyjdź</button></div>
 <div id="night" class="night" hidden role="dialog" aria-label="Ekran nocny">
+<button type="button" class="nt-x" id="ntExit" aria-label="Wyjdź z ekranu nocnego">✕<small>Wyjdź</small></button>
 <div class="nt-in" id="ntIn">
-<div class="nt-top"><span id="ntSite"></span><span id="ntClock"></span></div>
+<div class="nt-top"><span id="ntSite"></span><span id="ntMic"></span><span id="ntClock"></span></div>
 <div class="nt-big"><small>ZOSTAŁO</small><b id="ntLeft">0</b><i>m³</i></div>
-<div class="nt-row"><div><small>WYLANO</small><b id="ntPoured">0</b></div><div><small>KURSY</small><b id="ntKursy">0</b></div><div><small>KOSZ</small><b id="ntTrip">—</b></div></div>
+<div class="nt-row"><div><small>WYLANO</small><b id="ntPoured">0</b></div><div><small>KURS</small><b id="ntKursy">0</b></div><div><small>KOSZ</small><b id="ntTrip">—</b></div></div>
+<div id="ntAsk" class="nt-ask" hidden><p>Kosz wrócił?</p><div class="nt-btns"><button type="button" data-nt="yes">✔ Jest</button><button type="button" data-nt="no">Jeszcze nie</button><button type="button" data-nt="snz">+2 min</button></div></div>
+<div id="ntActs" class="nt-acts"><button type="button" data-nt="add" class="nt-add">＋ Kosz</button><button type="button" data-nt="trip" id="ntTripBtn">▶ Wyjechał</button><button type="button" data-nt="undo">↶ Cofnij</button></div>
+<p class="nt-hint">🌙 Ciemny ekran oszczędza baterię, a apka dalej słucha i pyta o kosz · ✕ albo 2× dotknij tło, żeby wyjść</p>
+</div></div>
 <div id="ntAsk" class="nt-ask" hidden><p>Kosz wrócił?</p><div class="nt-btns"><button type="button" data-nt="yes">✔ Jest</button><button type="button" data-nt="no">Jeszcze nie</button><button type="button" data-nt="snz">+2 min</button></div></div>
 <p class="nt-hint">Dotknij 2× gdziekolwiek, żeby wyjść · mikrofon dalej słucha</p>
 </div></div>
@@ -104,21 +109,10 @@
 <div class="oh-top oh-only"><small>ZOSTAŁO</small><strong><span id="ohLeft">0</span> m³</strong><small>wylano <span id="ohPoured">0</span></small><em class="oh-dose"><span id="ohDoseW">w koszu</span> <b id="ohDose">0</b> m³</em><em class="oh-k" id="ohK"></em></div>
 <div class="work-modes" id="workModes" role="group" aria-label="Rozładunek"><button type="button" data-wm="kibel">🏗 Kosz</button><button type="button" data-wm="taczka">🛒 Taczka</button><button type="button" data-wm="inne">🚜 Koparka</button></div>
 <div class="grid three" style="margin-top:12px"><div class="metric"><strong id="loaded">0</strong><small>Załadowano</small></div><div class="metric"><strong id="poured" class="done">0</strong><small>Wylano</small></div><div class="metric"><strong id="left" class="left">0</strong><small id="leftLbl">Zostało m³</small></div></div><div class="bar"><div id="progress"></div></div>
-<details class="pour-box" id="pourBox"><summary><span>⏱ Lanie z gruszki na czas</span> <b id="pourMini"></b></summary>
-<div class="pour-btns"><button type="button" data-pour="g1">🐢 Leję<br><small>1 bieg</small></button><button type="button" data-pour="full">🔥 Leję<br><small>pełny gaz</small></button><button type="button" data-pour="stop" class="pour-stop">■ Stop</button></div>
-<div class="pour-out"><div><small>CZAS</small><b id="pourT">0:00</b></div><div><small>OBROTY</small><b id="pourR">0</b></div><div><small>PIÓRA</small><b id="pourP">—</b></div><div><small>BETON</small><b id="pourM">—</b></div></div>
-<div id="pourRes" class="pour-res"></div>
-<div class="pour-cfg"><label>1 bieg (s/obrót)<input id="drumG1" inputmode="decimal"></label><label>Full (s/obrót)<input id="drumFull" inputmode="decimal"></label><label>Pióra / obrót<input id="drumPio" inputmode="decimal" placeholder="zmierz"></label></div>
-<p class="hint">Mów: „leję na jedynce”, „leję na full”, „stop”. Ile piór spada na obrót, nie zależy od gazu — wystarczy policzyć na 1 biegu (3 obroty ÷ 3).</p>
-<div class="pour-cal"><b>📏 Ile jest na piórze? — kalibracja</b>
-<p class="hint">Wlej znaną ilość (np. pełny kosz albo całą gruszkę) i policz, ile piór spadło. Albo zmierz to laniem na czas powyżej — wtedy liczba piór niepotrzebna.</p>
-<div class="pour-cfg two"><label>Ile m³ wlałeś<input id="calM3" inputmode="decimal" placeholder="np. 1,3"></label><label>Ile piór spadło<input id="calN" inputmode="decimal" placeholder="policz"></label></div>
-<small id="calHint" class="hint"></small><p id="calOut" class="cal-out"></p><button type="button" id="calSave" class="primary">💾 Zapisz pióro</button></div>
 
-</details>
 <div class="grid two" style="margin-top:10px"><div class="metric time"><strong id="elapsed">00:00:00</strong><small>Czas</small></div><div class="metric time"><strong id="eta">—</strong><small>Koniec około</small></div><div class="metric time"><strong id="avg">—</strong><small>Średni kurs</small></div><div class="metric time"><strong id="timer">—</strong><small>Do pytania</small></div></div>
 <div class="kplan"><span>🪣 <b id="kSent">0</b> <small id="kSentL">wysłano</small></span><span><b id="kLeft">0</b> <small id="kLeftL">zostało</small></span><span><small>ostatni</small> <b id="kLast">—</b></span></div>
-<div class="bot-quote" aria-live="polite"><span id="status">Gotowy</span><strong id="botText">Gotowy do betonowania.</strong></div><details class="dlog-box"><summary>💬 Rozmowa z botem <b id="dlogCount">0</b></summary><button type="button" id="dlogUndo" class="secondary">↶ To była pomyłka — cofnij ostatni</button><div id="dlog" class="dlog"></div></details></div>
+<div class="bot-quote" aria-live="polite"><span id="status">Gotowy</span><strong id="botText">Gotowy do betonowania.</strong></div></div>
 
 <div id="alert" class="notice hide"><div class="alert-bell">🔔</div><h3>Czy kosz już jest?</h3><p class="alert-late" id="alertLate"></p><div class="actions"><button id="late" type="button">⏳ Jeszcze nie</button><button id="arrived" type="button" class="good">✅ Tak, jest</button></div><div class="snooze-row"><small>Zapytaj za:</small><button type="button" data-snooze="60">1 min</button><button type="button" data-snooze="120">2 min</button><button type="button" data-snooze="300">5 min</button></div></div>
 
@@ -150,15 +144,29 @@
 
 <div id="travelPanel" class="panel slim"><div class="actions"><button id="depart" type="button">▶ Kosz wyjechał</button><button id="returned" type="button" class="good">✓ Kosz już jest</button></div></div>
 
+<div class="end-zone"><button id="finish" type="button" class="warn finish-big">🏁 Zakończ betonowanie</button><div class="grid two end-row"><button id="emptyTruck" type="button" class="empty-btn">🪣 Beton się skończył</button><button id="new" type="button" class="primary">＋ Nowe</button></div></div>
+<details class="panel"><summary>▤ Dolewki</summary><div id="entries" style="margin-top:8px"></div></details>
+<div class="help-zone"><h3 class="help-head">📚 Narzędzia, rozmowa i poradnik</h3>
+<details class="pour-box" id="pourBox"><summary><span>⏱ Lanie z gruszki na czas</span> <b id="pourMini"></b></summary>
+<div class="pour-btns"><button type="button" data-pour="g1">🐢 Leję<br><small>1 bieg</small></button><button type="button" data-pour="full">🔥 Leję<br><small>pełny gaz</small></button><button type="button" data-pour="stop" class="pour-stop">■ Stop</button></div>
+<div class="pour-out"><div><small>CZAS</small><b id="pourT">0:00</b></div><div><small>OBROTY</small><b id="pourR">0</b></div><div><small>PIÓRA</small><b id="pourP">—</b></div><div><small>BETON</small><b id="pourM">—</b></div></div>
+<div id="pourRes" class="pour-res"></div>
+<div class="pour-cfg"><label>1 bieg (s/obrót)<input id="drumG1" inputmode="decimal"></label><label>Full (s/obrót)<input id="drumFull" inputmode="decimal"></label><label>Pióra / obrót<input id="drumPio" inputmode="decimal" placeholder="zmierz"></label></div>
+<p class="hint">Mów: „leję na jedynce”, „leję na full”, „stop”. Ile piór spada na obrót, nie zależy od gazu — wystarczy policzyć na 1 biegu (3 obroty ÷ 3).</p>
+<div class="pour-cal"><b>📏 Ile jest na piórze? — kalibracja</b>
+<p class="hint">Wlej znaną ilość (np. pełny kosz albo całą gruszkę) i policz, ile piór spadło. Albo zmierz to laniem na czas powyżej — wtedy liczba piór niepotrzebna.</p>
+<div class="pour-cfg two"><label>Ile m³ wlałeś<input id="calM3" inputmode="decimal" placeholder="np. 1,3"></label><label>Ile piór spadło<input id="calN" inputmode="decimal" placeholder="policz"></label></div>
+<small id="calHint" class="hint"></small><p id="calOut" class="cal-out"></p><button type="button" id="calSave" class="primary">💾 Zapisz pióro</button></div>
+
+</details>
+<div class="panel slim"><details class="dlog-box"><summary>💬 Rozmowa z botem <b id="dlogCount">0</b></summary><button type="button" id="dlogUndo" class="secondary">↶ To była pomyłka — cofnij ostatni</button><div id="dlog" class="dlog"></div></details></div>
 <div class="panel slim">
 <div class="actions"><button id="mic" type="button" class="mic-btn hide">🎙️ Włącz mikrofon</button><button id="testAlarm" type="button">🔔 Test pytania</button></div>
 <div id="micStatus" class="audio-status" aria-live="polite" style="margin-top:10px">Mikrofon wyłączony.</div>
 <h3 style="margin:16px 0 8px">🎙️ Komendy</h3>
 <div class="cmd-grid" id="cmdList"></div>
 </div>
-
-<div class="actions" style="margin-top:12px"><button id="new" type="button" class="primary">＋ Nowe</button><button id="finish" type="button" class="warn">✓ Zakończ</button></div><button id="emptyTruck" type="button" class="empty-btn">🪣 Beton się skończył — popraw liczenie</button>
-<details class="panel"><summary>▤ Dolewki</summary><div id="entries" style="margin-top:8px"></div></details>
+</div>
 </section>
 
 <section id="history" class="hide"><div class="panel"><h2>▤ Budowy</h2><div id="historyRows"></div><button id="export" type="button" class="full csv">⬇ Historia CSV</button></div>
@@ -306,7 +314,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 5.6.2 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 5.7.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">
