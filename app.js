@@ -300,8 +300,15 @@ function ttsSpeak(key, text) {
     const pv = polishVoices(); const id = resolvedVoiceId(); const v = pv.find(v => v.voiceURI === id) || pv.find(v => /google/i.test(v.name)) || pv[0]; if (v) u.voice = v; speechSynthesis.speak(u);
   } catch (e) { }
 }
+/** kiedy lektorka mniej więcej skończy mówić (szacunek) — żeby kolejne pytania nie wchodziły jej w słowo */
+let speechEndAt = 0;
+const speechEst = t => (String(t || '').length * 0.075 / tempoK() + 0.6 + (elReady() ? 1.2 : 0)) * 1000;
+/** odpal fn, dopiero gdy lektorka skończy + przerwa (min. po `min` ms) */
+function whenQuiet(fn, gap = 2200, min = 0) {
+  const t0 = Date.now(), go = () => { if (Date.now() - t0 >= min && Date.now() >= speechEndAt + gap) fn(); else setTimeout(go, 300) }; setTimeout(go, Math.min(min, 300));
+}
 function speak(key, text) {
-  text = femin(text);
+  text = femin(text); if (text) speechEndAt = Math.max(Date.now(), speechEndAt) + speechEst(text);
   if (!elReady() || !text || (key && clipKeys.has(key))) return ttsSpeak(key, text);
   // na budowie zasięg bywa słaby: jak ElevenLabs nie odda głosu w 2,5 s, mówi zwykły głos (plik i tak się dociągnie na następny raz)
   let done = false; const fb = () => { if (done) return; done = true; if (ASK_KEYS.has(key)) jlog('ElevenLabs nie zdążył (zasięg?) — gada zwykły głos', true); ttsSpeak(key, text) }, to = setTimeout(fb, ASK_KEYS.has(key) || key === 'remind' ? 2500 : 4000);
@@ -315,6 +322,7 @@ function speak(key, text) {
 /** dwa zdania z wyraźną przerwą (np. „Też chciałabym być tak zalana.” … „Zostało 4,5.”) — żeby się nie zlewały */
 function speakPair(k1, t1, k2, t2, gap = 1.1) {
   t1 = femin(String(t1 || '').trim()); t2 = femin(String(t2 || '').trim());
+  speechEndAt = Date.now() + speechEst(t1) + gap * 1000 + speechEst(t2);
   if (nativeVoice) { NV.speak(k1, t1, true).catch(() => { }); NV.speak('pause', String(gap), false).catch(() => { }); NV.speak(k2, t2, false).catch(() => { }); return }
   speak(k1, t1); clearTimeout(speakPair.t);
   speakPair.t = setTimeout(() => speak(k2, t2), Math.round((Math.max(1.2, t1.length * 0.075 / tempoK()) + gap) * 1000)); // przeglądarka: szacunek długości zdania + przerwa
@@ -834,10 +842,10 @@ async function start() {
   if (session) finishCurrent(false);
   resetTrip(); lastAddAt = 0;
   session = { id: Date.now(), site: $('site').value.trim() || 'Budowa bez nazwy', load, method, dose, capacity: dose, bucketProfile: snapshot(p), cycle: Math.round(cycleMin * 60), startedAt: Date.now(), entries: [], trips: [], milestonesFired: {} };
-  if (pioMode && !p && method !== 'taczka') { session.pioPending = true; pioMode = false; setTimeout(pioPrompt, 3500) }
+  if (pioMode && !p && method !== 'taczka') { session.pioPending = true; pioMode = false; setTimeout(() => whenQuiet(pioPrompt, 2500, 0), settings.ofeo !== false ? 4500 : 1500) } // po OFEO, z przerwą
   if (method !== 'taczka') rememberSiteBucket(session.site, p ? p.id : 'manual');
   remember(); refreshKnownSites(); tab('work'); introJinglePending = false; setTimeout(() => elWarmAsk(), 8000); if (voiceEl) { voiceEl.pause(); voiceEl = null } if (false) { playSong('start').then(ok => { const w = ok ? SONG_LEN.start : playJingle('start'); if (w) setTimeout(() => sayBot('start'), Math.max(0, w - 300)); else sayBot('start') }) } else sayBot('start');
-  if (settings.ofeo !== false) setTimeout(ofeoPrompt, 2600);
+  if (settings.ofeo !== false) whenQuiet(ofeoPrompt, 2200, 2600); // najpierw powitanie, potem przerwa, dopiero OFEO
   if (settings.micAuto !== false && !micWanted) setTimeout(() => { if (session && !micWanted) toggleMic() }, 1200); // mikrofon sam się włącza przy starcie
 }
 $('start').addEventListener('click', start); $('emptyTruck')?.addEventListener('click', emptyTruck);
