@@ -738,7 +738,7 @@ function sheetRender() {
   const r = $('pickTiles'); r.replaceChildren();
   $('pickTitle').textContent = { taczka: 'Wybierz taczkę', inne: 'Wybierz łyżkę / osprzęt' }[method] || 'Wybierz kosz';
   const sw = $('pickMethods'); sw.replaceChildren(...[['kibel', '🏗 Kosz'], ['taczka', '🛒 Taczka'], ['inne', '🚜 Koparka']].map(([m, t]) => el('button', { type: 'button', class: method === m ? 'on' : '', text: t, onclick: () => { if (method !== m) selectMethod(m); sheetRender() } })));
-  const pick = fn => () => { fn(); tab('setup') };
+  const pick = fn => () => { fn(); tab(session ? 'work' : 'setup') }; // w trakcie betonowania = przekładka kosza, wraca do pracy
   const mine = byRecent(profilesFor(method)).sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0));
   /* statystyki z historii: ile razy i kiedy ostatnio */
   const stat = {}; for (const a of archive) { const id = a.bucketProfile?.id; if (!id) continue; const t = stat[id] || (stat[id] = { n: 0, last: 0, m3: 0 }); t.n++; t.last = Math.max(t.last, a.endedAt || a.startedAt || 0); t.m3 += Number(a.total) || 0 }
@@ -786,7 +786,7 @@ function sheetRender() {
   ci.addEventListener('keydown', e => { if (e.key === 'Enter') ok() });
   r.append(el('div', { class: 'tile custom' + (!chosenProfileId && !isStd && cur > 0 ? ' on' : '') }, el('span', { text: '✏️ Niestandardowy' }), ci, el('button', { type: 'button', class: 'primary', text: 'OK', onclick: ok })));
 }
-$('bucketPick').addEventListener('click', () => tab('pickBucket')); $('pickBack').addEventListener('click', () => tab('setup'));
+$('bucketPick').addEventListener('click', () => tab('pickBucket')); $('pickBack').addEventListener('click', () => tab(session ? 'work' : 'setup'));
 function restoreSiteBucket() {
   if (method === 'taczka') return;
   const id = siteAssignments[siteKey($('site').value)];
@@ -1110,7 +1110,9 @@ function changeCapacity(v, profile = null) {
   session.capacity = n; session.dose = n; session.nextPct = null; session.bucketProfile = snapshot(profile);
   if (session.method !== 'taczka') rememberSiteBucket(session.site, profile ? profile.id : 'manual');
   remember(); render(); announce((profile ? profile.name + ' · ' : 'Kosz ') + fmt(n) + ' m³'); sayBot('capacityChanged');
-  if (session.entries.length && old > 0 && Math.abs(old - n) > 1e-4) capPrompt(old, n, profile ? null : oldProf);
+  const swap = profile && profile.id !== oldProf?.id; // przekładka na inny zapisany kosz: poprzednie kursy były w starym — nic nie przeliczamy
+  if (swap && session.entries.length) { announce('🔄 Przekładka: od teraz ' + profile.name + ' · ' + fmt(n) + ' m³ — poprzednie kursy zostają'); jlog('przekładka kosza → ' + profile.name + ' ' + fmt(n)) }
+  else if (session.entries.length && old > 0 && Math.abs(old - n) > 1e-4) capPrompt(old, n, profile ? null : oldProf);
 }
 /** 🪣 „beton się skończył”: gruszka pusta, a licznik mówi, że coś zostało (albo odwrotnie). Przeliczamy kursy i kosz — domyślnie środek różnicy, bo na oko można się walnąć o 100–200 l */
 async function emptyTruck() {
@@ -1454,6 +1456,8 @@ function render() {
   for (const v of opts[s.method] || []) q.append(el('button', { type: 'button', class: 'pill' + (!cur && Math.abs(v - s.capacity) < 1e-4 ? ' on' : ''), text: fmt(v) + ' m³', onclick: () => { customOpen = false; changeCapacity(v, null) } }));
   const isCustom = !cur && !(opts[s.method] || []).some(v => Math.abs(v - s.capacity) < 1e-4);
   q.append(el('button', { type: 'button', class: 'pill' + (isCustom || customOpen ? ' on' : ''), text: isCustom ? '✏️ ' + fmt(s.capacity) + ' m³' : '✏️ Inna', onclick: () => { customOpen = !customOpen; pioOpen = false; render(); if (customOpen) setTimeout(() => $('customCap')?.focus(), 30) } }));
+  // 🔄 przekładka: w trakcie lania zmiana kosza (np. 0,5 → 0,75) — kursy, które poszły, zostają jak były
+  if (s.method !== 'taczka') { const host = s.method === 'kibel' ? ab : q; if (s.method === 'kibel' && cur) ab.classList.remove('hide'); host.append(el('button', { type: 'button', class: 'pill swap-pill', text: '🔄 Przekładka — zmień ' + (s.method === 'inne' ? 'łyżkę' : 'kosz'), onclick: () => { method = s.method; tab('pickBucket') } })) }
   // 🌀 pojemność z piór — w trybie kosza siedzi pod nazwą kosza (szybkie pigułki są tam schowane)
   const pioT = s.method === 'kibel' ? ab : q;
   if (s.method === 'kibel' && !cur) { ab.classList.remove('hide'); ab.append(el('div', { class: 'ab-info' }, el('strong', { text: '📐 Kosz · ' + fmt(s.capacity) + ' m³' }))) }
@@ -1598,6 +1602,14 @@ function fixLast(f, n) {
 function dialogCommand(t, has) {
   const s = session, recent = Date.now() - lastAct.at < 12000;
   // „kosz ma 1,3” · „jednak kosz 1,3” · „pojemność 1,3” = zmiana pojemności kosza, nie poprawka kursu
+  // „przekładka na 0,75” · „zmieniamy kosz na 0,75” → inny kosz od następnego kursu (bez przeliczania poprzednich)
+  if (s && s.method !== 'taczka' && has('przekladka|przekladamy|przekladke|zmieniamy kosz|zmiana kosza|inny kosz|zmien kosz na|bierzemy kosz')) {
+    const v = amountFromSpeech(spokenNumber(t));
+    if (!(v > 0 && v <= 5)) { method = s.method; tab('pickBucket'); return true }
+    const p = profilesFor(s.method).find(x => Math.abs(x.capacity - v) < .011);
+    if (p) changeCapacity(p.capacity, p); else { const n0 = s.entries.length; s.entries.length && (s._noPrompt = 1); changeCapacity(v, null); document.querySelector('.cap-prompt')?.remove(); if (n0) announce('🔄 Przekładka: od teraz ' + fmt(v) + ' m³ — poprzednie kursy zostają') }
+    sayBot('custom', 'Przekładka. Od teraz kosz ' + fmt(v) + '.'); return true;
+  }
   // „kosz ma 3,5 pióra” · „pierwszy kosz 3,5 pióra” · „ustaw kosz na 40 piór” → pojemność = pióra × pióro
   if (s && s.method !== 'taczka' && /\bpior(a|o|ow)?\b/.test(t) && (s.pioPending || has('kosz|kibel|kubel|pierwszy|ustaw|weszlo|wchodzi|miesci|bierze'))) { const hp = t.match(/(\S+) i pol\b/), n = hp && spokenNumber(hp[1]) > 0 ? spokenNumber(hp[1]) + 0.5 : spokenNumber(t); const v = Math.round(n * pioroM3() * 1000) / 1000; if (n > 0 && v > 0.01 && v <= 5) { if (s.pioPending) return setPioCap(n); jlog('kosz z piór (głos): ' + fmt(n) + ' = ' + fmt3(v) + ' m³'); changeCapacity(v, null); return true } }
   if (s && s.method !== 'taczka' && has('kosz ma|kibel ma|kubel ma|pojemnosc|ustaw kosz|zmien kosz|ustaw kibel|zmien kibel|nowy kosz|kosz jest na|kosz nie ma|jednak kosz|jednak kibel|kosz ma tylko|kosz bierze|kosz miesci|kibel miesci|kosz to')) { const n = amountFromSpeech(spokenNumber(t.replace(/\bnie ma [\d.,]+( |$)/, ' '))); const m = spokenNumber(t.split(/\btylko\b/).pop()); const v = m > 0 && m <= 5 && /tylko/.test(t) ? m : n; if (v > 0 && v <= 5) { changeCapacity(v, null); return true } }
@@ -2249,7 +2261,7 @@ function bucketListRender() {
 // ───────────────────────── kosz ze zdjęcia: profil + wybór wielkości → realna pojemność ─────────────────────────
 let formEstimated = false;
 const pc = { view: 'front', views: {}, useSide: false, useTop: false, photos: [], cur: 0, img: null, file: null, pts: [], ref: [], nominal: .75, other: false, fill: 0, fillTap: false, shape: 'round', k: 1, drag: -1, editId: '' };
-const NOMINALS = [.5, .7, .75, 1, 1.25, 1.5, 2];
+const NOMINALS = [.5, .75, 1, 1.25, 1.5, 2]; // 0,7 → 0,75 (Domi)
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const pcRefCm = () => { const v = Number($('pcRefType').value); return v === -1 ? number($('pcRefCustom').value) : v };
 const PT_MAX = 14, PT_MIN_SIDE = 2;

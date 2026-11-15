@@ -1193,3 +1193,4 @@ header.top .brand{flex:1 1 auto;min-width:0}
 .empty-btn{width:100%;margin-top:8px;min-height:48px;font-weight:800}
 .fin-row{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .fin-row:has(> :nth-child(2):last-child){grid-template-columns:1fr 1fr}
+#activeBucket .swap-pill{margin-top:8px;flex:1 1 100%}
