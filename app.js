@@ -1635,7 +1635,7 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
-  if (session && has('beton sie skonczyl|skonczyl sie beton|gruszka pusta|pusta gruszka|nie ma betonu|zabraklo betonu|koniec betonu w gruszce|gruszka sie skonczyla')) { emptyTruck(); return true }
+  if (session && has('beton sie skonczyl|skonczyl sie beton|nie ma betonu|zabraklo betonu|koniec betonu w gruszce|gruszka sie skonczyla')) { emptyTruck(); return true }
   // lanie z gruszki na czas
   if (has('leje na jedynce|lej na jedynce|leje na jedynke|na pierwszym biegu|leje na pierwszym|leje wolno|lanie jedynka|start lania')) { pourStart('g1'); return true }
   if (has('leje na full|lej na full|leje na pelnym|pelny gaz|full gaz|na pelnym gazie|leje szybko|lanie full|daj gazu')) { pourStart('full'); return true }
