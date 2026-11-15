@@ -888,6 +888,7 @@ $('finish').addEventListener('click', async () => {
       calib.dataset.pioReal = Math.abs(r - 1) < .4 ? String(real) : ''; calib.dataset.pioNew = Math.abs(r - 1) < .4 && pio > .005 && pio < 1 ? String(pio) : '';
       if (Math.abs(r - 1) >= .4) { calib.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(pct) + '% — za duża, to raczej pomyłka w kursach. Nie zapisuję.' })); return }
       const cbK = el('input', { type: 'checkbox', checked: true, 'data-pio': 'kosz' }), cbP = el('input', { type: 'checkbox', checked: true, 'data-pio': 'pioro' });
+      { const avg = sum / n, fp = Math.round(avg / cap0 * 100); if (fp < 97) calib.append(el('p', { class: 'hint', text: '📏 Liczę na PEŁNY kosz: kursy szły średnio po ' + fmt(Math.round(avg * 100) / 100) + ' m³ (≈ ' + fp + '% kosza) — proporcja ta sama, więc pełny kosz wychodzi ' + fmt3(real) + ' m³.' })) }
       calib.append(el('p', { class: 'fin-ok', text: '🌀 Kosz z piór: ' + fmt(s.pioN) + ' × ' + fmt3(s.pioM3 || pioroM3()) + ' = ' + fmt3(cap0) + ' m³ → naprawdę ' + fmt3(real) + ' m³ (' + (pct > 0 ? '+' : '') + fmt(pct) + '%)' }),
         el('label', { class: 'fin-fix' }, cbK, el('span', {}, el('b', { text: '💾 Zapisz kosz ' + fmt3(real) + ' m³' }), el('small', { text: 'pojawi się w „Moje kosze” jako „Kosz z piór · ' + fmt(real) + ' m³”' }))),
         el('label', { class: 'fin-fix' }, cbP, el('span', {}, el('b', { text: '🌀 Popraw pióro ' + fmt3(s.pioM3 || pioroM3()) + ' → ' + fmt3(pio) + ' m³' }), el('small', { text: fmt3(real) + ' m³ ÷ ' + fmt(s.pioN) + ' piór — z prawdziwej gruszki' }))));
@@ -898,6 +899,8 @@ $('finish').addEventListener('click', async () => {
     if (Math.abs(r - 1) <= .03) { fix = false; calib.append(el('p', { class: 'fin-ok', text: '✓ Zgadza się co do ' + fmt(Math.abs(pct)) + '% — kosz „' + bp.name + '” zostaje ' + fmt(bp.capacity) + ' m³' })); return }
     if (Math.abs(r - 1) >= .4) { fix = false; calib.append(el('p', { class: 'hint warn-t', text: '⚠️ Różnica ' + fmt(pct) + '% — za duża, to raczej pomyłka w kursach niż kosz. Nie poprawiam.' })); return }
     const cb = el('input', { type: 'checkbox' }); cb.checked = fix; cb.addEventListener('change', () => { fix = cb.checked });
+    const avg = sum / n, fillPct = Math.round(avg / bp.capacity * 100);
+    if (fillPct < 97) calib.append(el('p', { class: 'hint', text: '📏 Liczę na PEŁNY kosz: kursy szły średnio po ' + fmt(Math.round(avg * 100) / 100) + ' m³ (≈ ' + fillPct + '% kosza), ale proporcja jest ta sama — wyszło ' + (pct > 0 ? '+' : '') + fmt(pct) + '%, więc pełny kosz ' + fmt(bp.capacity) + ' → ' + fmt3(est) + ' m³.' }));
     calib.append(el('label', { class: 'fin-fix' }, cb, el('span', {}, el('b', { text: '⚖️ Popraw kosz „' + bp.name + '”' }), el('small', { text: fmt(bp.capacity) + ' → ' + fmt(nc) + ' m³ (' + (pct > 0 ? '+' : '') + fmt(pct) + '% wg tej gruszki' + (cn ? ', uśrednione z ' + cn + ' poprzednimi' : '') + ')' }))));
     calib.dataset.nc = nc; calib.dataset.poured = poured;
   };
