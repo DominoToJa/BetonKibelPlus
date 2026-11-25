@@ -1813,8 +1813,8 @@ document.addEventListener('visibilitychange', () => {
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro ≈ 0,032 m³ (pomiar 9 m³ / 7 min na 1 stopniu), 4–5 piór na obrót.
 const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0.14 }; // m3rot: 9 m³ ≈ 7 min na 1 stopniu ≈ 65 obrotów → 0,14 m³/obrót // Domi: 4–5 piór na obrót
-/** ile betonu jest na jednym piórze. Domi 15.11: do kosza 0,5 m³ wchodzi 5–6 piór → 0,5 ÷ 5,5 ≈ 0,09 m³ (90 l). Kalibracja nadpisuje. */
-const PIORO_DEF = 0.09;
+/** ile betonu jest na jednym piórze. Domi 25.11: kosz 750 l pełny ≈ 10 piór → 0,075 m³ (75 l). Wcześniej 0,09 dawało 0,9 m³ na ten kosz — za dużo. Kalibracja nadpisuje. */
+const PIORO_DEF = 0.075;
 const fmt3 = n => (Math.round(Number(n) * 1000) / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 3 });
 function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : PIORO_DEF }
 /** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
@@ -2983,7 +2983,7 @@ function runIntro(box) {
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 }
 
-/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,09 m³) */
+/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,075 m³) */
 (() => {
   const inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
   const word = n => { const k = Math.abs(n) % 100, j = k % 10; return n % 1 ? 'pióra' : n === 1 ? 'pióro' : (j >= 2 && j <= 4 && (k < 12 || k > 14)) ? 'pióra' : 'piór' };
