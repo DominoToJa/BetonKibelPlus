@@ -189,6 +189,8 @@ function resolvedVoiceId() { if (settings.voice) return settings.voice; const L 
 try {
   const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
   if (s) Object.assign(settings, s);
+  // 5.8.4: Domi — pióro ma być 0,072 (9 m³ / 12,5 kosza / 10 piór); stara kalibracja (np. 0,083) z telefonu wylatuje raz
+  if (settings.pioroFix !== 3) { delete settings.pioro; if (settings.drum) delete settings.drum.m3rot; settings.pioroFix = 3; try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)) } catch (e) { } }
   if (!settings.micSensV2) { if (!settings.micSens || settings.micSens === 'low') settings.micSens = 'mid'; settings.micSensV2 = true } // 4.9: czulszy mikrofon domyślnie (komendy nie giną)
   else settings.mode = localStorage.getItem('beton_notify_mode') || (localStorage.getItem('beton_tts_enabled') === '0' ? 'short' : 'full');
 } catch (e) { }
@@ -1822,8 +1824,8 @@ document.addEventListener('visibilitychange', () => {
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro ≈ 0,032 m³ (pomiar 9 m³ / 7 min na 1 stopniu), 4–5 piór na obrót.
 const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0.14 }; // m3rot: 9 m³ ≈ 7 min na 1 stopniu ≈ 65 obrotów → 0,14 m³/obrót // Domi: 4–5 piór na obrót
-/** ile betonu jest na jednym piórze. Domi 25.11, cała gruszka 9 m³: 12 pełnych koszy + ostatni ~0,2–0,25 → kosz ≈ (9 − 0,225) ÷ 12 ≈ 0,73 m³ (tabliczka 750 l); ~10 piór → 0,073 m³. Kalibracja nadpisuje. */
-const PIORO_DEF = 0.073;
+/** ile betonu jest na jednym piórze. Domi 25.11, cała gruszka 9 m³: 12 pełnych koszy + ostatni ~0,2–0,25 → 12,5 kosza → 9 ÷ 12,5 = 0,72 m³ (tabliczka 750 l); ~10 piór → 0,072 m³. Kalibracja nadpisuje. */
+const PIORO_DEF = 0.072;
 const fmt3 = n => (Math.round(Number(n) * 1000) / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 3 });
 function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : PIORO_DEF }
 /** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
