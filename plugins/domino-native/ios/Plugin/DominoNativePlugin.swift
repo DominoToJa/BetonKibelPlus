@@ -362,7 +362,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
         req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "dodaj kosza", "daj kosz", "jeszcze kosz", "kosz", "dodaj bombę", "dodaj bombkę", "bomba", "bombka", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
                                  "kosz wyjechał", "jazda", "pojechał", "ile zostało", "ile wylano", "ile koszy", "pełny kosz", "pół kosza", "trzy czwarte", "ćwierć", "przelany", "gruszka pusta", "nowa gruszka",
-                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz", "przekładka", "beton się skończył", "ekran nocny", "leję na jedynce", "leję na full", "stop", "pióra", "piór", "zapytaj za dwie minuty"]
+                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz", "przekładka", "beton się skończył", "gruszka pusta", "gruszka się skończyła", "pusta gruszka", "leję dalej", "w gruszce jeszcze jest", "wszystko wylane", "nic nie zostało", "Mischer leer", "ekran nocny", "leję na jedynce", "leję na full", "stop", "pióra", "piór", "zapytaj za dwie minuty"]
         request = req
         // dołóż końcówkę poprzedniego nagrania (tylko gdy zaczynamy po słowach / restarcie, nie po ciszy)
         if carryOver { recentLock.lock(); let bufs = recentBufs; recentLock.unlock(); for b in bufs { req.append(b) } }
@@ -449,7 +449,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
     private func bargeIn(_ text: String) -> Bool {
         let t = norm(text)
-        let keys = ["dodaj", "dodaj bombe", "dodaj bombke", "daj kosz", "dodajkosz", "do dach", "podaj", "jeszcze kosz", "przekladka", "beton sie skonczyl", "stop", "leje", "pior", "zmien kosz", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
+        let keys = ["dodaj", "dodaj bombe", "dodaj bombke", "daj kosz", "dodajkosz", "do dach", "podaj", "jeszcze kosz", "przekladka", "beton sie skonczyl", "stop", "leje", "pior", "zmien kosz", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "pusta gruszka", "gruszka sie skonczyla", "wszystko wylane", "mischer leer", "leje dalej", "lejemy dalej", "jeszcze leje", "jeszcze jest w gruszce", "w gruszce jeszcze", "wlano", "slyszysz"]
         guard let k = keys.first(where: { t.contains($0) }) else { return false }
         return !sayingNow.contains(k)
     }

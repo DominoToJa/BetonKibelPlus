@@ -1077,6 +1077,8 @@ function setLastPct(pct, { final = false } = {}) {
   else render();
 }
 /** gruszka pusta: kursy z tej gruszki = dokładnie jej m³, a z tego prawdziwa pojemność kosza */
+/** wszystkie sposoby na „gruszka pusta” (po normalizacji, bez polskich znaków) */
+const PUSTA_RE = 'gruszka pusta|pusta gruszka|gruszka jest pusta|gruszka juz pusta|gruszka sie skonczyla|skonczyla sie gruszka|koniec gruszki|gruszka skonczona|gruszka wylana|wylana gruszka|gruszka do zera|zero w gruszce|nic nie zostalo w gruszce|w gruszce nic|nic w gruszce|nie ma nic w gruszce|wylane wszystko|wszystko wylane|wszystko poszlo|caly beton poszedl|gruszka oprozniona|oproznilismy gruszke|pusty mischer|mischer leer|fahrmischer leer|betonmischer leer|der mischer ist leer|truck leer';
 function truckEmpty({ silent = false } = {}) {
   const s = session; if (!s || s.method !== 'kibel') return; const tr = trucksOf(s), cur = tr.at(-1); if (cur.closed) return announce('Ta gruszka jest już zamknięta');
   const ents = s.entries.slice(cur.start), sum = ents.reduce((a, e) => a + Number(e.amount || 0), 0); if (!(sum > 0) || !(cur.m3 > 0)) return announce('Brak kursów z tej gruszki');
@@ -1681,7 +1683,15 @@ function command(utterance) {
   const has = list => new RegExp('\\b(' + list + ')\\b').test(t);
   const waiting = phase === 'away' || phase === 'late';
   /* ── 💬 dialog: poprawki ostatniego kursu, kilka kursów naraz, pogadanki ── */
-  if (session && has('beton sie skonczyl|skonczyl sie beton|nie ma betonu|zabraklo betonu|koniec betonu w gruszce|gruszka sie skonczyla')) { emptyTruck(); return true }
+  if (session && has('beton sie skonczyl|skonczyl sie beton|nie ma betonu|zabraklo betonu|koniec betonu w gruszce|betonu brak|beton sie konczy|beton wyszedl')) { emptyTruck(); return true }
+  // „w gruszce jeszcze jest” · „leję dalej” → gruszka NIE pusta, liczymy dalej (i nie pytamy zaraz znowu)
+  if (session && (has('w gruszce jeszcze jest|jeszcze jest w gruszce|jeszcze cos jest w gruszce|w gruszce jeszcze cos|w gruszce jeszcze zostalo|gruszka nie pusta|gruszka nie jest pusta|nie jest pusta|jeszcze jest beton|jeszcze beton jest|jeszcze mamy beton|leje dalej|lejemy dalej|jeszcze leje|jeszcze lejemy|leci dalej|jeszcze leci|dalej lejemy|noch beton|noch was drin|mischer nicht leer') || (document.querySelector('.end-prompt:not(.ofeo-prompt)') && has('jeszcze jest|jeszcze troche|jeszcze zostalo|nie pusta|jeszcze cos')))) {
+    const btn = document.querySelector('.end-prompt:not(.ofeo-prompt) button:not(.primary)'); if (btn) btn.click(); else { session.endAsked = 'more'; remember() }
+    const r = Math.round((Number(session.load) - entriesSum()) * 100) / 100;
+    sayBot('custom', r > 0.01 ? 'Dobra, lejemy dalej. Wg licznika zostało ' + fmt(r) + '.' : 'Dobra, lejemy dalej. Licznik jest już ponad gruszkę o ' + fmt(-r) + ', na koniec wpisz ile zostało.'); return true;
+  }
+  // „gruszka pusta” i podobne — kosz: kursy z tej gruszki = jej m³ (prawdziwy kosz); łyżki itp.: okienko poprawki
+  if (session && has(PUSTA_RE)) { document.querySelector('.end-prompt:not(.ofeo-prompt)')?.remove(); if (session.method === 'kibel') truckEmpty(); else emptyTruck(); return true }
   // lanie z gruszki na czas
   if (has('leje na jedynce|lej na jedynce|leje na jedynke|na pierwszym biegu|leje na pierwszym|leje wolno|lanie jedynka|start lania')) { pourStart('g1'); return true }
   if (has('leje na full|lej na full|leje na pelnym|pelny gaz|full gaz|na pelnym gazie|leje szybko|lanie full|daj gazu')) { pourStart('full'); return true }
@@ -1729,7 +1739,6 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
   if (has('ile wylano|ile juz wylano|ile nalano|ile poszlo|ile wylalismy|ile zalalismy|ile zalane|ile kubikow poszlo|ile metrow wylano|ile mamy wylane|ile zrobione|licznik|ile juz poszlo|ile zrobilismy|wie viel gemacht')) { report('reportPoured', fmt(entriesSum())); return true }
   if (has('ile czasu|czas betonowania|jak dlugo|ile trwa|ile minut|ile to juz trwa|od kiedy betonujemy|jak dlugo juz|ile pracujemy|ktora minuta')) { report('reportTime', Math.round((Date.now() - (session?.startedAt || Date.now())) / 60000)); return true }
   if (session?.method === 'kibel') { // nowe liczenie kosza: kursy + gruszki
-    if (has('gruszka pusta|pusta gruszka|koniec gruszki|gruszka skonczona|gruszka sie skonczyla|wylane wszystko|wszystko wylane')) { truckEmpty(); return true }
     if (has('nowa gruszka|kolejna gruszka|nastepna gruszka|druga gruszka|trzecia gruszka|przyjechala gruszka|nowy samochod')) { const n = truckNumber(t); newTruck(n > 0 && n <= 15 ? n : 0); return true }
     const fr = has('trzy czwarte|trzy czwarta|3 4') ? .75 : has('cwierc|jedna czwarta|cwiartka|1 4') ? .25 : has('przelany|przelalem|przelane|przelany kosz|z czubem|z gorka') ? 'over' : has('pol kosza|pol kibla|polowa kosza|do polowy|polowe kosza|pol kubla|polowa|pol') ? .5 : has('pelny kosz|pelny kibel|caly kosz|do pelna|pelen kosz|pelny') ? 1 : 0;
     if (fr && has('dodaj|plus|zalany')) { add(session.capacity * (fr === 'over' ? OVER_F : fr)); return true }
