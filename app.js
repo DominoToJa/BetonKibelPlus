@@ -1780,7 +1780,7 @@ async function toggleMic() {
 }
 $('mic').addEventListener('click', toggleMic); $('hdrMic').addEventListener('click', toggleMic);
 NV.onHeard?.(t => heardText(t)); window.BKP_heard = heardText; // test/debug: wpisz tekst jak z mikrofonu
-NV.onStatus?.(t => micDisplay(t));
+NV.onStatus?.(t => { micDisplay(t); if (/^(🗣|🔇)/u.test(t)) dlog('sys', t) }); // w „Rozmowie z botem” widać, czemu komenda nie weszła
 
 async function drainNative() {
   if (!nativeVoice) return;

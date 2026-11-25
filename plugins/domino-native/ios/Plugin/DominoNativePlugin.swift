@@ -54,6 +54,23 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var listening = false
     private var tapInstalled = false
     private var lastPartial = ""
+    // ostatnie ~1,2 s dźwięku: przy restarcie rozpoznawania dokładamy je do nowego zadania, żeby słowa „na styku” nie przepadały
+    private var recentBufs: [AVAudioPCMBuffer] = []
+    private var recentFrames: AVAudioFrameCount = 0
+    private let recentLock = NSLock()
+    private func keepRecent(_ b: AVAudioPCMBuffer) {
+        guard let c = AVAudioPCMBuffer(pcmFormat: b.format, frameCapacity: b.frameLength) else { return }
+        c.frameLength = b.frameLength
+        let n = Int(b.frameLength), chs = Int(b.format.channelCount)
+        if let src = b.floatChannelData, let dst = c.floatChannelData { for ch in 0..<chs { dst[ch].update(from: src[ch], count: n) } }
+        else if let src = b.int16ChannelData, let dst = c.int16ChannelData { for ch in 0..<chs { dst[ch].update(from: src[ch], count: n) } }
+        else { return }
+        recentLock.lock()
+        recentBufs.append(c); recentFrames += c.frameLength
+        let maxF = AVAudioFrameCount(b.format.sampleRate * 1.2)
+        while recentFrames > maxF, let f = recentBufs.first { recentFrames -= f.frameLength; recentBufs.removeFirst() }
+        recentLock.unlock()
+    }
     private var silenceTimer: Timer?
     private var restartTimer: Timer?
     private var language = "pl-PL"
@@ -99,6 +116,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return nil
     }
     private var quickFails = 0
+    private var carryOver = false
     private var boostVolume = true
     private var targetVolume: Float = 1.0
     private lazy var volumeView: MPVolumeView = {
@@ -319,6 +337,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             guard let self = self else { return }
             self.request?.append(buffer)
+            self.keepRecent(buffer)
             if let ch = buffer.floatChannelData?[0], buffer.frameLength > 0 {
                 var sum: Float = 0; let n = Int(buffer.frameLength)
                 for i in 0..<n { sum += ch[i] * ch[i] }
@@ -343,8 +362,11 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if #available(iOS 16.0, *) { req.addsPunctuation = false }
         req.contextualStrings = ["dodaj kosz", "dodaj", "dodaj kibel", "dodaj kosza", "daj kosz", "jeszcze kosz", "kosz", "dodaj bombę", "dodaj bombkę", "bomba", "bombka", "kosz zalany", "zalany", "kolejny", "jeszcze jeden", "wlano", "tak jest", "kosz jest", "jest kosz", "mamy", "nie ma", "jeszcze nie", "cofnij", "pomyłka",
                                  "kosz wyjechał", "jazda", "pojechał", "ile zostało", "ile wylano", "ile koszy", "pełny kosz", "pół kosza", "trzy czwarte", "ćwierć", "przelany", "gruszka pusta", "nowa gruszka",
-                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz"]
+                                 "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz", "przekładka", "beton się skończył", "ekran nocny", "leję na jedynce", "leję na full", "stop", "pióra", "piór", "zapytaj za dwie minuty"]
         request = req
+        // dołóż końcówkę poprzedniego nagrania (tylko gdy zaczynamy po słowach / restarcie, nie po ciszy)
+        if carryOver { recentLock.lock(); let bufs = recentBufs; recentLock.unlock(); for b in bufs { req.append(b) } }
+        carryOver = false
         lastPartial = ""
         utterPeakDb = -120; lastConf = -1
         taskStartedAt = Date()
@@ -363,7 +385,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         }
         restartTimer?.invalidate()
         restartTimer = Timer.scheduledTimer(withTimeInterval: 50, repeats: false) { [weak self] _ in
-            self?.finish(gen)
+            guard let self = self else { return }
+            if !self.lastPartial.isEmpty { self.armSilence(gen, after: 0.6); return } // ktoś akurat mówi — nie tnij w połowie
+            self.carryOver = true; self.finish(gen)
         }
     }
 
@@ -407,6 +431,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         if text.count >= 2 && loudEnough && (!busy || bargeIn(text)) {
             lastHeardDb = Double(peak); lastHeardGate = Double(micGateDb - (btIn ? 12 : 0)); lastHeardBT = btIn
             heard(text)
+        } else if text.count >= 2 && loudEnough && busy && UIApplication.shared.applicationState == .active {
+            notifyListeners("status", data: ["text": "🗣 Lektorka mówiła — nie przyjęłam: „\(text)” (powtórz albo zacznij od „dodaj / cofnij / jest”)"])
         } else if text.count >= 2 && !loudEnough && UIApplication.shared.applicationState == .active {
             notifyListeners("status", data: ["text": "🔇 Za cicho (\(Int(peak)) dB): „\(text)” — ustaw wyższą czułość mikrofonu"])
         }
@@ -423,7 +449,7 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     /// komenda wypowiedziana w trakcie mowy lektora — przyjmij, jeśli to nie echo jego własnych słów
     private func bargeIn(_ text: String) -> Bool {
         let t = norm(text)
-        let keys = ["dodaj", "dodaj bombe", "dodaj bombke", "daj kosz", "dodajkosz", "do dach", "podaj", "jeszcze kosz", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
+        let keys = ["dodaj", "dodaj bombe", "dodaj bombke", "daj kosz", "dodajkosz", "do dach", "podaj", "jeszcze kosz", "przekladka", "beton sie skonczyl", "stop", "leje", "pior", "zmien kosz", "cofnij", "pomylka", "wyjechal", "pojechal", "jazda", "zalany", "zalane", "kolejny", "jeszcze jeden", "plus jeden", "jeszcze nie", "nie ma", "kosz jest", "jest kosz", "kibel jest", "mamy", "tak jest", "ile zostalo", "ile koszy", "ile wylano", "pelny", "pol kosza", "trzy czwarte", "cwierc", "przelany", "gruszka pusta", "wlano", "slyszysz"]
         guard let k = keys.first(where: { t.contains($0) }) else { return false }
         return !sayingNow.contains(k)
     }
