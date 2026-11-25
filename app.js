@@ -1813,8 +1813,8 @@ document.addEventListener('visibilitychange', () => {
 // ───────────────────────── lanie z gruszki na czas: obroty bębna → pióra → m³ ─────────────────────────
 // Domi zmierzył: 1 bieg (1380 rpm) ≈ 6,20 s/obrót, pełny gaz ≈ 4,21 s/obrót. Pióro ≈ 0,032 m³ (pomiar 9 m³ / 7 min na 1 stopniu), 4–5 piór na obrót.
 const DRUM_DEF = { g1: 6.2, full: 4.21, pio: 4.5, m3rot: 0.14 }; // m3rot: 9 m³ ≈ 7 min na 1 stopniu ≈ 65 obrotów → 0,14 m³/obrót // Domi: 4–5 piór na obrót
-/** ile betonu jest na jednym piórze. Domi 25.11: 9 m³, po 8 koszach zostało ~2,2 → 6,8 ÷ 8 = 0,85 m³ na kosz (tabliczka 750 l), ~10 piór → 0,085 m³. Zgadza się z 15.11 (kosz 0,5 ≈ 5–6 piór → ~0,09). Kalibracja nadpisuje. */
-const PIORO_DEF = 0.085;
+/** ile betonu jest na jednym piórze. Domi 25.11, cała gruszka 9 m³: 12 pełnych koszy + ostatni ~0,2–0,25 → kosz ≈ (9 − 0,225) ÷ 12 ≈ 0,73 m³ (tabliczka 750 l); ~10 piór → 0,073 m³. Kalibracja nadpisuje. */
+const PIORO_DEF = 0.073;
 const fmt3 = n => (Math.round(Number(n) * 1000) / 1000).toLocaleString('pl-PL', { maximumFractionDigits: 3 });
 function pioroM3() { const v = Number(settings?.pioro); return v > 0.005 && v < 1 ? v : PIORO_DEF }
 /** m³ z obrotów: najpierw zmierzone m³/obrót, inaczej pióra/obrót × pióro */
@@ -2983,7 +2983,7 @@ function runIntro(box) {
   try { if (!window.BKP_TEST && !localStorage.getItem('bkp_factory_v358')) (function waitIntro() { if ($('intro')) return setTimeout(waitIntro, 500); if (document.querySelector('.ask-back')) return setTimeout(waitIntro, 1500); localStorage.setItem('bkp_factory_v358', '1'); askChoice('Nowa wersja. Przywrócić aplikację do ustawień fabrycznych?', [['🏭 Tylko ustawienia', 'set', 'primary', 'historia budów i kosze zostają'], ['🗑 Wszystko od zera', 'all', 'warn', 'apka jak świeżo zainstalowana'], ['Nie, zostaw jak jest', 'no', '']], v => { if (v === 'set') factoryReset(false); else if (v === 'all') factoryReset(true) }) })() } catch (e) { }
 }
 
-/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,085 m³) */
+/* diagram: licznik piór (pióro z kalibracji, domyślnie 0,073 m³) */
 (() => {
   const inp = $('pioroN'), out = $('pioroOut'); if (!inp) return;
   const word = n => { const k = Math.abs(n) % 100, j = k % 10; return n % 1 ? 'pióra' : n === 1 ? 'pióro' : (j >= 2 && j <= 4 && (k < 12 || k > 14)) ? 'pióra' : 'piór' };
