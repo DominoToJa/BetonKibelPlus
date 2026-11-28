@@ -244,6 +244,7 @@
 <label class="label" for="voiceVol">📢 Głośność komunikatów i alarmu <b id="voiceVolV">100%</b></label><input id="voiceVol" type="range" min="0.5" max="1" step="0.05" value="1">
 <label class="label check"><input type="checkbox" id="boostVolume" checked> 🔊 Podkręcaj głośność telefonu, kiedy apka mówi (do poziomu z suwaka)</label>
 <label class="label check"><input type="checkbox" id="loudVoice" checked> 📢 Głośny lektor na budowę (wyłącza tłumienie echa iPhone'a, które mocno przycisza dźwięk)</label>
+<label class="label" for="elEar">🎧 Lepsze ucho — ElevenLabs (iPhone)</label><select id="elEar"><option value="fallback">Awaryjnie — gdy iPhone nie zrozumie (polecam)</option><option value="always">Zawsze — każda komenda przez ElevenLabs</option><option value="off">Wyłączone — tylko iPhone</option></select><p class="hint">Używa twojego klucza ElevenLabs (tego od lektorki). Lepiej słyszy w hałasie, ale potrzebuje internetu, reaguje ok. 0,5–1 s wolniej i zużywa trochę kredytów (krótkie komendy — grosze). W „Rozmowie z botem” takie komendy mają 🎧.</p>
 <label class="label" for="remindMode">🔔 Przypomnienia „Czy kosz już jest?”</label><select id="remindMode"></select><p class="hint">Pierwsze pytanie zawsze pada, jak minie czas kursu. Potem przypomina według tego ustawienia. Po ostatnim przypomnieniu apka już nie gada — pytanie czeka na ekranie.</p>
 <label class="label check"><input type="checkbox" id="askOnly"> 🔇 Lektor mówi tylko „Czy kosz już jest?” (reszta komunikatów tylko na ekranie, odpowiedzi na „ile zostało?” dalej na głos)</label>
 <label class="label" for="notifyMode">Komunikaty</label><select id="notifyMode"><option value="full">Lektor mówi</option><option value="short">Tylko napis + sygnał</option><option value="sound">Tylko sygnał</option></select>
@@ -314,7 +315,7 @@
 </div></details>
 </section>
 
-<div class="footer">BetonKibelPlus 5.8.4 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
+<div class="footer">BetonKibelPlus 5.9.0 · DOMINO · pomiary orientacyjne, nie oficjalny pomiar betonu</div>
 </main>
 <div id="pc" class="pc hide" role="dialog" aria-modal="true" aria-labelledby="pcTitle">
  <div class="pc-sheet">

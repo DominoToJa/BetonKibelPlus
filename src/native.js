@@ -52,8 +52,9 @@ const voice = {
   playIntro: safe(o => Domino.playIntro(o), null),
   stopIntro: safe(() => Domino.stopIntro(), null),
   getLog: safe(async () => (await Domino.getLog()).log || [], []),
+  recheck: safe(o => Domino.recheck(o || {}), null),
   setNight: safe(o => Domino.setNight(o), null),
-  onHeard(cb) { if (isNative) Domino.addListener('heard', e => { window.__lastHeard = { db: e.db, gate: e.gate, conf: e.conf, bt: !!e.bt, at: Date.now() }; cb(e.text || '') }) },
+  onHeard(cb) { if (isNative) Domino.addListener('heard', e => { window.__lastHeard = { db: e.db, gate: e.gate, conf: e.conf, bt: !!e.bt, at: Date.now() }; cb(e.text || '', e.src || '') }) },
   onStatus(cb) { if (isNative) Domino.addListener('status', e => cb(e.text || '')) },
 };
 

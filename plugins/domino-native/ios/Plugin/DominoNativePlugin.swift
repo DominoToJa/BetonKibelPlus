@@ -41,7 +41,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         CAPPluginMethod(name: "playIntro", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopIntro", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getLog", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setNight", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setNight", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "recheck", returnType: CAPPluginReturnPromise)
     ]
 
     // MARK: - Audio / mowa
@@ -58,14 +59,23 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
     private var recentBufs: [AVAudioPCMBuffer] = []
     private var recentFrames: AVAudioFrameCount = 0
     private let recentLock = NSLock()
-    private func keepRecent(_ b: AVAudioPCMBuffer) {
-        guard let c = AVAudioPCMBuffer(pcmFormat: b.format, frameCapacity: b.frameLength) else { return }
+    private func copyBuf(_ b: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let c = AVAudioPCMBuffer(pcmFormat: b.format, frameCapacity: b.frameLength) else { return nil }
         c.frameLength = b.frameLength
         let n = Int(b.frameLength), chs = Int(b.format.channelCount)
         if let src = b.floatChannelData, let dst = c.floatChannelData { for ch in 0..<chs { dst[ch].update(from: src[ch], count: n) } }
         else if let src = b.int16ChannelData, let dst = c.int16ChannelData { for ch in 0..<chs { dst[ch].update(from: src[ch], count: n) } }
-        else { return }
+        else { return nil }
+        return c
+    }
+    // 🎧 „lepsze ucho”: nagranie bieżącej wypowiedzi (max ~8 s) — w razie czego idzie do ElevenLabs
+    private var utterBufs: [AVAudioPCMBuffer] = [], utterFrames: AVAudioFrameCount = 0
+    private var lastUtter: [AVAudioPCMBuffer] = [], lastUtterAt = Date.distantPast
+    private var elEar = "fallback", sttKey = ""
+    private func keepRecent(_ b: AVAudioPCMBuffer) {
+        guard let c = copyBuf(b) else { return }
         recentLock.lock()
+        if request != nil && utterFrames < AVAudioFrameCount(b.format.sampleRate * 8) { utterBufs.append(c); utterFrames += c.frameLength }
         recentBufs.append(c); recentFrames += c.frameLength
         let maxF = AVAudioFrameCount(b.format.sampleRate * 1.2)
         while recentFrames > maxF, let f = recentBufs.first { recentFrames -= f.frameLength; recentBufs.removeFirst() }
@@ -365,7 +375,9 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
                                  "dodaj taczkę", "dodaj łyżkę", "taczka", "łyżka", "kibel", "kosz", "słyszysz mnie", "czy mnie słyszysz", "przekładka", "beton się skończył", "gruszka pusta", "gruszka się skończyła", "pusta gruszka", "leję dalej", "w gruszce jeszcze jest", "wszystko wylane", "nic nie zostało", "Mischer leer", "ekran nocny", "leję na jedynce", "leję na full", "stop", "pióra", "piór", "zapytaj za dwie minuty"]
         request = req
         // dołóż końcówkę poprzedniego nagrania (tylko gdy zaczynamy po słowach / restarcie, nie po ciszy)
-        if carryOver { recentLock.lock(); let bufs = recentBufs; recentLock.unlock(); for b in bufs { req.append(b) } }
+        recentLock.lock(); utterBufs.removeAll(); utterFrames = 0
+        if carryOver { for b in recentBufs { req.append(b); utterBufs.append(b); utterFrames += b.frameLength } }
+        recentLock.unlock()
         carryOver = false
         lastPartial = ""
         utterPeakDb = -120; lastConf = -1
@@ -428,7 +440,18 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         let peak = utterPeakDb
         utterPeakDb = -120
         let busy = isSpeaking || Date() <= speakingUntil
-        if text.count >= 2 && loudEnough && (!busy || bargeIn(text)) {
+        recentLock.lock(); let utter = utterBufs; utterBufs.removeAll(); utterFrames = 0; recentLock.unlock()
+        if loudEnough && !utter.isEmpty { lastUtter = utter; lastUtterAt = Date() }
+        let canEl = !sttKey.isEmpty && elEar != "off" && loudEnough && !utter.isEmpty
+        if canEl && !busy && (elEar == "always" || (text.count < 2 && peak >= micGateDb + 6)) {
+            // „zawsze” — każda wypowiedź do ElevenLabs; „awaryjnie” — Apple nic nie złapał, a ktoś wyraźnie mówił
+            lastHeardDb = Double(peak); lastHeardGate = Double(micGateDb - (btIn ? 12 : 0)); lastHeardBT = btIn
+            let appleText = text
+            elTranscribe(utter) { [weak self] t in
+                guard let self = self else { return }
+                if let t = t, t.count >= 2 { self.heard(t, src: "el") } else if appleText.count >= 2 { self.heard(appleText) }
+            }
+        } else if text.count >= 2 && loudEnough && (!busy || bargeIn(text)) {
             lastHeardDb = Double(peak); lastHeardGate = Double(micGateDb - (btIn ? 12 : 0)); lastHeardBT = btIn
             heard(text)
         } else if text.count >= 2 && loudEnough && busy && UIApplication.shared.applicationState == .active {
@@ -454,9 +477,71 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
         return !sayingNow.contains(k)
     }
 
-    private func heard(_ text: String) {
+    /// JS nie zrozumiał tego, co dał Apple → sprawdź tę samą wypowiedź przez ElevenLabs
+    @objc func recheck(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard !self.sttKey.isEmpty, self.elEar != "off", !self.lastUtter.isEmpty, Date().timeIntervalSince(self.lastUtterAt) < 10 else { call.resolve(["ok": false]); return }
+            let u = self.lastUtter; self.lastUtter = []
+            self.elTranscribe(u) { [weak self] t in
+                if let t = t, t.count >= 2 { self?.heard(t, src: "el"); call.resolve(["ok": true, "text": t]) } else { call.resolve(["ok": false]) }
+            }
+        }
+    }
+    /// ElevenLabs Scribe: wypowiedź → tekst (WAV 16 kHz mono, po polsku). Wynik na głównym wątku.
+    private func elTranscribe(_ bufs: [AVAudioPCMBuffer], done: @escaping (String?) -> Void) {
+        guard let wav = makeWav(bufs), !sttKey.isEmpty, let url = URL(string: "https://api.elevenlabs.io/v1/speech-to-text") else { done(nil); return }
+        let bnd = "bkp-\(UUID().uuidString)"
+        var body = Data()
+        func field(_ n: String, _ v: String) { body.append("--\(bnd)\r\nContent-Disposition: form-data; name=\"\(n)\"\r\n\r\n\(v)\r\n".data(using: .utf8)!) }
+        field("model_id", "scribe_v2"); field("language_code", "pl"); field("tag_audio_events", "false")
+        body.append("--\(bnd)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"komenda.wav\"\r\nContent-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
+        body.append(wav); body.append("\r\n--\(bnd)--\r\n".data(using: .utf8)!)
+        var req = URLRequest(url: url, timeoutInterval: 6)
+        req.httpMethod = "POST"; req.httpBody = body
+        req.setValue(sttKey, forHTTPHeaderField: "xi-api-key")
+        req.setValue("multipart/form-data; boundary=\(bnd)", forHTTPHeaderField: "Content-Type")
+        let t0 = Date()
+        URLSession.shared.dataTask(with: req) { [weak self] data, resp, err in
+            var out: String? = nil
+            if let d = data, let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any], let t = j["text"] as? String {
+                out = t.trimmingCharacters(in: CharacterSet(charactersIn: " .,!?…\n"))
+            }
+            let code = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            DispatchQueue.main.async {
+                if out == nil { self?.logBg("🎧 ElevenLabs nie odpowiedział (\(code == 0 ? (err?.localizedDescription ?? "brak sieci") : "kod \(code)"))") }
+                else { self?.logBg("🎧 ElevenLabs usłyszał: „\(out!)” w \(Int(Date().timeIntervalSince(t0) * 1000)) ms") }
+                done(out)
+            }
+        }.resume()
+    }
+    /// bufory z mikrofonu → WAV 16-bit 16 kHz mono
+    private func makeWav(_ bufs: [AVAudioPCMBuffer]) -> Data? {
+        guard let f = bufs.first?.format else { return nil }
+        let sr = f.sampleRate, step = max(1, Int((sr / 16000).rounded())), outRate = Int(sr) / step
+        var pcm = Data(); pcm.reserveCapacity(bufs.reduce(0) { $0 + Int($1.frameLength) } * 2 / step + 16)
+        for b in bufs {
+            let n = Int(b.frameLength)
+            if let ch = b.floatChannelData?[0] {
+                var i = 0
+                while i < n { var v = Int16(max(-1, min(1, ch[i])) * 32767); withUnsafeBytes(of: &v) { pcm.append(contentsOf: $0) }; i += step }
+            } else if let ch = b.int16ChannelData?[0] {
+                var i = 0
+                while i < n { var v = ch[i]; withUnsafeBytes(of: &v) { pcm.append(contentsOf: $0) }; i += step }
+            }
+        }
+        guard pcm.count > 3200 else { return nil } // < 0,1 s — nic tam nie ma
+        var h = Data()
+        func u32(_ v: UInt32) { var x = v.littleEndian; withUnsafeBytes(of: &x) { h.append(contentsOf: $0) } }
+        func u16(_ v: UInt16) { var x = v.littleEndian; withUnsafeBytes(of: &x) { h.append(contentsOf: $0) } }
+        h.append("RIFF".data(using: .ascii)!); u32(UInt32(36 + pcm.count)); h.append("WAVE".data(using: .ascii)!)
+        h.append("fmt ".data(using: .ascii)!); u32(16); u16(1); u16(1); u32(UInt32(outRate)); u32(UInt32(outRate * 2)); u16(2); u16(16)
+        h.append("data".data(using: .ascii)!); u32(UInt32(pcm.count))
+        return h + pcm
+    }
+
+    private func heard(_ text: String, src: String = "apple") {
         if UIApplication.shared.applicationState == .active {
-            notifyListeners("heard", data: ["text": text, "db": lastHeardDb, "gate": lastHeardGate, "conf": lastConf, "bt": lastHeardBT])
+            notifyListeners("heard", data: ["text": text, "db": lastHeardDb, "gate": lastHeardGate, "conf": lastConf, "bt": lastHeardBT, "src": src])
         } else {
             handleInBackground(text)
         }
@@ -742,6 +827,8 @@ public class DominoNativePlugin: CAPPlugin, CAPBridgedPlugin, AVSpeechSynthesize
             if let v = call.getDouble("elStab") { self.elStab = v }
             if let v = call.getDouble("elSim") { self.elSim = v }
             if let k = call.getString("elKey") { self.elKey = k }
+            if let k = call.getString("sttKey") { self.sttKey = k.trimmingCharacters(in: .whitespacesAndNewlines) }
+            if let m = call.getString("elEar") { self.elEar = m }
             if let v = call.getString("elVoice") { self.elVoice = v }
             if let m = call.getString("elModel"), !m.isEmpty { self.elModel = m }
             if let ao = call.getBool("askOnly") { self.askOnly = ao }

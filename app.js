@@ -264,7 +264,7 @@ let clipKeys = new Set(), recordingKey = '';
 function configureNative() {
   window.__bkpRemind = { gap: remindGap(), cycles: remindCfg().max + 1, burst: remindCfg().burst };
   if (!nativeVoice) return;
-  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, femin(textOf(k))])), elKey: elReady() ? settings.elKey : '', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindGap() / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
+  NV.configure({ loudVoice: settings.loudVoice !== false, boostVolume: settings.boostVolume !== false, targetVolume: Number(settings.voiceVol ?? 1), texts: Object.fromEntries(Object.keys(TEXTS).map(k => [k, femin(textOf(k))])), elKey: elReady() ? settings.elKey : '', sttKey: settings.elKey || '', elEar: settings.elKey ? (settings.elEar || 'fallback') : 'off', elVoice: settings.elVoice || '', elModel: settings.elModel || '', voiceId: resolvedVoiceId(), rate: Math.min(.6, Math.max(.44, (Number(settings.rate) || 0.5) * tempoK())), pitch: Math.min(1.06, Math.max(.94, Number(settings.pitch) || 1)), useClips: true, voiceOn: settings.mode === 'full', elOn: elReady(), elTag: elTag(), elSpeed: elSpeed(), elStab: Number(settings.elStab ?? .5), elSim: Number(settings.elSim ?? .75), askOnly: settings.askOnly !== false, micGate: { vlow: -21, low: -27, mid: -35, high: -48 }[settings.micSens || 'mid'] ?? -35, offlineSpeech: !!settings.offlineSpeech, lockCard: settings.lockCard !== false, headsetButtons: !!settings.headsetBtn, remindSec: remindGap() / 1000, remindMax: remindCfg().max, lockStatus: settings.lockStatus !== false, keepAwake: settings.keepAwake !== false }).catch(() => { });
 }
 
 // ───────────────────────── mowa ─────────────────────────
@@ -1596,13 +1596,15 @@ let reportAt = 0;
 function report(key, value) { reportAt = Date.now(); const text = (pickVariant(key) || 'X').replace(/X/g, String(value)); announce(text); $('botText').textContent = text; if (settings.mode === 'full') speak(key + '_n', text) }
 /* rozpoznany tekst → komenda; szum i pojedyncze słowa ignorujemy po cichu, „nie zrozumiałem” najwyżej co 20 s */
 let lastErrAt = 0;
-function heardText(t) {
+function heardText(t, src = '') {
   const n = normalise(t); if (n.length < 2) return;
-  dlog('me', t);
+  dlog('me', (src === 'el' ? '🎧 ' : '') + t);
   if (n.split(' ').length > 7) { const tail = t.trim().split(/\s+/).slice(-6).join(' '); if (command(tail) !== true) { micDisplay('Pominięto rozmowę: „' + t + '”'); return } micDisplay('✓ „' + tail + '”'); buzz('success'); if (settings.askOnly !== false) sayBot('heardOk'); return } // długa wypowiedź: komenda zwykle na końcu
   const r = command(t);
   if (r === true) { micDisplay('✓ „' + t + '”'); buzz('success'); if (settings.askOnly !== false && Date.now() - reportAt > 300 && Date.now() - lastBotAt > 400) sayBot('heardOk'); return }
   micDisplay(r === 'ignore' ? 'Pominięto (nie ma pytania o kosz): „' + t + '”' : 'Nie rozpoznano: „' + t + '”');
+  // 🎧 lepsze ucho: Apple coś usłyszał, ale nie wyszła komenda → ta sama wypowiedź jeszcze raz przez ElevenLabs
+  if (r !== true && r !== 'ignore' && src !== 'el' && nativeVoice && NV.recheck && settings.elKey && (settings.elEar || 'fallback') !== 'off') { dlog('sys', '🎧 Nie załapałam — sprawdzam lepszym uchem…'); NV.recheck() }
 }
 /* ═════ DIALOG ═════ */
 /* dziennik rozmowy: co usłyszała i co odpowiedziała (ostatnie 40) */
@@ -1790,7 +1792,7 @@ async function toggleMic() {
   micWanted = true; micDisplay('Prośba o dostęp do mikrofonu…'); bootWebRecognition();
 }
 $('mic').addEventListener('click', toggleMic); $('hdrMic').addEventListener('click', toggleMic);
-NV.onHeard?.(t => heardText(t)); window.BKP_heard = heardText; // test/debug: wpisz tekst jak z mikrofonu
+NV.onHeard?.((t, src) => heardText(t, src)); window.BKP_heard = heardText; // test/debug: wpisz tekst jak z mikrofonu
 NV.onStatus?.(t => { micDisplay(t); if (/^(🗣|🔇)/u.test(t)) dlog('sys', t) }); // w „Rozmowie z botem” widać, czemu komenda nie weszła
 
 async function drainNative() {
@@ -2788,6 +2790,7 @@ const buzz = kind => { if (settings.haptics === false) return; if (nativeVoice) 
   shDraw() }
 { const rs = $('remindMode'); rs.replaceChildren(...Object.entries(REMIND).map(([k, v]) => el('option', { value: k, text: v.label }))); rs.value = settings.remindMode || 'normal';
   rs.addEventListener('change', () => { settings.remindMode = rs.value; saveSettings(); configureNative(); if (session && (phase === 'away' || phase === 'late')) NATIVE.schedule?.(deadline, SHORT.ask); announce('🔔 Przypomnienia: ' + remindCfg().label) }) }
+{ const es = $('elEar'); if (es) { es.value = settings.elEar || 'fallback'; es.addEventListener('change', () => { settings.elEar = es.value; saveSettings(); configureNative(); announce('🎧 Lepsze ucho: ' + es.selectedOptions[0].textContent) }) } }
 $('introEvery').checked = settings.introEvery !== false; $('introEvery').addEventListener('change', () => { settings.introEvery = $('introEvery').checked; saveSettings() });
 { const hs = $('helloShift'), hv = () => $('helloShiftV').textContent = (Number(settings.helloShift) > 0 ? '+' : '') + fmt(Number(settings.helloShift) || 0) + ' s'; hs.value = String(Number(settings.helloShift) || 0); hv(); hs.addEventListener('input', () => { settings.helloShift = Number(hs.value); saveSettings(); hv() }) }
 $('musicOn').addEventListener('change', () => { settings.music = $('musicOn').checked; saveSettings(); bgmUpdate() });
